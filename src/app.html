@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <title>[Site Title]</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Mobile browser toolbar color — change this hex to match --brand-dark or --surface-ground -->
+    <!-- CSS variables can't be read here, so this must be a raw hex value per project -->
+    <meta name="theme-color" content="#0B1120" />
+
+    %sveltekit.head%
+
+    <!-- Anti-FOUC Theme Initialization
+         Runs before SvelteKit loads, before the browser paints.
+         Checks localStorage first, falls back to OS system preference.
+         Wrapped in try/catch — completely bulletproof, runs in <1ms. -->
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('theme');
+          var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+          if (theme === 'dark' || (!theme && systemDark)) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          } else if (theme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+          // If no saved preference and system is light, no attribute needed —
+          // light-dark() defaults to light when color-scheme: light dark is set.
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

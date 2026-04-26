@@ -1,0 +1,120 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODERN CSS RESET
+   Based on Josh Comeau's reset + modern app additions.
+   Architecture file — never edit per project.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer reset {
+  /* ── Box Model ────────────────────────────────────────────────────────── */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  /* ── Zero Margins ─────────────────────────────────────────────────────── */
+  * {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ── Root Defaults ────────────────────────────────────────────────────── */
+  html {
+    -moz-text-size-adjust: none;
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  /* ── Body Defaults ────────────────────────────────────────────────────── */
+  body {
+    line-height: 1.5;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    background: var(--surface-ground);
+  }
+
+  /* ── Text Wrapping ────────────────────────────────────────────────────── */
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+
+  p, li, figcaption {
+    text-wrap: pretty;
+    max-width: 65ch;
+  }
+
+  /* ── Media Defaults ───────────────────────────────────────────────────── */
+  img, picture, video, canvas, svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  /* ── Form Inheritance ─────────────────────────────────────────────────── */
+  input, button, textarea, select {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* ── Anchor Reset ─────────────────────────────────────────────────────── */
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* ── List Reset ───────────────────────────────────────────────────────── */
+  ul, ol {
+    list-style: none;
+  }
+
+  /* ── Button Reset ─────────────────────────────────────────────────────── */
+  button {
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  /* ── Table Reset ──────────────────────────────────────────────────────── */
+  table {
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+
+  /* ── Scrollbar Styling ────────────────────────────────────────────────── */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-structural);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-structural) transparent;
+  }
+
+  /* ── Reduced Motion ───────────────────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

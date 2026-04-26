@@ -1,0 +1,44 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   APP ENTRY STYLES — [PROJECT NAME]
+
+   Website-first template entry file. Orchestrates the design system.
+   Rules:
+   1. The @layer declaration MUST come before any @import.
+   2. Font imports come next (self-hosted via Fontsource).
+   3. Design system files import in cascade order.
+   4. Minimal global overrides come last.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Cascade Layer Order (MUST be first line) ──────────────────────────── */
+@layer reset, tokens, base, utilities, components;
+
+/* ── Font Loading (swap these per project) ─────────────────────────────── */
+/* Install: bun add @fontsource-variable/plus-jakarta-sans                  */
+/* Install: bun add @fontsource-variable/jetbrains-mono                    */
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/jetbrains-mono';
+
+/* ── Design System (ORDER MATTERS — tokens declares layer internals) ───── */
+@import '$lib/styles/tokens.css';
+@import '$lib/styles/reset.css';
+@import '$lib/styles/base.css';
+@import '$lib/styles/animations.css';
+@import '$lib/styles/utilities.css';
+/* forms.css follows utilities: it extends the utilities layer with visual
+   form primitives. It comes after utilities so field/control rules can
+   reference the same layer-order without adding a new layer declaration.  */
+@import '$lib/styles/forms.css';
+
+/* ── SvelteKit Root ─────────────────────────────────────────────────────── */
+/* display: contents makes #svelte invisible to layout — children flow      */
+/* directly into the document, preserving normal block/scroll behavior.     */
+#svelte {
+  display: contents;
+}
+
+/* ── Smooth Scrolling (respects reduced-motion preference) ─────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

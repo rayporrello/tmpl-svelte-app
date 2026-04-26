@@ -1,0 +1,271 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — [PROJECT NAME]
+
+   This is THE BRAND FILE. Everything that makes this project visually
+   unique lives here. The architecture files (reset, base, utilities,
+   animations) read from these tokens and never need to change.
+
+   To rebrand: replace this file. Everything else follows.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── @property Registrations (must be top-level, outside @layer) ──────── */
+/* Only register variables you need to animate/transition.                 */
+
+/* @property --example-opacity {
+  syntax: '<number>';
+  initial-value: 1;
+  inherits: false;
+} */
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer tokens {
+  :root {
+    /* Tell the browser we support both themes natively */
+    color-scheme: light dark;
+
+
+    /* ── 1. BRAND PRIMITIVES ──────────────────────────────────────────── */
+    /* 3-5 locked oklch values. These are the brand's DNA.                */
+    /* oklch(lightness%  chroma  hue)                                     */
+    /*   L: 0-100%  C: 0-0.37  H: 0-360                                  */
+
+    --brand-black:   oklch(0% 0 0);
+    --brand-dark:    oklch(18% 0.04 260);       /* Deep navy — dark bg    */
+    --brand-light:   oklch(98% 0.01 260);       /* Off-white — light bg   */
+    --brand-accent:  oklch(84% 0.17 155);       /* Mint/teal — signal     */
+    --brand-warning: oklch(75% 0.15 65);        /* Amber — warnings only  */
+    --brand-danger:  oklch(60% 0.18 18);        /* Red — errors only      */
+    --brand-white:   oklch(100% 0 0);
+
+
+    /* ── 2. DERIVED PALETTE (via color-mix) ───────────────────────────── */
+    /* Tints, shades, and transparent variants. Never use opacity.         */
+
+    /* Status colors (desaturated to not compete with accent) */
+    --color-success:        oklch(65% 0.15 145);
+    --color-success-subtle: color-mix(in oklch, var(--color-success) 15%, transparent);
+    --color-warning:        var(--brand-warning);
+    --color-warning-subtle: color-mix(in oklch, var(--brand-warning) 15%, transparent);
+    --color-danger:         var(--brand-danger);
+    --color-danger-subtle:  color-mix(in oklch, var(--brand-danger) 15%, transparent);
+    --color-info:           oklch(65% 0.15 250);
+    --color-info-subtle:    color-mix(in oklch, var(--color-info) 15%, transparent);
+
+
+    /* ── 3. SEMANTIC SURFACE TOKENS (the light-dark engine) ───────────── */
+    /* These are what components consume. Never use raw brand primitives.  */
+
+    /* Backgrounds */
+    --surface-ground: light-dark(var(--brand-light), var(--brand-dark));
+    --surface-raised: light-dark(
+      var(--brand-white),
+      color-mix(in oklch, var(--brand-white) 4%, var(--brand-dark))
+    );
+    --surface-sunken: light-dark(
+      color-mix(in oklch, var(--brand-dark) 4%, var(--brand-light)),
+      color-mix(in oklch, var(--brand-black) 30%, var(--brand-dark))
+    );
+
+    /* Typography */
+    --text-primary:   light-dark(var(--brand-dark), var(--brand-white));
+    --text-secondary: light-dark(
+      color-mix(in oklch, var(--brand-dark) 70%, transparent),
+      color-mix(in oklch, var(--brand-white) 70%, transparent)
+    );
+    --text-muted: light-dark(
+      color-mix(in oklch, var(--brand-dark) 40%, transparent),
+      color-mix(in oklch, var(--brand-white) 40%, transparent)
+    );
+
+    /* Borders */
+    --border-structural: light-dark(
+      color-mix(in oklch, var(--brand-dark) 15%, transparent),
+      color-mix(in oklch, var(--brand-white) 10%, transparent)
+    );
+    --border-subtle: light-dark(
+      color-mix(in oklch, var(--brand-dark) 6%, transparent),
+      color-mix(in oklch, var(--brand-white) 4%, transparent)
+    );
+    --border-default: var(--border-structural);
+    --border-focus:   var(--brand-accent);
+
+
+    /* ── 4. PERMANENT SURFACES (never invert) ─────────────────────────── */
+    /* Surfaces that stay locked regardless of theme.                      */
+    /* Use direct references — NO light-dark() — so they never change.    */
+
+    /* Example: always-dark sidebar */
+    /* --bg-nav:           var(--brand-black);                             */
+    /* --nav-text-primary: var(--brand-white);                             */
+    /* --nav-text-muted:   color-mix(in oklch, var(--brand-white) 60%, transparent); */
+    /* --nav-text-accent:  var(--brand-accent);                            */
+    /* --nav-border:       color-mix(in oklch, var(--brand-white) 10%, transparent); */
+
+
+    /* ── 5. FONTS ─────────────────────────────────────────────────────── */
+    --font-sans: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+
+    /* ── 6. TYPE SCALE ────────────────────────────────────────────────── */
+    --text-xs:   0.75rem;        /* 12px */
+    --text-sm:   0.875rem;       /* 14px */
+    --text-base: 1rem;           /* 16px */
+    --text-lg:   1.125rem;       /* 18px */
+    --text-xl:   1.25rem;        /* 20px */
+    --text-2xl:  1.5rem;         /* 24px */
+    --text-3xl:  1.875rem;       /* 30px */
+    --text-4xl:  2.25rem;        /* 36px */
+    --text-5xl:  3rem;           /* 48px */
+
+    /* Fluid scales for hero/display text */
+    --text-fluid-3xl: clamp(1.5rem,   1rem + 2.5vw, 1.875rem);
+    --text-fluid-4xl: clamp(1.875rem, 1.25rem + 3vw, 2.25rem);
+    --text-fluid-5xl: clamp(2.25rem,  1.5rem + 4vw,  3rem);
+
+    --weight-normal:   400;
+    --weight-medium:   500;
+    --weight-semibold: 600;
+    --weight-bold:     700;
+
+    --leading-tight:   1.2;
+    --leading-normal:  1.5;
+    --leading-relaxed: 1.6;
+
+    --tracking-tight:  -0.02em;
+    --tracking-normal: 0;
+    --tracking-wide:   0.05em;
+    --tracking-wider:  0.1em;
+
+
+    /* ── 7. SPACING SCALE ─────────────────────────────────────────────── */
+    --space-1:  0.25rem;    /* 4px  */
+    --space-2:  0.5rem;     /* 8px  */
+    --space-3:  0.75rem;    /* 12px */
+    --space-4:  1rem;       /* 16px */
+    --space-5:  1.25rem;    /* 20px */
+    --space-6:  1.5rem;     /* 24px */
+    --space-8:  2rem;       /* 32px */
+    --space-10: 2.5rem;     /* 40px */
+    --space-12: 3rem;       /* 48px */
+    --space-16: 4rem;       /* 64px */
+    --space-20: 5rem;       /* 80px */
+    --space-24: 6rem;       /* 96px */
+
+    /* Semantic spacing aliases */
+    --space-element-gap:       var(--space-2);
+    --space-component-gap:     var(--space-4);
+    --space-component-padding: var(--space-4);
+    --space-section-gap:       var(--space-8);
+    --space-page-margin:       var(--space-8);
+
+
+    /* ── 8. SHAPE ─────────────────────────────────────────────────────── */
+    /* Set to 0 for sharp/brutalist. Increase for softer brands.          */
+    --radius-sm:   0.25rem;
+    --radius-md:   0.5rem;
+    --radius-lg:   0.75rem;
+    --radius-xl:   1rem;
+    --radius-full: 9999px;
+
+
+    /* ── 9. LAYOUT ────────────────────────────────────────────────────── */
+
+    /* Content widths */
+    --content-width:     72rem;       /* 1152px — default section content max-width */
+    --content-narrow:    48rem;       /* 768px  — blog posts, article text */
+    --content-editorial: 64rem;       /* 1024px — editorial/reading max-width */
+    --content-prose:     65ch;        /* Optimal reading line length */
+    --content-wide:      80rem;       /* 1280px — dashboards, portfolio grids */
+
+    /* Section layout (used by the section > .container pattern)         */
+    --section-space:     var(--space-16);  /* Vertical rhythm between sections */
+    --section-space-lg:  var(--space-24);  /* Hero / feature sections needing more room */
+    --gutter:            var(--space-6);   /* Inline edge padding on sections */
+    --container-gap:     var(--space-8);   /* Gap between containers in one section */
+
+    /* Page-level breakpoints (for @media queries)                       */
+    /* NOTE: CSS custom properties can't be used in @media conditions.   */
+    /* These are documentation tokens — use raw rem values in CSS:       */
+    /*   @media (width < 48rem) { ... }                                  */
+    --bp-sm: 36rem;     /* 576px  — small screens */
+    --bp-md: 48rem;     /* 768px  — tablets / medium */
+    --bp-lg: 64rem;     /* 1024px — desktops / large */
+    --bp-xl: 80rem;     /* 1280px — wide screens */
+
+
+    /* ── 10. ANIMATION ────────────────────────────────────────────────── */
+    --duration-instant: 0ms;
+    --duration-fast:    100ms;
+    --duration-normal:  150ms;
+    --duration-slow:    300ms;
+    --ease-decel:       cubic-bezier(0, 0, 0.2, 1);
+
+
+    /* ── 11. OPTICS & EFFECTS ─────────────────────────────────────────── */
+    /* Theme-dependent visual effects. Use light-dark() for color values.  */
+
+    --shadow-sm: light-dark(
+      0 1px 2px 0 color-mix(in oklch, var(--brand-dark) 8%, transparent),
+      0 1px 2px 0 color-mix(in oklch, var(--brand-black) 30%, transparent)
+    );
+
+    --shadow-md: light-dark(
+      0 4px 6px -1px color-mix(in oklch, var(--brand-dark) 10%, transparent),
+      0 4px 6px -1px color-mix(in oklch, var(--brand-black) 40%, transparent)
+    );
+
+    --shadow-lg: light-dark(
+      0 12px 32px -8px color-mix(in oklch, var(--brand-dark) 15%, transparent),
+      0 12px 32px -8px color-mix(in oklch, var(--brand-black) 50%, transparent)
+    );
+
+
+    /* ── 12. Z-INDEX SCALE ────────────────────────────────────────────── */
+    --z-base:    0;
+    --z-raised:  10;
+    --z-sticky:  100;   /* sticky headers, floating labels */
+    --z-overlay: 200;   /* drawers, side panels */
+    --z-modal:   300;   /* dialogs */
+    --z-toast:   400;   /* notifications */
+    --z-tooltip: 500;   /* tooltips (always on top) */
+
+
+    /* ── 13. INTERACTION STATE TOKENS ────────────────────────────────── */
+    --state-hover-bg: light-dark(
+      color-mix(in oklch, var(--brand-dark) 6%, transparent),
+      color-mix(in oklch, var(--brand-white) 6%, transparent)
+    );
+    --state-active-bg: light-dark(
+      color-mix(in oklch, var(--brand-dark) 10%, transparent),
+      color-mix(in oklch, var(--brand-white) 10%, transparent)
+    );
+    --state-selected-bg:  color-mix(in oklch, var(--brand-accent) 12%, transparent);
+    --state-disabled-bg: light-dark(
+      color-mix(in oklch, var(--brand-dark) 5%, transparent),
+      color-mix(in oklch, var(--brand-white) 5%, transparent)
+    );
+    --state-disabled-text: var(--text-muted);
+    --state-focus-ring:    var(--brand-accent);
+
+
+    /* ── 14. FORM SEMANTIC ALIASES ───────────────────────────────────── */
+    /* Visual aliases consumed by forms.css. Change these to restyle all  */
+    /* form controls without touching forms.css itself.                   */
+    --field-bg:             var(--surface-raised);
+    --field-border:         var(--border-structural);
+    --field-border-hover:   light-dark(
+      color-mix(in oklch, var(--brand-dark) 30%, transparent),
+      color-mix(in oklch, var(--brand-white) 30%, transparent)
+    );
+    --field-border-invalid: var(--color-danger);
+    --field-placeholder:    var(--text-muted);
+    --field-help-text:      var(--text-secondary);
+    --field-error-text:     var(--color-danger);
+  }
+
+  /* ── Manual JS Overrides (for theme toggle) ──────────────────────────── */
+  :root[data-theme='light'] { color-scheme: light; }
+  :root[data-theme='dark']  { color-scheme: dark; }
+}

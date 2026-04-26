@@ -1,0 +1,92 @@
+# CLAUDE.md — [PROJECT NAME]
+
+> Copy this file to `CLAUDE.md` at the project root. Fill in the bracketed values.
+> Read by Claude Code at session start. Keep it accurate — stale info causes mistakes.
+
+---
+
+## Project type
+
+Website — [brief description, e.g., "marketing site for Acme Corp" or "product landing page for AppName"].
+
+## Tech stack
+
+- **Framework:** SvelteKit (Svelte 5)
+- **Runtime:** Bun
+- **CSS:** Token-driven CSS custom properties, cascade layers — see `docs/design-system/`
+- **Forms:** Superforms + Valibot (standard; install with `bun add sveltekit-superforms valibot` when needed)
+- **CMS:** Sveltia CMS (file-based content at `static/admin`)
+- **Database:** [Postgres + Drizzle — active/inactive; if active, note connection details]
+- **Deployment:** Podman + Caddy on [host name / IP]
+
+## Commands
+
+```bash
+bun run dev          # dev server
+bun run build        # production build
+bun run preview      # preview production build
+bun run check        # TypeScript / svelte-check
+bun run lint         # ESLint
+bun run format       # Prettier
+```
+
+## CSS and design system
+
+Full rules: `docs/design-system/llm-css-rules.md` — paste that file's content below when working on CSS.
+
+Quick rules:
+- Edit `tokens.css` to change colors, fonts, spacing, and shape. That file is the brand file.
+- Architecture files (`reset.css`, `base.css`, `animations.css`, `utilities.css`, `forms.css`) must not be edited for project-specific work except in the marked `BRAND-SPECIFIC` section at the bottom of each file.
+- Reference semantic tokens (`var(--surface-raised)`) in component CSS — never raw oklch/hex values.
+- Use `color-mix(in oklch, color X%, transparent)` for translucency. Never `opacity` on surfaces.
+- This is a scrolling website. Do not add `html, body { overflow: hidden }`.
+- Do not disable user zoom in `app.html`.
+
+## Forms
+
+**`forms.css`** is visual-only: field layout, control appearance, states, messages.
+
+**Superforms** is the standard form behavior library. It is installed in this project: [yes/no].
+
+If yes:
+- Use Superforms server actions for all forms with submission behavior.
+- Do not build custom form submission handlers.
+- Do not add validation logic to CSS or components.
+- Schema is in `src/lib/schemas/`.
+
+If no (display-only forms or not yet added):
+- Add Superforms when the first form with a server action is needed: `bun add sveltekit-superforms valibot`.
+
+## Content
+
+- Content directory: [path, e.g., `src/content/`]
+- Schema: [location of content schema files]
+- CMS: `/admin` (Sveltia) — [auth requirements or "open in dev"]
+
+## Secrets and environment
+
+- Secrets via: [Infisical / `.env` file / other]
+- Required env vars: [list key vars or point to `.env.example`]
+- Never commit secrets to the repo.
+
+## Deployment
+
+- Deployed to: [host] via [process, e.g., "git push main → CI → GHCR image → deploy.sh"]
+- Container image: [image name]
+- [Any deploy-specific notes]
+
+## Project-specific rules
+
+[Add anything an AI agent needs to know that is not covered by template defaults. Examples:]
+- [Forms: schema is at `src/lib/schemas/contact.ts`; server action at `src/routes/contact/+page.server.ts`]
+- [The `/blog` route loads from Sveltia CMS; do not hardcode posts]
+- [Forms submit to an n8n webhook at `N8N_WEBHOOK_URL` env var]
+
+## What not to do
+
+- Do not add Tailwind, shadcn, or any pre-built component library.
+- Do not add `overflow: hidden` to `html`/`body`.
+- Do not disable user zoom in `app.html`.
+- Do not hardcode colors in component CSS when a semantic token exists.
+- Do not build custom form validation — use Superforms + Valibot.
+- [Any project-specific prohibitions]

@@ -1,0 +1,175 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOTION SYSTEM
+   Architecture file — provides a neutral, fast-and-crisp baseline.
+   Adjust philosophy per brand or replace for different aesthetics.
+
+   Default philosophy: UI state changes are fast. Max 150ms for spatial
+   movements (panels, drawers). Color swaps snap instantly (0ms).
+   No bounce, no spring easing.
+
+   OPACITY POLICY
+   Opacity is ALLOWED for: whole-element visibility transitions (modal/backdrop
+   fade, tooltip appear), skeleton/pulse effects, and disabled controls where
+   you want to dim the entire element including its children.
+   DO NOT use opacity to create translucent backgrounds, borders, overlays,
+   or glass effects — use color-mix(in oklch, color X%, transparent) instead
+   so that child elements do not inherit the parent's transparency.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer utilities {
+
+  /* ══════════════════════════════════════════════════════════════════════
+     1. SPATIAL TRANSITIONS — Panels, Drawers, Overlays
+     Max 150ms. Pure deceleration easing.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* ── Panel Slide ─────────────────────────────────────────────────────── */
+  @keyframes slide-in-right {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+  }
+
+  @keyframes slide-out-right {
+    from { transform: translateX(0); }
+    to   { transform: translateX(100%); }
+  }
+
+  .animate-panel-enter {
+    animation: slide-in-right var(--duration-normal) var(--ease-decel) both;
+  }
+
+  .animate-panel-exit {
+    animation: slide-out-right var(--duration-fast) var(--ease-decel) both;
+  }
+
+  /* ── Modal / Overlay ─────────────────────────────────────────────────── */
+  @keyframes modal-enter {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes backdrop-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .animate-modal-enter {
+    animation: modal-enter var(--duration-fast) var(--ease-decel) both;
+  }
+
+  .animate-backdrop-enter {
+    animation: backdrop-fade var(--duration-fast) var(--ease-decel) both;
+  }
+
+  /* ── Drawer (Collapsible Section) ────────────────────────────────────── */
+  /* Uses CSS grid-template-rows for smooth height animation.              */
+  /* No JS height measurement needed.                                      */
+  .drawer {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--duration-normal) var(--ease-decel);
+  }
+
+  .drawer.open {
+    grid-template-rows: 1fr;
+  }
+
+  .drawer > * {
+    overflow: hidden;
+  }
+
+  /* ── Dropdown / Slide Down ───────────────────────────────────────────── */
+  @keyframes slide-down {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-slide-down {
+    animation: slide-down var(--duration-fast) var(--ease-decel) both;
+  }
+
+  /* ── Tooltip ─────────────────────────────────────────────────────────── */
+  .animate-tooltip-pop {
+    animation: modal-enter 50ms var(--ease-decel) both;
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     2. SNAP INTERACTIONS — Instant State Changes
+     No transition duration. Color swaps happen in one paint frame.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* ── Interactive Press ────────────────────────────────────────────────── */
+  /* Minimal scale on click/tap for tactile feedback. 50ms = perception    */
+  /* threshold — feels instant while maintaining spatial context.           */
+  .interactive {
+    cursor: pointer;
+    transition: transform 50ms var(--ease-decel);
+  }
+
+  .interactive:active {
+    transform: scale(0.97);
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     3. FOUNDATION — Keep spin and pulse for edge cases
+     ══════════════════════════════════════════════════════════════════════ */
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+
+  .animate-pulse {
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     4. STAGGER DELAYS — For sequenced list entrances
+     ══════════════════════════════════════════════════════════════════════ */
+
+  .stagger-0  { animation-delay: 0ms; }
+  .stagger-1  { animation-delay: 30ms; }
+  .stagger-2  { animation-delay: 60ms; }
+  .stagger-3  { animation-delay: 90ms; }
+  .stagger-4  { animation-delay: 120ms; }
+  .stagger-5  { animation-delay: 150ms; }
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     5. REDUCED MOTION — Universal kill switch
+     ══════════════════════════════════════════════════════════════════════ */
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .drawer {
+      transition: none;
+    }
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════
+     BRAND-SPECIFIC MOTION
+     Add per-project animations below this line.
+     Examples: terminal cursor blink, typewriter stutter, loading states.
+     Strip or replace when starting a new brand.
+     ══════════════════════════════════════════════════════════════════════ */
+
+}
