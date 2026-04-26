@@ -30,6 +30,49 @@ Checks that must pass before a project built from this template ships or before 
 - [ ] LCP ≤ 2.5s on simulated mid-tier mobile
 - [ ] No render-blocking font loads (Fontsource variable fonts self-hosted via `@import`)
 - [ ] No images without `width` and `height` attributes (prevents layout shift)
+- [ ] LCP image uses `loading="eager"` and `fetchpriority="high"` — never `loading="lazy"`
+- [ ] No `<link rel="preload">` tags pointing to Fontsource font files (hashed filenames go stale)
+
+## Image pipeline gates
+
+Full rules: `docs/design-system/images.md`
+
+- [ ] `vite.config.ts` has `enhancedImages()` before `sveltekit()`
+- [ ] Brand/dev images are in `src/lib/assets/` and use `<enhanced:img>`
+- [ ] CMS uploads are in `static/uploads/` and use `<CmsImage>`
+- [ ] `scripts/optimize-images.js` exits 0 when `static/uploads/` is empty
+- [ ] Generated `.webp` files in `static/uploads/` are committed and not gitignored
+- [ ] No CMS documentation or agent rules suggest putting editor uploads in `src/`
+- [ ] `prebuild` script runs automatically before `bun run build`
+
+## Typography gates
+
+Full rules: `docs/design-system/typography.md`
+
+- [ ] Fontsource variable packages are installed (`@fontsource-variable/*`)
+- [ ] Font imports are in `src/app.css` — not in any component
+- [ ] `--font-sans` and `--font-mono` tokens are defined in `tokens.css`
+- [ ] `body` uses `var(--font-sans)` (confirmed in `reset.css`)
+- [ ] `code`, `pre`, `kbd` use `var(--font-mono)` (confirmed in `base.css`)
+- [ ] Form controls inherit font (confirmed in `reset.css` via `font: inherit`)
+- [ ] No Google Fonts CDN `<link>` in `app.html`
+- [ ] No `<link rel="preload">` for Fontsource fonts in `app.html`
+
+## Semantic HTML gates
+
+- [ ] Exactly one `<main id="main-content">` per page (provided by `+layout.svelte`)
+- [ ] Skip link is present before the `<header>` in `+layout.svelte`
+- [ ] Every page has exactly one `<h1>` — the page title, not the site name
+- [ ] No `<h1>` appears inside the site `<header>`
+- [ ] Heading levels are sequential — no skipped levels (h1 → h2 → h3, never h1 → h3)
+- [ ] Every thematic `<section>` has a heading
+- [ ] Both `<nav>` elements (primary and footer) have `aria-label` attributes
+- [ ] Meaningful images use `<figure>` + `<img alt="...">` — not CSS `background-image`
+- [ ] Decorative images have `alt=""` (present and empty, not omitted)
+- [ ] `<img>` elements include `width` and `height` attributes to prevent layout shift
+- [ ] Dates use `<time datetime="...">`, not `<span>`
+- [ ] No `<div>` used where a semantic element exists
+- [ ] `/styleguide` route deleted before project goes live
 
 ## CSS / design system gates
 
@@ -53,11 +96,19 @@ Checks that must pass before a project built from this template ships or before 
 
 ## SEO gates
 
-- [ ] `<title>` is set per page (not the placeholder `[Site Title]`)
+- [ ] `bun run check:seo` exits 0 (validates site config, placeholder detection, route registry)
+- [ ] `site.url` in `src/lib/config/site.ts` is the production domain — not `https://example.com`
+- [ ] `site.name` and `site.defaultTitle` are not placeholder values
+- [ ] Every public `+page.svelte` uses the `SEO` component with `title`, `description`, `canonicalPath`
+- [ ] Every route is registered in `src/lib/seo/routes.ts` with `indexable` declared
+- [ ] `/styleguide`, `/admin`, `/preview`, and draft routes are `indexable: false` and `noindex, nofollow`
+- [ ] `<title>` is unique per page (not the placeholder `[Site Title]`)
 - [ ] `<meta name="description">` is present and unique per page
-- [ ] Canonical URL is set
-- [ ] `sitemap.xml` is generated and accessible
-- [ ] `robots.txt` is present
+- [ ] Canonical URL is set via the SEO component (not `$page.url.href`)
+- [ ] `/sitemap.xml` is accessible and contains only indexable routes
+- [ ] `/robots.txt` is present and includes the sitemap URL
+- [ ] OG image is accessible and renders correctly in link previews
+- [ ] Schema added to pages matches visible page content
 
 ## Container / deploy gates
 

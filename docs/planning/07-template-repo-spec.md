@@ -18,6 +18,14 @@ tmpl-svelte-app/
     app.html                  ← HTML shell; update title, theme-color, favicon
     app.css                   ← design system entry; imports only
     lib/
+      config/
+        site.ts               ← BRAND FILE — SEO/site config; replace all placeholders per project
+      seo/
+        types.ts              ← SEO TypeScript types
+        metadata.ts           ← canonical URL, title, robots helpers
+        schemas.ts            ← JSON-LD schema helpers
+        routes.ts             ← static route registry — add every route here
+        sitemap.ts            ← sitemap XML generator
       styles/
         tokens.css            ← BRAND FILE — replace or extend per project
         reset.css             ← architecture file — do not edit
@@ -25,12 +33,24 @@ tmpl-svelte-app/
         animations.css        ← architecture file — extend for brand motion
         utilities.css         ← architecture file — extend for brand utilities
         forms.css             ← architecture file — extend for brand form overrides
+      components/
+        seo/
+          SEO.svelte          ← renders all head/meta/JSON-LD for a page
     routes/
-      +layout.svelte          ← imports app.css; add global layout wrapper here
+      +layout.svelte          ← imports app.css; injects root Organization/WebSite schema
+      sitemap.xml/
+        +server.ts            ← prerendered /sitemap.xml
+      robots.txt/
+        +server.ts            ← prerendered /robots.txt
+      llms.txt/
+        +server.ts            ← prerendered /llms.txt
       styleguide/
-        +page.svelte          ← design system demo; update when adding components
+        +page.svelte          ← design system demo; noindex; update when adding components
   docs/
+    seo/                      ← SEO documentation (README, page-contract, schema-guide, launch-checklist)
     planning/                 ← planning documents (ADRs, vision, principles)
+  scripts/
+    check-seo.ts              ← SEO validation — run before deploying
   AGENTS.md                   ← agent operating rules
   CLAUDE.md.template          ← template for per-project CLAUDE.md
   README.md                   ← project documentation
@@ -40,7 +60,9 @@ tmpl-svelte-app/
 
 | File | Category | Can edit per project? |
 |------|----------|-----------------------|
-| `tokens.css` | Brand | Yes — this is THE brand file |
+| `src/lib/config/site.ts` | Brand | Yes — replace all placeholder values per project |
+| `src/lib/seo/routes.ts` | Brand | Yes — add every route with correct `indexable` value |
+| `tokens.css` | Brand | Yes — this is THE CSS brand file |
 | `reset.css` | Architecture | No |
 | `base.css` | Architecture | No (extend in components) |
 | `animations.css` | Architecture | Add brand motion below the marker comment |
@@ -105,3 +127,6 @@ These are planned but not active in the base template:
 - Site/app shell split architecture
 - `html, body { overflow: hidden }` in the baseline CSS
 - `maximum-scale=1, user-scalable=0` in the viewport meta tag
+- SEO SaaS dependencies or external SEO plugins — the template ships built-in SEO infrastructure
+- Hardcoded domain names or site names in SEO components, schemas, or routes
+- `$page.url.href` used as a canonical URL — always derive from `site.url`

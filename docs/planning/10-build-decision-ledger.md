@@ -20,11 +20,14 @@ This document converts prior planning notes into accepted template decisions, un
 | Runtime data | Postgres for runtime data, no SQLite default | ACCEPTED | user correction + prior notes | ADR-004 | docs/architecture/runtime-data.md | Drizzle/Postgres files |
 | CMS/content | Sveltia CMS + file-based content | ACCEPTED or CHALLENGE | sveltia-cms-content-patterns.md | ADR-003 | docs/architecture/content-system.md | static/admin, content loaders |
 | CSS | Token-first CSS architecture, no Tailwind | ACCEPTED | css-architecture.md | ADR-005 | docs/architecture/css-and-design-system.md | CSS files, component rules |
-| Images | Build-time image optimization | ACCEPTED | marketing-site-images.md | Maybe no ADR | docs/architecture/images.md | image component, scripts |
-| SEO | Built-in SEO system | ACCEPTED | marketing-site-seo.md | Maybe no ADR | docs/architecture/seo-system.md | SEO component, sitemap, robots |
+| Images | Two-tier pipeline: `<enhanced:img>` for `src/lib/assets/`, `<CmsImage>` + Sharp prebuild for `static/uploads/` | ACCEPTED | marketing-site-images.md | ADR-009 | docs/design-system/images.md | `CmsImage.svelte`, `scripts/optimize-images.js`, `vite.config.ts` |
+| Typography | Fontsource variable fonts for open-source; self-hosted `woff2` in `static/fonts/` for paid; tokens in `tokens.css`; no preload for Fontsource | ACCEPTED | — | ADR-010 | docs/design-system/typography.md | `tokens.css`, `app.css`, `static/fonts/` |
+| SEO | Built-in SEO system | ACCEPTED | marketing-site-seo.md | ADR-011 | docs/seo/ | SEO component, sitemap, robots, llms.txt, schema helpers, check-seo.ts |
 | Secrets | sops + age | ACCEPTED | sops-age-secrets.md | New ADR maybe | docs/operations/secrets.md | .sops config, env patterns |
 | Deployment | Podman + Caddy | ACCEPTED | container-deployment.md | ADR-007 | docs/operations/deployment.md | Containerfile, Quadlet templates |
 | Automations | n8n integration patterns | CHALLENGE or DEFER | marketing-site-automations.md | Maybe new ADR | docs/architecture/automations.md | env vars, webhook examples |
 | Auth | No auth by default; optional module only | ACCEPTED | zitadel/better-auth notes | New ADR maybe | docs/architecture/auth.md | dormant auth module docs |
 | Quality gates | Build/type/lint/a11y/perf gates | ACCEPTED | new-site-checklist.md | Maybe no ADR | docs/architecture/quality-gates.md | scripts, checklist |
 | Agent rules | AGENTS.md + CLAUDE.md.template govern changes | ACCEPTED | claude-md template | ADR-006 | docs/architecture/agent-operating-model.md | agent docs |
+| Semantic HTML | Semantic HTML contract with Section.svelte and site shell | ACCEPTED | user direction | ADR-008 | docs/design-system/semantic-html-guide.md | Section.svelte, +layout.svelte, llm-html-rules.md, ADR-008 |
+| Bun-first toolchain | Bun exclusively for package management and scripts; bun.lock committed; build artifacts (.svelte-kit/, build/, node_modules/) gitignored | ACCEPTED | user direction | ADR-012 | docs/template-maintenance.md | .gitignore, bun.lock, package.json scripts |

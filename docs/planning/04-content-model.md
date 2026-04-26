@@ -2,8 +2,18 @@
 
 Because this template replaces systems like WordPress, it must clearly define how content and data are stored, retrieved, and managed. We utilize a strict "Split-State" architecture: Editorial Content vs. Runtime Data.
 
+## SEO metadata
+
+SEO metadata for each page (title, description, canonical, schema) is code, not content. It lives in the route's `+page.svelte` via the `SEO` component and is controlled by developers, not editors.
+
+Site-level SEO configuration (domain, name, org, OG image) lives in `src/lib/config/site.ts`. This file must be updated when forking the template for a new project. See [docs/seo/README.md](../seo/README.md).
+
+Editorial content (blog posts, landing page copy) may include SEO-relevant data that gets passed to the SEO component at render time — for example, a blog post's title and description loaded from a content file. The SEO component is the single place that renders `<title>`, `<meta description>`, and JSON-LD schema — never add these directly in `app.html` or layout-level scripts.
+
+---
+
 ## 1. Editorial Content (Git-Backed)
-* **What it is:** Blog posts, landing page copy, FAQs, privacy policies, team bios, and SEO metadata.
+* **What it is:** Blog posts, landing page copy, FAQs, privacy policies, team bios.
 * **The Tool:** Sveltia CMS + Markdown/MDX + SvelteKit.
 * **How it works:**
   * Sveltia CMS provides a user-friendly admin interface at `/admin`.

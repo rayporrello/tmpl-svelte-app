@@ -110,3 +110,6 @@ For entirely project-specific component patterns, create new `.svelte` component
 - [component-css-rules.md](component-css-rules.md) — CSS authoring rules for components
 - [forms-guide.md](forms-guide.md) — forms: CSS layer + Superforms behavior layer
 - [llm-css-rules.md](llm-css-rules.md) — concise rule set for AI agents (paste into CLAUDE.md)
+- [images.md](images.md) — image pipeline: Tier 1 (`<enhanced:img>`), Tier 2 (`<CmsImage>`), LCP rules, upload targets
+- [typography.md](typography.md) — font loading, CSS tokens, Fontsource vs self-hosted, per-site switching
+- [media-editor-guide.md](media-editor-guide.md) — plain-language guide for content editors

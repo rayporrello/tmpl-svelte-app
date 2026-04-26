@@ -203,6 +203,46 @@ bun add sveltekit-superforms valibot
 
 ---
 
+## Images
+
+Full rules: [images.md](images.md)
+
+### Which component to use
+
+| Image source | Location | Component |
+|-------------|----------|-----------|
+| Developer-owned (brand, UI, marketing) | `src/lib/assets/` | `<enhanced:img>` |
+| CMS / editor upload | `static/uploads/` | `<CmsImage>` |
+
+### Always
+
+- Include `width` and `height` on every `<img>` — prevents layout shift (CLS)
+- Use `loading="eager" fetchpriority="high"` on the page's LCP image (primary hero)
+- Use `loading="lazy"` (default) for all below-the-fold images
+- Wrap meaningful images in `<figure>` per the semantic HTML contract
+
+### Never
+
+- Do not use plain `<img>` for brand or CMS images without a documented exception
+- Do not put CMS uploads in `src/` — `<enhanced:img>` only processes build-time images
+- Do not add `loading="lazy"` to the LCP image
+- Do not use `background-image` for meaningful content — use `<img>` in `<figure>`
+- Do not use GIF format
+
+---
+
+## Typography
+
+Full rules: [typography.md](typography.md)
+
+- Reference `var(--font-sans)` and `var(--font-mono)` — never hardcode font names
+- Import Fontsource fonts once in `src/app.css` — never in components
+- Do not add `<link rel="preload">` for Fontsource fonts (filenames are hashed and can become stale)
+- Do not use a Google Fonts CDN link
+- Paid fonts: `.woff2` in `static/fonts/`, `@font-face` in `tokens.css`
+
+---
+
 ## Before making CSS changes
 
 1. Check `docs/design-system/` for the relevant guide

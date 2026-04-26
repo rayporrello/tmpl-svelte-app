@@ -22,13 +22,47 @@ Website — [brief description, e.g., "marketing site for Acme Corp" or "product
 ## Commands
 
 ```bash
-bun run dev          # dev server
-bun run build        # production build
-bun run preview      # preview production build
-bun run check        # TypeScript / svelte-check
-bun run lint         # ESLint
-bun run format       # Prettier
+bun run dev              # dev server
+bun run build            # production build (runs prebuild image optimizer first)
+bun run preview          # preview production build
+bun run check            # TypeScript / svelte-check
+bun run images:optimize  # run image prebuild pipeline manually (idempotent)
+bun run check:seo        # validate SEO config and route registry
+bun run validate         # run check + images:optimize + build + check:seo in sequence
+bun run lint             # ESLint
+bun run format           # Prettier
 ```
+
+## Package manager — Bun only
+
+This project uses **Bun**. Never substitute npm, npx, pnpm, or yarn.
+
+```bash
+bun install              # install dependencies (use --frozen-lockfile in CI)
+bun add <pkg>            # add a package
+bun run <script>         # run a script from package.json
+```
+
+**Never commit:** `node_modules/`, `.svelte-kit/`, `build/`, `dist/`, `.env`, `.env.*`, `bun.lockb`
+**Always commit:** `bun.lock` (text lockfile — tracks exact dependency versions)
+
+## Semantic HTML contract
+
+Full reference: `docs/design-system/semantic-html-guide.md`
+LLM rules (concise): `docs/design-system/llm-html-rules.md`
+
+Before generating any HTML or Svelte components:
+
+1. Use `Section.svelte` (`src/lib/components/Section.svelte`) for thematic page sections.
+2. Use the most specific semantic element — `<article>`, `<nav>`, `<aside>`, `<figure>`, `<time>`, etc.
+3. One `<main id="main-content">` per page — it lives in `+layout.svelte`. Never add a second.
+4. One `<h1>` per page — the page title. Never put it in the site header.
+5. Meaningful images: `<figure><img src="..." alt="..."></figure>`. Not CSS `background-image`.
+6. Dates: `<time datetime="2026-04-26">April 26, 2026</time>`.
+7. Links navigate (`<a href>`). Actions fire (`<button type="button">`).
+8. Run the pre-generation checklist in `llm-html-rules.md` before finalizing.
+
+The styleguide at `/styleguide` (dev only) shows live examples. Delete `src/routes/styleguide/` before going live.
 
 ## CSS and design system
 
@@ -82,6 +116,45 @@ If no (display-only forms or not yet added):
 - [The `/blog` route loads from Sveltia CMS; do not hardcode posts]
 - [Forms submit to an n8n webhook at `N8N_WEBHOOK_URL` env var]
 
+## Images
+
+Full rules: `docs/design-system/images.md`
+
+- Brand/dev-owned images → `src/lib/assets/` → use `<enhanced:img>`
+- CMS/editor uploads → `static/uploads/` → use `<CmsImage src="/uploads/...">`
+- LCP / above-the-fold hero: `loading="eager" fetchpriority="high"`
+- All other images: `loading="lazy"` (default in `CmsImage`)
+- Wrap meaningful images in `<figure>`. Always include `width`, `height`, `alt`.
+- Do not put CMS uploads in `src/`. Do not lazy-load the LCP image.
+- Do not use GIF — use CSS animation or `<video autoplay loop muted playsinline>`.
+
+## Typography
+
+Full rules: `docs/design-system/typography.md`
+
+- Default pair: Plus Jakarta Sans Variable (body) + JetBrains Mono Variable (code)
+- Fonts are imported once globally in `src/app.css` via Fontsource
+- Use `var(--font-sans)` / `var(--font-mono)` in CSS — never hardcode font names
+- Do not add `<link rel="preload">` for Fontsource fonts (hashed filenames go stale)
+- Do not use Google Fonts CDN links
+- Paid fonts: `.woff2` in `static/fonts/`, `@font-face` in `tokens.css`
+
+## SEO
+
+Full docs: `docs/seo/README.md` · Page contract: `docs/seo/page-contract.md`
+
+- Site config (domain, name, OG image, org) lives in `src/lib/config/site.ts` — it is the single source of truth.
+- Every new public route needs the `SEO` component with `title`, `description`, `canonicalPath`.
+- Every route (indexable or not) must be registered in `src/lib/seo/routes.ts`.
+- Internal/admin/preview/draft routes must be `indexable: false` and use `robots: 'noindex, nofollow'`.
+- Do not use `$page.url.href` as canonical. Do not hardcode domain in SEO files.
+- Schema helpers are in `src/lib/seo/schemas.ts`. Only add schema when visible page content supports it.
+- Run `bun run check:seo` before deploying. It fails on placeholder `site.url`/`site.name` values.
+
+```bash
+bun run check:seo  # validate SEO config and route registry
+```
+
 ## What not to do
 
 - Do not add Tailwind, shadcn, or any pre-built component library.
@@ -89,4 +162,10 @@ If no (display-only forms or not yet added):
 - Do not disable user zoom in `app.html`.
 - Do not hardcode colors in component CSS when a semantic token exists.
 - Do not build custom form validation — use Superforms + Valibot.
+- Do not use plain `<img>` for brand or CMS images without a documented reason.
+- Do not add `loading="lazy"` to the page LCP image.
+- Do not add a Google Fonts CDN link.
+- Do not commit `node_modules/`, `.svelte-kit/`, `build/`, or generated image output directories.
+- Do not use `npm`, `npx`, `pnpm`, or `yarn` — this project is Bun-only.
+- Do not commit `.env` or any file containing real secrets.
 - [Any project-specific prohibitions]

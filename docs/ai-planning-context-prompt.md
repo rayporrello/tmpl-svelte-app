@@ -5,34 +5,103 @@ I have started a new repo called tmpl-svelte-app. This repo is intended to becom
 
 Current repo structure:
 
-.
-├── docs
-│   ├── ai-planning-context-prompt.md
-│   └── planning
-│       ├── 10-build-decision-ledger.md
-│       ├── 11-template-build-backlog.md
-│       ├── 00-vision.md
-│       ├── 01-principles.md
-│       ├── 02-scope-and-non-goals.md
-│       ├── 03-stack-decisions.md
-│       ├── 04-content-model.md
-│       ├── 05-css-and-design-system.md
-│       ├── 06-agent-operating-model.md
-│       ├── 07-template-repo-spec.md
-│       ├── 08-quality-gates.md
-│       ├── 09-maintenance-loop.md
-│       └── adrs
-│           ├── ADR-001-one-generic-template.md
-│           ├── ADR-002-core-plus-dormant-modules.md
-│           ├── ADR-003-sveltia-for-content.md
-│           ├── ADR-004-postgres-for-runtime-data.md
-│           ├── ADR-005-css-token-architecture.md
-│           ├── ADR-006-agent-operating-model.md
-│           └── ADR-007-podman-caddy-infrastructure.md
+tmpl-svelte-app/
 ├── AGENTS.md
 ├── CLAUDE.md.template
-└── README.md
-[appuser@rp-dev-1 tmpl-svelte-app]$ 
+├── README.md
+├── .gitignore
+├── bun.lock
+├── package.json
+├── svelte.config.js
+├── tsconfig.json
+├── vite.config.ts
+├── docs/
+│   ├── ai-planning-context-prompt.md
+│   ├── template-maintenance.md
+│   ├── design-system/
+│   │   ├── README.md
+│   │   ├── component-css-rules.md
+│   │   ├── forms-guide.md
+│   │   ├── images.md
+│   │   ├── llm-css-rules.md
+│   │   ├── llm-html-rules.md
+│   │   ├── media-editor-guide.md
+│   │   ├── semantic-html-guide.md
+│   │   ├── tokens-guide.md
+│   │   └── typography.md
+│   ├── planning/
+│   │   ├── README.md
+│   │   ├── 00-vision.md
+│   │   ├── 01-principles.md
+│   │   ├── 02-scope-and-non-goals.md
+│   │   ├── 03-stack-decisions.md
+│   │   ├── 04-content-model.md
+│   │   ├── 06-agent-operating-model.md
+│   │   ├── 07-template-repo-spec.md
+│   │   ├── 08-quality-gates.md
+│   │   ├── 09-maintenance-loop.md
+│   │   ├── 10-build-decision-ledger.md
+│   │   ├── 11-template-build-backlog.md
+│   │   └── adrs/
+│   │       ├── ADR-001-one-generic-template.md
+│   │       ├── ADR-002-core-plus-dormant-modules.md
+│   │       ├── ADR-003-sveltia-for-content.md
+│   │       ├── ADR-004-postgres-for-runtime-data.md
+│   │       ├── ADR-005-css-token-architecture.md
+│   │       ├── ADR-006-agent-operating-model.md
+│   │       ├── ADR-007-podman-caddy-infrastructure.md
+│   │       ├── ADR-008-semantic-html-contract.md
+│   │       ├── ADR-009-image-pipeline.md
+│   │       ├── ADR-010-typography-and-font-loading.md
+│   │       ├── ADR-011-built-in-seo-system.md
+│   │       └── ADR-012-bun-first-dependency-and-build-artifact-policy.md
+│   └── seo/
+│       ├── README.md
+│       ├── launch-checklist.md
+│       ├── page-contract.md
+│       └── schema-guide.md
+├── scripts/
+│   ├── check-seo.ts
+│   └── optimize-images.js
+├── src/
+│   ├── app.css
+│   ├── app.html
+│   ├── lib/
+│   │   ├── components/
+│   │   │   ├── CmsImage.svelte
+│   │   │   ├── Section.svelte
+│   │   │   └── seo/
+│   │   │       └── SEO.svelte
+│   │   ├── config/
+│   │   │   └── site.ts
+│   │   ├── seo/
+│   │   │   ├── metadata.ts
+│   │   │   ├── routes.ts
+│   │   │   ├── schemas.ts
+│   │   │   ├── sitemap.ts
+│   │   │   └── types.ts
+│   │   └── styles/
+│   │       ├── animations.css
+│   │       ├── base.css
+│   │       ├── forms.css
+│   │       ├── reset.css
+│   │       ├── tokens.css
+│   │       └── utilities.css
+│   └── routes/
+│       ├── +layout.svelte
+│       ├── llms.txt/
+│       │   └── +server.ts
+│       ├── robots.txt/
+│       │   └── +server.ts
+│       ├── sitemap.xml/
+│       │   └── +server.ts
+│       └── styleguide/
+│           ├── +page.server.ts
+│           └── +page.svelte
+└── static/
+    ├── fonts/.gitkeep
+    └── uploads/.gitkeep
+
 
 Prior source notes:
 I have older and newer notes covering the website stack, scaffolding, SEO, images, typography, CSS architecture, semantic HTML, secrets, deployment, Sveltia CMS, automations, checklists, and agent rules. Treat these as source material to distill into the final template. Do not treat old notes as binding if they conflict with current direction.
@@ -53,16 +122,30 @@ Decision posture:
 
 Current high-level direction:
 - SvelteKit/Svelte-oriented template.
-- Bun-oriented development/runtime.
+- Bun-first: Bun is the exclusive package manager and script runner. Never npm/npx. bun.lock committed. Build artifacts (.svelte-kit/, build/, node_modules/) gitignored. See ADR-012.
 - Sveltia CMS or file-based content management.
 - Postgres for runtime data.
-- CSS token architecture and hand-authored design system, not Tailwind.
-- Strong SEO, image, accessibility, and semantic HTML baseline.
-- Podman + Caddy deployment path.
+- CSS token architecture and hand-authored design system, not Tailwind. See ADR-005.
+- Built-in SEO system: SEO component, site config (site.ts), canonical/OG/JSON-LD helpers, sitemap.xml, robots.txt, llms.txt, schema.org helpers. See ADR-011 and docs/seo/.
+- Image pipeline: two-tier. Brand/dev images in src/lib/assets/ use <enhanced:img> (Vite). CMS uploads in static/uploads/ use <CmsImage> (Sharp prebuild). See ADR-009.
+- Typography: Fontsource variable fonts installed via Bun; imported in app.css; tokens in tokens.css. No Google Fonts CDN. No preload for Fontsource. See ADR-010.
+- Semantic HTML contract: Section.svelte wraps section + .container. +layout.svelte owns the site shell (skip link, header, main, footer). See ADR-008.
+- Strong accessibility and semantic HTML baseline. Full quality gates in docs/planning/08-quality-gates.md.
+- Podman + Caddy deployment path. See ADR-007.
 - sops + age secrets workflow.
-- Core template plus optional/dormant modules, rather than many separate templates.
-- Agent-friendly operating model via AGENTS.md and CLAUDE.md.template.
+- Core template plus optional/dormant modules, rather than many separate templates. See ADR-002.
+- Agent-friendly operating model via AGENTS.md and CLAUDE.md.template. See ADR-006.
 - Documentation is part of the template contract, not an afterthought.
+
+Completed build phases (as of April 2026):
+- Phase 1 (project scaffold): SvelteKit + Bun + svelte-adapter-bun + TypeScript + vite.config.ts. Builds successfully. Still missing: home page route (+page.svelte), error page (+error.svelte).
+- Phase 2 (CSS/design system): Complete. tokens.css, reset.css, base.css, animations.css, utilities.css, forms.css. Styleguide route active at /styleguide.
+- Phase 4 (SEO / images / accessibility / semantic HTML): Complete. SEO component, site config, schema helpers, sitemap/robots/llms routes, image pipeline (Sharp + enhanced:img + CmsImage), Section.svelte, quality gates, scripts/check-seo.ts, scripts/optimize-images.js.
+
+Not yet started:
+- Phase 3 (CMS/content): Sveltia CMS, content directory, content loaders, sample content.
+- Phase 5 (forms/runtime data): Postgres, Drizzle, Superforms, contact form pattern, Postmark.
+- Phase 6 (deployment): Containerfile, Quadlet templates, Caddy config, secrets workflow, runbook.
 
 How I want you to work:
 1. Assume the purpose of this thread is to move the template closer to being done.

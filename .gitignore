@@ -1,0 +1,51 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+# Never commit. Install with: bun install
+node_modules/
+
+# ── SvelteKit / Vite generated output ─────────────────────────────────────────
+# Regenerated on every build or dev server start.
+.svelte-kit/
+build/
+dist/
+
+# ── Lockfile policy ───────────────────────────────────────────────────────────
+# bun.lock  — text format, COMMIT this file (tracks exact dependency versions)
+# bun.lockb — legacy binary format; not used in this repo, always ignore
+bun.lockb
+
+# ── Environment variables ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Test / coverage output ────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── Cache / temp ──────────────────────────────────────────────────────────────
+.cache/
+.tmp/
+*.tmp
+*.temp
+*.tsbuildinfo
+
+# ── Image optimization output directories ────────────────────────────────────
+# The current pipeline generates .webp siblings inside static/uploads/ and
+# COMMITS them alongside their source images. See ADR-009 and
+# docs/design-system/images.md — "Committed files" section — for the rationale.
+#
+# If a future project switches to separate output directories (e.g. a CI-only
+# pipeline that never commits generated images), uncomment the lines below:
+# static/uploads/optimized/
+# static/uploads/responsive/
+# static/uploads/generated/

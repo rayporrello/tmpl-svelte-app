@@ -104,8 +104,8 @@
 
 
     /* ── 5. FONTS ─────────────────────────────────────────────────────── */
-    --font-sans: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+    --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
 
 
     /* ── 6. TYPE SCALE ────────────────────────────────────────────────── */

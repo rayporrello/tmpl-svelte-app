@@ -3,18 +3,18 @@
 ## Phase 0 — Planning consolidation
 
 - [x] Create build decision ledger
-- [ ] Mark each decision ACCEPTED / CHALLENGE / DEFER / REJECTED
-- [ ] Update ADRs to match accepted decisions
-- [ ] Create permanent docs structure
-- [ ] Move durable docs from planning into architecture/operations/reference drafts
+- [x] Mark each decision ACCEPTED / CHALLENGE / DEFER / REJECTED
+- [x] Update ADRs to match accepted decisions (ADR-001 through ADR-012)
+- [x] Create permanent docs structure (docs/design-system/, docs/seo/, docs/planning/adrs/)
+- [ ] Move durable docs from planning into architecture/operations/reference drafts (operations and deployment docs not yet written)
 
 ## Phase 1 — Base project scaffold
 
-- [ ] Create SvelteKit project foundation (package.json, svelte.config.js, vite.config.js)
-- [ ] Configure Bun scripts (dev, build, preview, check)
-- [ ] Configure adapter (svelte-adapter-bun)
-- [ ] Add TypeScript strictness
-- [ ] Add base routes (+layout.svelte exists; add +page.svelte home route)
+- [x] Create SvelteKit project foundation (package.json, svelte.config.js, vite.config.ts, tsconfig.json)
+- [x] Configure Bun scripts (dev, build, preview, check, check:seo, validate)
+- [x] Configure adapter (svelte-adapter-bun)
+- [x] Add TypeScript strictness
+- [ ] Add home page route (+page.svelte)
 - [ ] Add error page (+error.svelte)
 
 ## Phase 2 — CSS/design system
@@ -44,13 +44,21 @@
 
 ## Phase 4 — SEO/images/accessibility
 
-- [ ] Add SEO component (title, description, og:*, canonical, schema.org)
-- [ ] Add schema.org helpers
-- [ ] Add sitemap route
-- [ ] Add robots route
-- [ ] Add image optimization script
-- [ ] Add responsive image component
-- [ ] Add semantic HTML rules
+- [x] Add central site config (`src/lib/config/site.ts`)
+- [x] Add SEO types and metadata helpers (`src/lib/seo/types.ts`, `src/lib/seo/metadata.ts`)
+- [x] Add SEO component (`src/lib/components/seo/SEO.svelte`) with title, description, canonical, og:*, twitter:*, JSON-LD
+- [x] Add schema.org helpers (`src/lib/seo/schemas.ts`): Organization, WebSite, Article, Breadcrumb, Person, LocalBusiness, FAQ
+- [x] Add static route registry (`src/lib/seo/routes.ts`) and sitemap generator (`src/lib/seo/sitemap.ts`)
+- [x] Add sitemap route (`src/routes/sitemap.xml/+server.ts`)
+- [x] Add robots.txt route (`src/routes/robots.txt/+server.ts`)
+- [x] Add llms.txt route (`src/routes/llms.txt/+server.ts`)
+- [x] Wire SEO component into root layout and styleguide (noindex)
+- [x] Add SEO validation script (`scripts/check-seo.ts`, `bun run check:seo`)
+- [x] Add SEO docs (`docs/seo/` — README, page-contract, schema-guide, launch-checklist)
+- [x] Add SEO ADR (ADR-011)
+- [x] Add image optimization script (`scripts/optimize-images.js`, Sharp prebuild, ADR-009)
+- [x] Add responsive image component (`CmsImage.svelte` for CMS uploads; `<enhanced:img>` for brand assets)
+- [x] Add semantic HTML contract (Section.svelte, site shell in +layout.svelte, semantic-html-guide.md, llm-html-rules.md, ADR-008)
 
 ## Phase 5 — Runtime data/forms
 
@@ -73,15 +81,19 @@
 ## Phase 7 — Template documentation
 
 - [x] Finalize README.md
-- [x] Finalize AGENTS.md
-- [x] Finalize CLAUDE.md.template
-- [x] Add CSS / design system doc (docs/planning/05-css-and-design-system.md)
+- [x] Finalize AGENTS.md (includes image and typography agent rules)
+- [x] Finalize CLAUDE.md.template (includes image and typography quick rules)
+- [x] Add CSS / design system docs (docs/design-system/ — component-css-rules.md, forms-guide.md, images.md, llm-css-rules.md, llm-html-rules.md, semantic-html-guide.md, tokens-guide.md, typography.md; planning file 05 was deleted as superseded)
 - [x] Add template repo spec (docs/planning/07-template-repo-spec.md)
 - [x] Add quality gates doc (docs/planning/08-quality-gates.md)
-- [ ] Add architecture docs (content system, SEO, images)
+- [x] Add image pipeline docs (docs/design-system/images.md, ADR-009)
+- [x] Add typography docs (docs/design-system/typography.md, ADR-010)
+- [x] Add media editor guide (docs/design-system/media-editor-guide.md)
+- [x] Add SEO docs (docs/seo/ — README.md, page-contract.md, schema-guide.md, launch-checklist.md, ADR-011)
+- [x] Add template maintenance / toolchain guide (docs/template-maintenance.md, ADR-012)
+- [ ] Add architecture docs (content system overview)
 - [ ] Add operations docs (secrets, deployment, backups)
-- [ ] Add reference docs (semantic HTML patterns, token reference)
-- [ ] Add "new site from template" guide
+- [ ] Add "new site from template" setup guide
 
 ## Phase 8 — Validation
 
