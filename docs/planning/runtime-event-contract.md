@@ -19,10 +19,10 @@ The user experience is never affected by n8n downtime or latency.
 
 ## Event types (planned)
 
-| Event type | Trigger |
-|-----------|---------|
-| `lead.created` | Contact form submitted |
-| `newsletter.subscribed` | Newsletter signup submitted |
+| Event type              | Trigger                         |
+| ----------------------- | ------------------------------- |
+| `lead.created`          | Contact form submitted          |
+| `newsletter.subscribed` | Newsletter signup submitted     |
 | `testimonial.submitted` | User testimonial form submitted |
 
 Add new event types when new forms or actions are implemented. Keep the list minimal — only add types that have a corresponding n8n workflow.
@@ -33,10 +33,10 @@ Add new event types when new forms or actions are implemented. Keep the list min
 
 ```ts
 interface AutomationEvent<T = Record<string, unknown>> {
-  type: string;           // e.g., 'lead.created'
-  occurred_at: string;    // ISO 8601 UTC timestamp
-  source: string;         // e.g., 'resolvhq.com/contact'
-  payload: T;             // event-specific data
+	type: string; // e.g., 'lead.created'
+	occurred_at: string; // ISO 8601 UTC timestamp
+	source: string; // e.g., 'resolvhq.com/contact'
+	payload: T; // event-specific data
 }
 ```
 
@@ -44,15 +44,15 @@ interface AutomationEvent<T = Record<string, unknown>> {
 
 ```json
 {
-  "type": "lead.created",
-  "occurred_at": "2026-04-27T14:30:00Z",
-  "source": "example.com/contact",
-  "payload": {
-    "name": "Jordan Kim",
-    "email": "jordan@example.com",
-    "message": "I'd like to learn more about your services.",
-    "lead_id": "01JXYZ..."
-  }
+	"type": "lead.created",
+	"occurred_at": "2026-04-27T14:30:00Z",
+	"source": "example.com/contact",
+	"payload": {
+		"name": "Jordan Kim",
+		"email": "jordan@example.com",
+		"message": "I'd like to learn more about your services.",
+		"lead_id": "01JXYZ..."
+	}
 }
 ```
 
@@ -60,13 +60,13 @@ interface AutomationEvent<T = Record<string, unknown>> {
 
 ```json
 {
-  "type": "newsletter.subscribed",
-  "occurred_at": "2026-04-27T14:31:00Z",
-  "source": "example.com/",
-  "payload": {
-    "email": "alex@example.com",
-    "subscriber_id": "01JXYZ..."
-  }
+	"type": "newsletter.subscribed",
+	"occurred_at": "2026-04-27T14:31:00Z",
+	"source": "example.com/",
+	"payload": {
+		"email": "alex@example.com",
+		"subscriber_id": "01JXYZ..."
+	}
 }
 ```
 
@@ -81,20 +81,20 @@ interface AutomationEvent<T = Record<string, unknown>> {
 ```ts
 // Pseudocode — non-blocking webhook emission
 async function emitEvent(event: AutomationEvent): Promise<void> {
-  const url = env.N8N_WEBHOOK_URL;
-  if (!url) return; // n8n not configured — silently skip
+	const url = env.N8N_WEBHOOK_URL;
+	if (!url) return; // n8n not configured — silently skip
 
-  // Non-blocking — do not await
-  fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Webhook-Signature': sign(event, env.N8N_WEBHOOK_SECRET)
-    },
-    body: JSON.stringify(event)
-  }).catch((err) => {
-    console.error('[automation] webhook delivery failed:', err);
-  });
+	// Non-blocking — do not await
+	fetch(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-Webhook-Signature': sign(event, env.N8N_WEBHOOK_SECRET),
+		},
+		body: JSON.stringify(event),
+	}).catch((err) => {
+		console.error('[automation] webhook delivery failed:', err);
+	});
 }
 ```
 
