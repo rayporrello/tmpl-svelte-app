@@ -87,9 +87,15 @@
 
 - [ ] Add Postgres/Drizzle foundation (dormant by default)
 - [x] Add env validation (Valibot — src/lib/server/env.ts; moved to Batch B / Phase 6 timeline)
-- [ ] Add Superforms (`bun add sveltekit-superforms valibot`) as part of first form scaffold
-- [ ] Add contact form pattern (forms.css + Superforms + Postmark)
-- [ ] Add Postmark pattern
+- [x] Add Superforms (`bun add --dev sveltekit-superforms`) — D; valibot already present from B
+- [x] Add contact form pattern (forms.css + Superforms + console/Postmark provider seam) — D
+- [x] Add EmailProvider seam (src/lib/server/forms/email-provider.ts, providers/console.ts, providers/postmark.example.ts) — D
+- [x] Add in-memory rate limiter (src/lib/server/forms/rate-limit.ts — token bucket, RATE_LIMIT_ENABLED flag) — D
+- [x] Add contact-example route (src/routes/contact-example/ — dormant by default, rename to activate) — D
+- [x] Add contact Valibot schema (src/lib/forms/contact.schema.ts) — D
+- [x] Wire contact-example as noindex in src/lib/seo/routes.ts — D
+- [x] Update CSP form-action and connect-src extension comments (src/lib/server/csp.ts) — D
+- [x] Update forms-guide.md with activation walkthrough and provider swap instructions — D
 - [ ] Implement typed automation event emitter (`src/lib/automation/events.ts` — non-blocking webhook)
 - [ ] Implement HMAC signing (`src/lib/automation/signing.ts`)
 - [ ] Add `lead.created` event emission from contact form server action

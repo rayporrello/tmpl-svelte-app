@@ -27,13 +27,22 @@ function buildDirectives(isAdmin: boolean): CspDirectives {
 
 		// Connect (fetch, XHR, WebSocket). Add analytics or webhook hosts here:
 		//   'connect-src': ["'self'", 'https://plausible.io'],
+		// Forms module: the contact form submits to same-origin SvelteKit actions —
+		// no external connect-src is required. If you add a client-side fetch to an
+		// email or webhook API (e.g. n8n, Postmark), add its origin here:
+		//   'connect-src': ["'self'", 'https://api.postmarkapp.com'],
+		//   'connect-src': ["'self'", 'https://your-n8n.example.com'],
 		'connect-src': ["'self'"],
 
 		// Stricter than X-Frame-Options: DENY — both are set for belt-and-suspenders.
 		'frame-ancestors': ["'none'"],
 
-		// Restrict where forms can submit. Add email/webhook hosts here:
+		// Restrict where forms can submit. The contact form uses a SvelteKit server
+		// action (same-origin POST) so 'self' is sufficient. If you proxy the form
+		// submission to an external endpoint (Postmark inbound, Formspree, n8n webhook),
+		// add that origin here:
 		//   'form-action': ["'self'", 'https://api.postmarkapp.com'],
+		//   'form-action': ["'self'", 'https://your-n8n.example.com'],
 		'form-action': ["'self'"],
 
 		// Prevent base-tag injection attacks.

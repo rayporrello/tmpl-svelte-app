@@ -25,7 +25,10 @@ const privateSchema = v.object({
 	CONTACT_TO_EMAIL: v.optional(v.string()),
 	CONTACT_FROM_EMAIL: v.optional(v.string()),
 	N8N_WEBHOOK_URL: v.optional(v.string()),
-	N8N_WEBHOOK_SECRET: v.optional(v.string())
+	N8N_WEBHOOK_SECRET: v.optional(v.string()),
+	// Forms — set to "true" to enable in-process rate limiting on form endpoints.
+	// This is a single-node guard; buckets reset on restart. See rate-limit.ts.
+	RATE_LIMIT_ENABLED: v.optional(v.string())
 });
 
 export type PublicEnv = v.InferOutput<typeof publicSchema>;
@@ -65,7 +68,8 @@ export function initEnv(): void {
 		CONTACT_TO_EMAIL: process.env.CONTACT_TO_EMAIL,
 		CONTACT_FROM_EMAIL: process.env.CONTACT_FROM_EMAIL,
 		N8N_WEBHOOK_URL: process.env.N8N_WEBHOOK_URL,
-		N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET
+		N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET,
+		RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED
 	});
 
 	const errors: string[] = [];

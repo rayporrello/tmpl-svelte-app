@@ -40,6 +40,11 @@ export const routes: RouteEntry[] = [
 	{
 		path: '/admin',
 		indexable: false
+	},
+	// contact-example is noindex until activated: rename to /contact and set indexable: true.
+	{
+		path: '/contact-example',
+		indexable: false
 	}
 	// Article routes (/articles/[slug]) are dynamic — add published article paths here
 	// or generate them dynamically in the sitemap builder from loadArticles().
