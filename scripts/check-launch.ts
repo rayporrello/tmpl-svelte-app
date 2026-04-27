@@ -14,6 +14,7 @@
  */
 
 import { site } from '../src/lib/config/site';
+import { REQUIRED_PUBLIC_ENV_VARS, REQUIRED_PRIVATE_ENV_VARS } from '../src/lib/server/env';
 import { readFileSync, existsSync } from 'fs';
 import { createHash } from 'crypto';
 
@@ -37,9 +38,9 @@ const CONFIG_FILES: Array<{ path: string; label: string }> = [
 	{ path: 'static/site.webmanifest', label: 'web manifest' }
 ];
 
-// Required environment variables for production (static list until env.ts lands in Batch B).
-// These must be present in the environment when validate:launch runs.
-const REQUIRED_ENV_VARS = ['ORIGIN', 'PUBLIC_SITE_URL'];
+// Required environment variables — sourced from src/lib/server/env.ts schemas.
+// Importing only the constant arrays; Valibot validation is NOT triggered here.
+const REQUIRED_ENV_VARS = [...REQUIRED_PUBLIC_ENV_VARS, ...REQUIRED_PRIVATE_ENV_VARS];
 
 const errors: string[] = [];
 const warnings: string[] = [];
@@ -101,7 +102,7 @@ if (!prodUrl) {
 	}
 }
 
-// ── 4. Required env vars (static list — replaced by env.ts in Batch B) ───────
+// ── 4. Required env vars (sourced from src/lib/server/env.ts schemas) ────────
 
 for (const envVar of REQUIRED_ENV_VARS) {
 	if (!process.env[envVar]) {
@@ -119,7 +120,7 @@ if (warnings.length) {
 if (errors.length) {
 	console.error('\ncheck:launch failed — the following issues must be fixed before launch:\n');
 	for (const e of errors) console.error(`  ✗  ${e}`);
-	console.error(`\n${errors.length} issue(s) found. Run "bun run init:site" (Batch B) to fix most of these automatically.`);
+	console.error(`\n${errors.length} issue(s) found. Run "bun run init:site" to fix most of these automatically.`);
 	process.exit(1);
 } else {
 	console.log('✓ check:launch passed — no placeholder values detected.');

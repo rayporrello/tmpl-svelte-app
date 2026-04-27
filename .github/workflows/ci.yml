@@ -50,6 +50,11 @@ jobs:
 
       - name: Run validate
         run: bun run validate
+        env:
+          # Stub values so prerendering (sitemap.xml, robots.txt, llms.txt) can
+          # run without real secrets. check:launch is the gate for placeholder URLs.
+          ORIGIN: https://example.com
+          PUBLIC_SITE_URL: https://example.com
 
       - name: Upload build artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

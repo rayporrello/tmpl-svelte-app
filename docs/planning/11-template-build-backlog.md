@@ -86,7 +86,7 @@
 ## Phase 5 — Runtime data/forms
 
 - [ ] Add Postgres/Drizzle foundation (dormant by default)
-- [ ] Add env validation (valibot or zod at startup)
+- [x] Add env validation (Valibot — src/lib/server/env.ts; moved to Batch B / Phase 6 timeline)
 - [ ] Add Superforms (`bun add sveltekit-superforms valibot`) as part of first form scaffold
 - [ ] Add contact form pattern (forms.css + Superforms + Postmark)
 - [ ] Add Postmark pattern
@@ -115,6 +115,19 @@
 - [x] Update docs/deployment/README.md (drop "planned but not yet implemented" placeholder) — A2
 - [x] Add CI workflow (.github/workflows/ci.yml — validate/image/launch; Trivy CRITICAL blocking; smoke; GHCR push) — A3
 - [x] Add Dependabot config (.github/dependabot.yml — ADR-012 protected-package ignore list) — A3
+- [x] Add Valibot env schema (src/lib/server/env.ts — publicEnv/privateEnv, initEnv(), REQUIRED_*_ENV_VARS) — B
+- [x] Add env import paths (src/lib/env/public.ts, src/lib/env/private.ts — separate import path contract) — B
+- [x] Wire initEnv() into hooks.server.ts handle (validates on first request; CI provides ORIGIN stub) — B
+- [x] Update check:launch to read required env var list from env.ts schemas (removes static allowlist) — B
+- [x] Add CSP baseline (src/lib/server/csp.ts — per-route, /admin-aware, extension points documented) — B
+- [x] Add ADR-019 (security headers and CSP baseline — app vs edge split, Sveltia CDN, extension points) — B
+- [x] Add contact field to site.ts (SiteContact.email — used by error page support link) — B
+- [x] Update +error.svelte (requestId display + copy, dev-only stack via import.meta.env.DEV, contact link) — B
+- [x] Update handleError to surface requestId; update app.d.ts App.Error interface — B
+- [x] Add init:site script (scripts/init-site.ts — interactive, idempotent, rewrites 9 files) — B
+- [x] Add Vitest (vitest.config.ts, $lib alias, 3 unit test files: env, seo-metadata, articles) — B
+- [x] Wire bun run test into validate; CI validate job provides ORIGIN/PUBLIC_SITE_URL stubs — B
+- [x] Update AGENTS.md (security headers policy, env variable policy, CSP extension guide) — B
 
 ## Phase 7 — Template documentation
 

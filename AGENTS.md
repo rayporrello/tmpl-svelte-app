@@ -235,6 +235,65 @@ Schema guide: [docs/seo/schema-guide.md](docs/seo/schema-guide.md)
 
 ---
 
+## Security headers policy
+
+Decision: [ADR-019](docs/planning/adrs/ADR-019-security-headers-and-csp-baseline.md)
+
+### Header ownership split
+
+| Header | Owner | Where set |
+|--------|-------|-----------|
+| `Content-Security-Policy` | **App** | `src/lib/server/csp.ts` via `hooks.server.ts` |
+| `X-Content-Type-Options` | **App** | `src/hooks.server.ts` |
+| `Referrer-Policy` | **App** | `src/hooks.server.ts` |
+| `X-Frame-Options` | **App** | `src/hooks.server.ts` |
+| `Permissions-Policy` | **App** | `src/hooks.server.ts` |
+| `Strict-Transport-Security` | **Edge (Caddy)** | `deploy/Caddyfile.example` |
+
+Do NOT set HSTS, compression, or access logging headers in the app. Those are Caddy's responsibility.
+
+### CSP extension points
+
+To widen a CSP directive for a new project feature, edit `src/lib/server/csp.ts`. Do NOT add directives inline in `hooks.server.ts`. Each extension point has a comment in `csp.ts`:
+
+| Feature | Directive | Edit |
+|---------|-----------|------|
+| Analytics (Plausible, Umami) | `connect-src`, `script-src` | Add host to respective array |
+| CMS media CDN | `img-src` | Add CDN origin |
+| Email/form endpoint | `form-action` | Add host |
+| n8n webhook | `connect-src` | Add host |
+| Embedded video (YouTube) | `frame-src` | Add host |
+
+The `/admin` route already has a more permissive policy (allows `https://unpkg.com` for Sveltia CMS). Do not copy-paste the admin exceptions to other routes.
+
+---
+
+## Environment variable policy
+
+Decision: [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md), implemented in Batch B.
+
+### Import paths
+
+| Path | Use for | Security |
+|------|---------|----------|
+| `$lib/env/public` | ORIGIN, PUBLIC_SITE_URL | Server-side only (transitively imports `$lib/server/`) |
+| `$lib/env/private` | DATABASE_URL, SESSION_SECRET, etc. | Server-side only |
+
+Never import env vars directly from `process.env` in application code — use the typed exports from `$lib/env/public` or `$lib/env/private`.
+
+### When adding a new environment variable
+
+1. Add the Valibot schema field in `src/lib/server/env.ts`
+2. If required for production, add to `REQUIRED_PUBLIC_ENV_VARS` or `REQUIRED_PRIVATE_ENV_VARS`
+3. Update `.env.example` and `deploy/env.example`
+4. Update `secrets.example.yaml` if it's a secret value
+
+### Build and CI note
+
+`bun run build` requires `ORIGIN` and `PUBLIC_SITE_URL` to be set (initEnv() runs on first request during prerendering). Locally, copy `.env.example` to `.env`. CI provides stubs in the validate job.
+
+---
+
 ## Secrets handling
 
 Full guide: [docs/deployment/secrets.md](docs/deployment/secrets.md)  
