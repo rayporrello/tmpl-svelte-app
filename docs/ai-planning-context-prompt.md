@@ -1,4 +1,4 @@
-You are helping me finish my reusable “golden template” website repo, not just plan it.
+You are helping me finish my reusable "golden template" website repo, not just plan it.
 
 Repo name/context:
 I have started a new repo called tmpl-svelte-app. This repo is intended to become my reusable, high-quality base website template for future projects. Most major decisions are already roughly 90% made. The goal of each thread is to move from topic-specific thinking into concrete repo changes, implementation tasks, documentation updates, and Claude Code prompts that get the template built.
@@ -6,18 +6,43 @@ I have started a new repo called tmpl-svelte-app. This repo is intended to becom
 Current repo structure:
 
 tmpl-svelte-app/
+├── .env.example
+├── .gitignore
+├── .sops.yaml.example
 ├── AGENTS.md
 ├── CLAUDE.md.template
 ├── README.md
-├── .gitignore
 ├── bun.lock
 ├── package.json
+├── secrets.example.yaml
 ├── svelte.config.js
 ├── tsconfig.json
 ├── vite.config.ts
+├── content/
+│   ├── articles/
+│   │   └── sample-post.md
+│   ├── pages/
+│   │   └── home.yml
+│   ├── team/
+│   │   └── sample-person.yml
+│   └── testimonials/
+│       └── sample-testimonial.yml
 ├── docs/
 │   ├── ai-planning-context-prompt.md
 │   ├── template-maintenance.md
+│   ├── automations/
+│   │   ├── README.md
+│   │   ├── content-automation-contract.md
+│   │   ├── n8n-patterns.md
+│   │   ├── runtime-event-contract.md
+│   │   └── security-and-secrets.md
+│   ├── cms/
+│   │   ├── README.md
+│   │   ├── collection-patterns.md
+│   │   └── sveltia-content-contract.md
+│   ├── deployment/
+│   │   ├── README.md
+│   │   └── secrets.md
 │   ├── design-system/
 │   │   ├── README.md
 │   │   ├── component-css-rules.md
@@ -54,15 +79,20 @@ tmpl-svelte-app/
 │   │       ├── ADR-009-image-pipeline.md
 │   │       ├── ADR-010-typography-and-font-loading.md
 │   │       ├── ADR-011-built-in-seo-system.md
-│   │       └── ADR-012-bun-first-dependency-and-build-artifact-policy.md
+│   │       ├── ADR-012-bun-first-dependency-and-build-artifact-policy.md
+│   │       ├── ADR-013-sops-age-secrets-management.md
+│   │       ├── ADR-014-sveltia-content-system.md
+│   │       └── ADR-015-n8n-automation-bridge.md
 │   └── seo/
 │       ├── README.md
 │       ├── launch-checklist.md
 │       ├── page-contract.md
 │       └── schema-guide.md
 ├── scripts/
+│   ├── check-secrets.sh
 │   ├── check-seo.ts
-│   └── optimize-images.js
+│   ├── optimize-images.js
+│   └── render-secrets.sh
 ├── src/
 │   ├── app.css
 │   ├── app.html
@@ -74,6 +104,11 @@ tmpl-svelte-app/
 │   │   │       └── SEO.svelte
 │   │   ├── config/
 │   │   │   └── site.ts
+│   │   ├── content/
+│   │   │   ├── articles.ts
+│   │   │   ├── index.ts
+│   │   │   ├── pages.ts
+│   │   │   └── types.ts
 │   │   ├── seo/
 │   │   │   ├── metadata.ts
 │   │   │   ├── routes.ts
@@ -89,6 +124,8 @@ tmpl-svelte-app/
 │   │       └── utilities.css
 │   └── routes/
 │       ├── +layout.svelte
+│       ├── +page.server.ts
+│       ├── +page.svelte
 │       ├── llms.txt/
 │       │   └── +server.ts
 │       ├── robots.txt/
@@ -99,6 +136,9 @@ tmpl-svelte-app/
 │           ├── +page.server.ts
 │           └── +page.svelte
 └── static/
+    ├── admin/
+    │   ├── config.yml
+    │   └── index.html
     ├── fonts/.gitkeep
     └── uploads/.gitkeep
 
@@ -123,7 +163,9 @@ Decision posture:
 Current high-level direction:
 - SvelteKit/Svelte-oriented template.
 - Bun-first: Bun is the exclusive package manager and script runner. Never npm/npx. bun.lock committed. Build artifacts (.svelte-kit/, build/, node_modules/) gitignored. See ADR-012.
-- Sveltia CMS or file-based content management.
+- Sveltia CMS with Git-backed content: `content/` directory holds all editorial content (YAML pages/team/testimonials, Markdown articles). Sveltia admin UI at `static/admin/`. Typed content loaders in `src/lib/content/`. See ADR-014 and docs/cms/.
+- n8n as optional external automation layer: content automations write to `content/` via GitHub API; runtime automations (Phase 5) receive typed webhook events from SvelteKit actions. The site works without n8n. See ADR-015 and docs/automations/.
+- SOPS + age secrets management: `.env.example` documents required vars, `secrets.yaml` is encrypted and committed, `.env` is rendered locally and never committed. See ADR-013 and docs/deployment/secrets.md.
 - Postgres for runtime data.
 - CSS token architecture and hand-authored design system, not Tailwind. See ADR-005.
 - Built-in SEO system: SEO component, site config (site.ts), canonical/OG/JSON-LD helpers, sitemap.xml, robots.txt, llms.txt, schema.org helpers. See ADR-011 and docs/seo/.
@@ -132,20 +174,20 @@ Current high-level direction:
 - Semantic HTML contract: Section.svelte wraps section + .container. +layout.svelte owns the site shell (skip link, header, main, footer). See ADR-008.
 - Strong accessibility and semantic HTML baseline. Full quality gates in docs/planning/08-quality-gates.md.
 - Podman + Caddy deployment path. See ADR-007.
-- sops + age secrets workflow.
 - Core template plus optional/dormant modules, rather than many separate templates. See ADR-002.
 - Agent-friendly operating model via AGENTS.md and CLAUDE.md.template. See ADR-006.
 - Documentation is part of the template contract, not an afterthought.
 
 Completed build phases (as of April 2026):
-- Phase 1 (project scaffold): SvelteKit + Bun + svelte-adapter-bun + TypeScript + vite.config.ts. Builds successfully. Still missing: home page route (+page.svelte), error page (+error.svelte).
+- Phase 1 (project scaffold): SvelteKit + Bun + svelte-adapter-bun + TypeScript + vite.config.ts. Builds successfully. Still missing: +error.svelte.
 - Phase 2 (CSS/design system): Complete. tokens.css, reset.css, base.css, animations.css, utilities.css, forms.css. Styleguide route active at /styleguide.
+- Phase 3 (CMS/content): Substantially complete. content/ directory, Sveltia CMS admin files (static/admin/), typed content loaders (src/lib/content/), starter content files, home page route (+page.svelte + +page.server.ts), CMS docs (docs/cms/), automation docs (docs/automations/), ADR-014, ADR-015. Remaining per-project task: configure GitHub OAuth in static/admin/config.yml backend.repo. Template task outstanding: Markdown renderer for article body fields.
 - Phase 4 (SEO / images / accessibility / semantic HTML): Complete. SEO component, site config, schema helpers, sitemap/robots/llms routes, image pipeline (Sharp + enhanced:img + CmsImage), Section.svelte, quality gates, scripts/check-seo.ts, scripts/optimize-images.js.
+- Phase 6 (secrets): Partially complete. SOPS + age workflow documented and scripted: ADR-013, docs/deployment/secrets.md, .env.example, secrets.example.yaml, .sops.yaml.example, scripts/render-secrets.sh, scripts/check-secrets.sh, bun run secrets:render / secrets:check. Containerfile, Quadlet templates, Caddy config, and deployment runbook not yet done.
 
 Not yet started:
-- Phase 3 (CMS/content): Sveltia CMS, content directory, content loaders, sample content.
-- Phase 5 (forms/runtime data): Postgres, Drizzle, Superforms, contact form pattern, Postmark.
-- Phase 6 (deployment): Containerfile, Quadlet templates, Caddy config, secrets workflow, runbook.
+- Phase 5 (forms/runtime data): Postgres, Drizzle, env validation, Superforms + contact form pattern, Postmark, typed automation event emitter (src/lib/automation/events.ts), HMAC signing (src/lib/automation/signing.ts).
+- Phase 6 (deployment — remaining): Containerfile, Quadlet templates, Caddy config, deployment runbook.
 
 How I want you to work:
 1. Assume the purpose of this thread is to move the template closer to being done.
@@ -209,4 +251,4 @@ Please respond with this structure:
    - The prompt should require a summary of changed files and any unresolved blockers.
 
 Default behavior:
-Unless I explicitly ask for more theory, bias toward “what do we build or change next?”
+Unless I explicitly ask for more theory, bias toward "what do we build or change next?"

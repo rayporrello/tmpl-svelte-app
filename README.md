@@ -10,6 +10,8 @@ Reusable SvelteKit website template. Targets websites, landing pages, content si
 - **Built-in SEO system** — central site config, SEO component, schema helpers, sitemap, robots.txt, validation
 - Semantic HTML contract with `Section.svelte`, skip link, accessible site shell
 - **Git-backed content system** — `content/` directory, Sveltia CMS admin, typed content loaders
+- **Observability spine** — friendly error page, `/healthz`, structured logging, request IDs, safe error handling
+- **CMS content safety** — validation scripts that catch blank fields, bad dates, and destructive diffs before deploy
 - **Automation-ready** — n8n patterns and contracts documented; no n8n dependency required
 - Podman Quadlet + Caddy deployment templates (planned)
 - Agent-readable operating rules (`AGENTS.md`, `CLAUDE.md.template`)
@@ -151,9 +153,33 @@ Planned and documented but not active in the base template:
 | Postmark | Add `POSTMARK_API_TOKEN`, implement mail helper |
 | Better Auth | Follow auth module docs |
 
+## Observability
+
+The template ships a lean default safety spine. Medium and large sites can extend it without changing the baseline.
+
+| Guide | Purpose |
+|-------|---------|
+| [docs/observability/README.md](docs/observability/README.md) | Overview — what's included, what's optional, why tiered |
+| [docs/observability/tiers.md](docs/observability/tiers.md) | Small / medium / large tier model with upgrade paths |
+| [docs/observability/error-handling.md](docs/observability/error-handling.md) | Errors, logging, request IDs, safe messages |
+| [docs/observability/n8n-workflows.md](docs/observability/n8n-workflows.md) | n8n naming, payload shape, failure policy |
+| [docs/observability/runbook.md](docs/observability/runbook.md) | Practical operator runbook for common failures |
+
+Medium/large observability features (Sentry, OpenTelemetry, dashboards) are documented but **not installed by default**. The base template works without them.
+
+## CMS content safety
+
+```bash
+bun run check:cms          # validate static/admin/config.yml
+bun run check:content      # validate .md content files
+bun run check:content-diff # detect destructive content changes in git diff
+```
+
+CMS writes are treated as untrusted until validated. The scripts catch blank required fields, bad date formats, `toml-frontmatter`, optional datetime fields, and destructive rewrites before they reach deploy. See [docs/cms/README.md](docs/cms/README.md) for the full content safety documentation.
+
 ## Agent operating rules
 
-- [AGENTS.md](AGENTS.md) — rules for AI coding agents
+- [AGENTS.md](AGENTS.md) — rules for AI coding agents (includes observability and CMS safety rules)
 - [CLAUDE.md.template](CLAUDE.md.template) — template for per-project `CLAUDE.md`
 - [docs/design-system/llm-css-rules.md](docs/design-system/llm-css-rules.md) — paste-ready CSS rules for AI agents
 

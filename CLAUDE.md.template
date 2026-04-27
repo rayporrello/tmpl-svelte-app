@@ -22,15 +22,18 @@ Website — [brief description, e.g., "marketing site for Acme Corp" or "product
 ## Commands
 
 ```bash
-bun run dev              # dev server
-bun run build            # production build (runs prebuild image optimizer first)
-bun run preview          # preview production build
-bun run check            # TypeScript / svelte-check
-bun run images:optimize  # run image prebuild pipeline manually (idempotent)
-bun run check:seo        # validate SEO config and route registry
-bun run validate         # run check + images:optimize + build + check:seo in sequence
-bun run lint             # ESLint
-bun run format           # Prettier
+bun run dev                  # dev server
+bun run build                # production build (runs prebuild image optimizer first)
+bun run preview              # preview production build
+bun run check                # TypeScript / svelte-check
+bun run images:optimize      # run image prebuild pipeline manually (idempotent)
+bun run check:seo            # validate SEO config and route registry
+bun run check:cms            # validate CMS config
+bun run check:content        # validate content files
+bun run check:content-diff   # check for destructive content changes
+bun run validate             # run check + optimize + build + check:seo + check:cms + check:content
+bun run lint                 # ESLint
+bun run format               # Prettier
 ```
 
 ## Package manager — Bun only
@@ -122,6 +125,38 @@ Full docs: [docs/cms/README.md](docs/cms/README.md) · Contract: [docs/cms/svelt
 - CMS image fields must render through `CmsImage`, not bare `<img>`
 - `local_backend: true` in `config.yml` is for local dev only — remove before deploying
 - To add a collection: config + starter file + type + loader + route + SEO entry + docs (all 6 steps)
+- `static/admin/index.html` must use a plain `<script src="...sveltia-cms.js">` in `<body>` — no stylesheet link, no `type="module"`. Sveltia bundles its styles in the JS file and is not an ES module. Do not copy Static CMS / Netlify CMS patterns here.
+
+### AI reference for config.yml edits
+
+When editing `static/admin/config.yml`, use Sveltia's official AI-readable docs rather than Netlify CMS or Static CMS examples:
+
+- `https://sveltiacms.app/llms.txt` — quick reference (use by default)
+- `https://sveltiacms.app/llms-full.txt` — full reference (large; fetch only for complex config work)
+
+Do not commit either file to this repo. They are labeled work-in-progress; when in doubt, trust the working config over the reference. See [docs/cms/sveltia-ai-reference.md](docs/cms/sveltia-ai-reference.md) for the full policy.
+
+The site's own `/llms.txt` route (`src/routes/llms.txt/+server.ts`) is unrelated — it is a public AI/SEO disclosure for crawlers indexing the generated website, not CMS documentation.
+
+## Observability and error handling
+
+Full docs: [docs/observability/README.md](docs/observability/README.md)
+Tier model: [docs/observability/tiers.md](docs/observability/tiers.md)
+
+This project uses the template's **Tier [1/2/3]** observability spine. [Update tier based on site type.]
+
+- Structured server logging: `src/lib/server/logger.ts` — use instead of `console.error`
+- Request IDs: `src/hooks.server.ts` attaches `event.locals.requestId` to every request
+- Safe errors: `src/lib/server/safe-error.ts` — separate public message from diagnostic detail
+- Health endpoint: `/healthz` — process liveness only
+- Error page: `src/routes/+error.svelte` — friendly, no stack traces
+
+**Agent rules:**
+- Do not log secrets, tokens, cookies, or raw form payloads.
+- Use `logger.error()` instead of `console.error()` for server-side errors.
+- Use `toSafeError()` before returning error details to the browser.
+- Do not add Sentry, OpenTelemetry, Grafana, or other observability services without explicit approval.
+- Do not add `/readyz` until this project has active runtime dependencies (Phase 5).
 
 ## Automation (n8n)
 
@@ -212,6 +247,27 @@ Full docs: `docs/seo/README.md` · Page contract: `docs/seo/page-contract.md`
 bun run check:seo  # validate SEO config and route registry
 ```
 
+## CMS content safety
+
+Full docs: [docs/cms/content-safety.md](docs/cms/content-safety.md)
+Sveltia guide: [docs/cms/sveltia-guide.md](docs/cms/sveltia-guide.md)
+
+**After any change to `static/admin/config.yml` or files under `content/`:**
+
+```bash
+bun run check:cms           # validate CMS config
+bun run check:content       # validate content files
+bun run check:content-diff  # check for destructive changes
+```
+
+**Agent rules:**
+- Do not use `toml-frontmatter` for Markdown collections — use `frontmatter` (YAML).
+- Do not create optional `datetime` fields without adding to `OPTIONAL_DATETIME_ALLOWLIST`.
+- Required date fields must be ISO 8601 with timezone: `2026-04-27T12:00:00Z`.
+- Optional date-like fields must be omitted when empty — not `""`, `null`, `"null"`.
+- Never rewrite frontmatter wholesale; preserve existing valid values.
+- A content diff that blanks required fields or removes body content is a blocker — stop and report.
+
 ## What not to do
 
 - Do not add Tailwind, shadcn, or any pre-built component library.
@@ -230,4 +286,10 @@ bun run check:seo  # validate SEO config and route registry
 - Do not use gray-matter for pure YAML files (`content/pages/`, `content/team/`, `content/testimonials/`).
 - Do not rename CMS fields without updating config, content files, types, loaders, components, and docs.
 - Do not make webhook calls blocking — n8n downtime must not break user-facing forms.
+- Do not add Sentry, OpenTelemetry, Grafana, Prometheus, Loki, or pino without explicit approval.
+- Do not add `/readyz` before Phase 5 runtime dependencies exist.
+- Do not log secrets, tokens, cookies, authorization headers, or raw form payloads.
+- Do not use `console.error` directly for server-side errors — use `logger.error()`.
+- Do not use `toml-frontmatter` for Sveltia-managed Markdown collections.
+- Do not create optional `datetime` fields in CMS config without adding to `OPTIONAL_DATETIME_ALLOWLIST`.
 - [Any project-specific prohibitions]

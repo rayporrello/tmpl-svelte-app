@@ -15,7 +15,10 @@
     "images:optimize": "bun run scripts/optimize-images.js",
     "check:seo": "bun run scripts/check-seo.ts",
     "seo:check": "bun run check:seo",
-    "validate": "bun run check && bun run images:optimize && bun run build && bun run check:seo",
+    "check:cms": "bun run scripts/check-cms-config.ts",
+    "check:content": "bun run scripts/validate-content.ts",
+    "check:content-diff": "bun run scripts/check-content-diff.ts",
+    "validate": "bun run check && bun run images:optimize && bun run build && bun run check:seo && bun run check:cms && bun run check:content",
     "secrets:render": "bash scripts/render-secrets.sh",
     "secrets:check": "bash scripts/check-secrets.sh"
   },

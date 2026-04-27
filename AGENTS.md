@@ -319,6 +319,9 @@ bun run check                   # TypeScript + svelte-check
 bun run images:optimize         # prebuild image pipeline (idempotent)
 bun run build                   # production build
 bun run check:seo               # SEO config validation
+bun run check:cms               # CMS config validation
+bun run check:content           # content file validation
+bun run check:content-diff      # destructive content diff check
 ```
 
 Or run everything at once: `bun run validate`
@@ -331,9 +334,17 @@ Or run everything at once: `bun run validate`
 src/
   app.css           entry file — layer order, font imports, design system imports
   app.html          HTML shell — title, viewport, theme-color, anti-FOUC script
+  app.d.ts          SvelteKit type augmentation — App.Locals (requestId, etc.)
+  hooks.server.ts   request ID injection, centralized error handling
   lib/
     config/
       site.ts       BRAND FILE — SEO/site config single source of truth
+    observability/
+      types.ts      ObservabilityTier, LogLevel, HealthResponse, WorkflowEventPayload
+    server/
+      logger.ts     structured JSON logger with redaction — use instead of console.error
+      request-id.ts read/generate request ID from x-request-id header
+      safe-error.ts normalize thrown errors; split public message from diagnostic detail
     seo/
       types.ts      SEO TypeScript types
       metadata.ts   canonical URL, image URL, title, robots helpers
@@ -351,11 +362,17 @@ src/
       seo/
         SEO.svelte  renders all head/meta/schema for a page
   routes/
+    +error.svelte           friendly accessible error page
     +layout.svelte          imports app.css, injects root schema
+    healthz/+server.ts      process liveness check — returns JSON
     sitemap.xml/+server.ts  prerendered sitemap
     robots.txt/+server.ts   prerendered robots.txt
     llms.txt/+server.ts     prerendered llms.txt
     styleguide/+page.svelte design system demo — keep updated
+scripts/
+  check-cms-config.ts   validate static/admin/config.yml
+  validate-content.ts   validate .md content files under content/
+  check-content-diff.ts detect destructive content changes in git diff
 ```
 
 ---
@@ -364,7 +381,25 @@ src/
 
 Full reference: [docs/cms/README.md](docs/cms/README.md)  
 Content contract: [docs/cms/sveltia-content-contract.md](docs/cms/sveltia-content-contract.md)  
-Collection patterns: [docs/cms/collection-patterns.md](docs/cms/collection-patterns.md)
+Collection patterns: [docs/cms/collection-patterns.md](docs/cms/collection-patterns.md)  
+AI reference policy: [docs/cms/sveltia-ai-reference.md](docs/cms/sveltia-ai-reference.md)
+
+### Sveltia CMS AI reference
+
+When editing `static/admin/config.yml`, fetch Sveltia's official AI-readable docs — do not rely on Netlify CMS, Decap CMS, or Static CMS examples:
+
+- **Quick reference:** `https://sveltiacms.app/llms.txt` — use for most config edits
+- **Full reference:** `https://sveltiacms.app/llms-full.txt` — fetch only for complex config (nested objects, custom widgets, i18n). It is very large; avoid fetching unnecessarily.
+
+Do not download or commit either file to this repo. Sveltia labels them work-in-progress; when a reference conflicts with a working collection in `config.yml`, trust the working config. Always validate after editing:
+
+```bash
+bun run check:cms && bun run check:content && bun run check:content-diff
+```
+
+Then load `/admin` in a browser to confirm the affected collection loads without error.
+
+**Note on two different llms.txt files:** `https://sveltiacms.app/llms.txt` documents the CMS tool for AI agents. `src/routes/llms.txt/+server.ts` is the generated site's own public AI/SEO disclosure for crawlers. These are unrelated and must not be conflated.
 
 ### Parser rules — never mix these
 
@@ -419,6 +454,35 @@ Render CMS image path strings through `CmsImage`, not bare `<img>`:
 - Field names in `config.yml` = TypeScript interface properties = Svelte component data keys
 - **Never rename a CMS field** without also updating: `config.yml`, content files, `types.ts`, loaders, components, and docs
 
+### Sveltia CMS admin entrypoint
+
+`static/admin/index.html` must load Sveltia CMS with a plain script tag in `<body>`:
+
+```html
+<script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+```
+
+**Do not add a stylesheet link** — Sveltia CMS bundles its required styles in the JavaScript file:
+
+```html
+<!-- ✗ Wrong — do not add this -->
+<link rel="stylesheet" href="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.css" />
+```
+
+**Do not add `type="module"`** — the Sveltia CMS browser bundle is not an ES module:
+
+```html
+<!-- ✗ Wrong -->
+<script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js" type="module"></script>
+
+<!-- ✓ Correct -->
+<script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+```
+
+These mistakes come from confusing Sveltia CMS with Static CMS or Netlify CMS patterns. Do not copy those examples here.
+
+---
+
 ### Adding a new collection
 
 All six steps are required — partial completion breaks the content contract:
@@ -429,6 +493,48 @@ All six steps are required — partial completion breaks the content contract:
 4. Add loader and export from `src/lib/content/index.ts`
 5. Wire to `+page.server.ts` route; register in `src/lib/seo/routes.ts`
 6. Update `docs/cms/collection-patterns.md`
+
+---
+
+## Observability and error-handling rules
+
+1. Do not log secrets, tokens, cookies, authorization headers, private keys, or raw sensitive form payloads.
+2. Use the shared server logger (`src/lib/server/logger.ts`) for server-side errors instead of ad hoc `console.error` calls.
+3. Preserve or create a request ID for server-side request handling where practical — use `getOrCreateRequestId` from `src/lib/server/request-id.ts`.
+4. User-facing errors must be safe, calm, and non-diagnostic — use `toSafeError` from `src/lib/server/safe-error.ts`.
+5. Do not add Sentry, OpenTelemetry, Grafana, Prometheus, Loki, or other observability dependencies without explicit approval.
+6. Do not add `/readyz` checks until real runtime dependencies exist (Phase 5 minimum).
+7. When adding an n8n-triggered feature, document workflow name, payload shape, retry behavior, failure behavior, and idempotency key.
+8. n8n workflows that mutate data or send external messages must have finite retry behavior and a manual recovery path.
+9. Do not implement "self-healing" behavior that mutates production data without explicit approval.
+
+See [docs/observability/README.md](docs/observability/README.md) for the full tier model and rules.
+
+---
+
+## Sveltia CMS content safety rules
+
+When editing or creating Sveltia CMS config or content:
+
+1. Do not use `toml-frontmatter` for Sveltia-managed Markdown collections unless the user explicitly approves it.
+2. Prefer `frontmatter` (YAML) format with `.md` files.
+3. Do not create optional `datetime` fields by default. If needed, add the field name to `OPTIONAL_DATETIME_ALLOWLIST` in `scripts/check-cms-config.ts` and document why.
+4. Required date fields must use ISO 8601 datetime values with timezone, for example `2026-04-27T12:00:00Z`.
+5. Optional date-like fields should be omitted when empty. Do not save them as `""`, `null`, `"null"`, or `"undefined"`.
+6. Do not rely on the CMS UI as the source of truth for date validity. The repo validation scripts are authoritative.
+7. Never rewrite existing frontmatter wholesale unless the task explicitly requires a migration.
+8. Preserve existing valid frontmatter values when adding fields.
+9. Do not change content field names casually; field renames require a migration plan (all 7 steps in `docs/cms/sveltia-guide.md`).
+10. After changing `static/admin/config.yml` or files under `content/` or `src/content/`, run:
+    ```bash
+    bun run check:cms
+    bun run check:content
+    bun run check:content-diff
+    ```
+    then the normal project validation command.
+11. If a content diff blanks required fields, removes large portions of body content, or changes many content files unexpectedly, stop and report it as a blocker.
+
+See [docs/cms/content-safety.md](docs/cms/content-safety.md) and [docs/cms/sveltia-guide.md](docs/cms/sveltia-guide.md).
 
 ---
 

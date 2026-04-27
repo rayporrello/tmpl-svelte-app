@@ -97,8 +97,27 @@ Content automations in n8n write the same files that Sveltia manages. The files 
 
 ---
 
+## Content safety
+
+CMS writes are treated as untrusted until validated by repo scripts. A successful save in the CMS UI does not guarantee valid content.
+
+```bash
+bun run check:cms          # validate static/admin/config.yml
+bun run check:content      # validate .md content files
+bun run check:content-diff # detect destructive changes before committing
+```
+
+Run these after any change to `static/admin/config.yml` or files under `content/`. They are also part of `bun run validate`.
+
+See [docs/cms/content-safety.md](content-safety.md) for the full safety documentation and what to do when checks fail.
+
+---
+
 ## Further reading
 
+- [docs/cms/sveltia-guide.md](sveltia-guide.md) — frontmatter format, date fields, empty fields, field rename rules
+- [docs/cms/content-safety.md](content-safety.md) — what the validation scripts check and how to respond to failures
 - [docs/cms/sveltia-content-contract.md](sveltia-content-contract.md) — field naming, parser rules, component data interface
 - [docs/cms/collection-patterns.md](collection-patterns.md) — how to add, modify, and remove collections
+- [docs/cms/sveltia-ai-reference.md](sveltia-ai-reference.md) — how AI agents should use Sveltia's official llms.txt when editing config.yml
 - [docs/automations/README.md](../automations/README.md) — n8n automation overview

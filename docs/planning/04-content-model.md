@@ -56,6 +56,19 @@ n8n interacts with the template through two interfaces:
   * Webhook delivery failures must not break user-facing form submissions.
 * **Not yet implemented.** Phase 5 will add the webhook emitter and typed event shape. See [docs/automations/runtime-event-contract.md](../automations/runtime-event-contract.md).
 
+## Content safety rules
+
+These rules apply to all content managed by Sveltia CMS, n8n automations, or direct developer edits.
+
+- **YAML frontmatter is the default** for all Sveltia-managed Markdown collections. Do not use `toml-frontmatter` unless explicitly approved.
+- **ISO 8601 datetime with timezone is canonical** for all stored date values. Example: `2026-04-27T12:00:00Z`. Date-only values (`2026-04-27`) are acceptable for calendar-day fields.
+- **Optional date-like fields must be omitted when unused** — not saved as `""`, `null`, `"null"`, or `"undefined"`. Blank date values break TypeScript types and content loaders.
+- **Required fields cannot be blank.** A required field saved as `""` or `null` is a content failure, not a valid empty state.
+- **Field renames require a full migration plan.** Field names in `config.yml` are a data contract. Renaming one field requires updating config, content files, TypeScript types, loaders, components, and documentation — all seven steps.
+- **CMS saves are validated by repo scripts.** The CMS UI's "save successful" message does not guarantee valid content. Run `bun run check:cms`, `bun run check:content`, and `bun run check:content-diff` to confirm.
+
+See [docs/cms/content-safety.md](../cms/content-safety.md) and [docs/cms/sveltia-guide.md](../cms/sveltia-guide.md) for the full content safety documentation.
+
 ## 4. Media and File Assets
 * **Static Site Assets:** Logos, UI icons, and core site imagery live in the git repository (`static/` and `src/lib/assets/`) and are deployed with the code. Use `<enhanced:img>` for build-time assets. See [docs/design-system/images.md](../design-system/images.md).
 * **CMS/User Uploads:** Images uploaded via Sveltia CMS go to `static/uploads/`. The prebuild script generates `.webp` siblings. Use `<CmsImage>` to render uploads. Future projects may redirect uploads to cloud storage (Cloudflare R2, etc.) — that is a per-project decision, not a template default.

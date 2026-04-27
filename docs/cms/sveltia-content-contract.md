@@ -4,6 +4,36 @@ The CMS configuration in `static/admin/config.yml` is a **data interface contrac
 
 ---
 
+## Admin entrypoint rule
+
+`static/admin/index.html` must be the minimal plain-script form:
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Content Manager</title>
+  </head>
+  <body>
+    <script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+  </body>
+</html>
+```
+
+Do not add:
+
+```html
+<link rel="stylesheet" href="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.css" />
+```
+
+Do not add `type="module"` to the script tag.
+
+Sveltia CMS bundles its styles in the JavaScript file and is not distributed as an ES module. These mistakes come from confusing Sveltia CMS with Static CMS or Netlify CMS examples.
+
+---
+
 ## The contract
 
 ```
@@ -162,3 +192,14 @@ export interface HomePageContent {
 3. Update existing content files if the field is required (or give it a sensible default)
 4. Use the field in the Svelte component
 5. Update `docs/cms/collection-patterns.md`
+
+---
+
+## AI reference for editing config.yml
+
+When editing `static/admin/config.yml`, consult Sveltia's official AI-readable docs rather than Netlify CMS, Decap CMS, or Static CMS examples — those projects diverge from Sveltia on widget names and entrypoint patterns.
+
+- Quick reference: `https://sveltiacms.app/llms.txt`
+- Full reference (large): `https://sveltiacms.app/llms-full.txt` — fetch only for complex config work
+
+Do not commit either file to this repo. Sveltia labels these docs work-in-progress; treat them as helpful but not infallible. When a reference conflicts with a working collection in `config.yml`, trust the working config. See [docs/cms/sveltia-ai-reference.md](sveltia-ai-reference.md) for the full policy.

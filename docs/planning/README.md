@@ -44,7 +44,6 @@ Update `docs/design-system/` and `AGENTS.md` first, then update ADRs only when a
 | `02-scope-and-non-goals.md` | What is always-on, what is dormant, what is out of scope |
 | `03-stack-decisions.md` | Stack rationale |
 | `04-content-model.md` | Editorial content vs. runtime data model |
-| `05-css-and-design-system.md` | CSS architecture rationale (superseded by `docs/design-system/`) |
 | `06-agent-operating-model.md` | Agent rules rationale (superseded by `AGENTS.md`) |
 | `07-template-repo-spec.md` | File structure spec |
 | `08-quality-gates.md` | Quality gate checklist |

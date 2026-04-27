@@ -156,6 +156,35 @@ Full guide: `docs/deployment/secrets.md`
 - [ ] `docs/automations/content-automation-contract.md` documents the write rules
 - [ ] Site builds and serves correctly when `N8N_WEBHOOK_URL` is unset
 
+## Observability / error handling gates
+
+- [ ] Site has `src/routes/+error.svelte`
+- [ ] Site has `/healthz` returning `{ ok: true, service, environment, time }`
+- [ ] Server errors are logged through `src/lib/server/logger.ts` (not ad hoc `console.error`)
+- [ ] Logs include `requestId` where practical (injected by `src/hooks.server.ts`)
+- [ ] Logs do not include secrets, tokens, cookies, or raw sensitive form payloads
+- [ ] Form actions return safe user-facing errors via `toSafeError()` — no stack traces to browser
+- [ ] Runtime sites define whether `/readyz` is required (Tier 2+ only)
+- [ ] n8n-enabled sites have a central Error Workflow configured
+- [ ] n8n-enabled sites document retry and failure behavior for each workflow
+- [ ] n8n-enabled sites pass `request_id` into webhook payloads
+- [ ] Medium+ sites have uptime monitoring configured
+- [ ] Medium+ sites have backup verification scheduled
+- [ ] Large sites define alert severity levels and an incident runbook
+
+## CMS / content safety gates
+
+- [ ] `static/admin/config.yml` uses `frontmatter` (YAML) format for Markdown collections — not `toml-frontmatter`
+- [ ] No optional `datetime` fields exist unless added to `OPTIONAL_DATETIME_ALLOWLIST` in `scripts/check-cms-config.ts`
+- [ ] Required date fields use ISO 8601 datetime values with timezone (e.g. `2026-04-27T12:00:00Z`)
+- [ ] Empty optional date-like fields are omitted from frontmatter — not saved as `""` or `null`
+- [ ] Required frontmatter fields cannot be blank or null
+- [ ] `bun run check:content` exits 0 with content files present
+- [ ] `bun run check:cms` exits 0 with `static/admin/config.yml` present
+- [ ] `bun run check:content-diff` exits 0 before content-heavy commits
+- [ ] Agent rules prohibit unsafe Sveltia date/datetime patterns
+- [ ] Any content model field rename includes a migration plan covering all 7 steps
+
 ## Template integrity gates (before publishing a new template version)
 
 - [ ] `tokens.css` is the only file that needs to change to rebrand the template

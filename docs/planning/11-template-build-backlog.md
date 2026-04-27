@@ -15,7 +15,7 @@
 - [x] Configure adapter (svelte-adapter-bun)
 - [x] Add TypeScript strictness
 - [ ] Add home page route (+page.svelte)
-- [ ] Add error page (+error.svelte)
+- [x] Add error page (+error.svelte)
 
 ## Phase 2 — CSS/design system
 
@@ -65,6 +65,23 @@
 - [x] Add image optimization script (`scripts/optimize-images.js`, Sharp prebuild, ADR-009)
 - [x] Add responsive image component (`CmsImage.svelte` for CMS uploads; `<enhanced:img>` for brand assets)
 - [x] Add semantic HTML contract (Section.svelte, site shell in +layout.svelte, semantic-html-guide.md, llm-html-rules.md, ADR-008)
+
+## Phase 4b — Observability and CMS safety spine
+
+- [x] Add observability/error-handling spine (`src/routes/+error.svelte`, `src/routes/healthz/+server.ts`, `src/hooks.server.ts`, `src/lib/server/logger.ts`, `src/lib/server/request-id.ts`, `src/lib/server/safe-error.ts`, `src/lib/observability/types.ts`, `src/app.d.ts`)
+- [x] Add CMS content-safety validation scripts (`scripts/check-cms-config.ts`, `scripts/validate-content.ts`, `scripts/check-content-diff.ts`)
+- [x] Add `bun run check:cms`, `bun run check:content`, `bun run check:content-diff` to package.json
+- [x] Add observability docs (`docs/observability/` — README, tiers, error-handling, n8n-workflows, runbook)
+- [x] Add CMS safety docs (`docs/cms/sveltia-guide.md`, `docs/cms/content-safety.md`)
+- [x] Add ADR-016 (observability and error handling) and ADR-017 (CMS content safety)
+- [x] Update AGENTS.md with observability and CMS safety rules
+- [x] Update CLAUDE.md.template with observability and CMS safety sections
+- [x] Update quality gates (08-quality-gates.md) with observability and CMS/content safety gates
+- [x] Update maintenance loop (09-maintenance-loop.md) with recurring observability and CMS checks
+- [ ] Add `/readyz` with Postgres connectivity check — Phase 5, after `DATABASE_URL` is active
+- [ ] Optional Sentry integration — Tier 2+, per-project only; do not add to base template
+- [ ] Optional OpenTelemetry adoption path — Tier 3+; seam is in place via `event.locals.requestId`
+- [ ] Dead-letter / failed-event table for n8n webhook events — Phase 5, after Postgres is active
 
 ## Phase 5 — Runtime data/forms
 
@@ -124,3 +141,6 @@
 - shadcn — explicitly not part of this template
 - Auth module (Better Auth) — dormant; activate per-project only
 - Dashboard / app-shell layout — out of scope for website template baseline
+- n8n Error Workflow setup — Tier 2; document per project once n8n is active
+- Sentry integration — Tier 2; per-project only; do not add to base template
+- OpenTelemetry — Tier 3; seam in place (`event.locals.requestId`); full implementation deferred

@@ -31,7 +31,15 @@ tmpl-svelte-app/
   src/
     app.html                  ← HTML shell; update title, theme-color, favicon
     app.css                   ← design system entry; imports only
+    app.d.ts                  ← SvelteKit type augmentation (App.Locals: requestId)
+    hooks.server.ts           ← request ID injection; centralized error handling
     lib/
+      observability/
+        types.ts              ← ObservabilityTier, LogLevel, HealthResponse, WorkflowEventPayload
+      server/
+        logger.ts             ← structured JSON logger with automatic redaction
+        request-id.ts         ← read or generate x-request-id
+        safe-error.ts         ← normalize thrown errors; split public/diagnostic message
       config/
         site.ts               ← BRAND FILE — SEO/site config; replace all placeholders per project
       content/
@@ -56,9 +64,12 @@ tmpl-svelte-app/
         seo/
           SEO.svelte          ← renders all head/meta/JSON-LD for a page
     routes/
+      +error.svelte           ← friendly accessible error page; no stack traces
       +layout.svelte          ← imports app.css; injects root Organization/WebSite schema
       +page.server.ts         ← loads home.yml; returns typed home data
       +page.svelte            ← homepage; consumes CMS data; uses SEO component
+      healthz/
+        +server.ts            ← process liveness check; returns JSON
       sitemap.xml/
         +server.ts            ← prerendered /sitemap.xml
       robots.txt/
@@ -68,13 +79,17 @@ tmpl-svelte-app/
       styleguide/
         +page.svelte          ← design system demo; noindex; update when adding components
   docs/
-    cms/                      ← CMS documentation (README, content-contract, collection-patterns)
+    cms/                      ← CMS documentation (README, sveltia-guide, content-safety, content-contract, collection-patterns)
+    observability/            ← observability docs (README, tiers, error-handling, n8n-workflows, runbook)
     automations/              ← automation docs (n8n patterns, contracts, security)
     seo/                      ← SEO documentation (README, page-contract, schema-guide, launch-checklist)
     planning/                 ← planning documents (ADRs, vision, principles)
   scripts/
     check-seo.ts              ← SEO validation — run before deploying
-  AGENTS.md                   ← agent operating rules
+    check-cms-config.ts       ← CMS config validation — run after config.yml changes
+    validate-content.ts       ← content file validation — run before deploying
+    check-content-diff.ts     ← destructive content diff check — run before content commits
+  AGENTS.md                   ← agent operating rules (includes observability + CMS safety rules)
   CLAUDE.md.template          ← template for per-project CLAUDE.md
   README.md                   ← project documentation
 ```

@@ -10,7 +10,7 @@ backend:
   repo: owner/repo-name   # REPLACE with your GitHub repository (e.g., acme/my-site)
   branch: main
 
-local_backend: true
+local_backend: false
 
 media_folder: static/uploads
 public_folder: /uploads
