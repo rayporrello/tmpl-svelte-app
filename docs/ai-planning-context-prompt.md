@@ -8,140 +8,231 @@ Current repo structure:
 tmpl-svelte-app/
 ├── .env.example
 ├── .gitignore
+├── .prettierrc
 ├── .sops.yaml.example
 ├── AGENTS.md
 ├── CLAUDE.md.template
+├── Containerfile
+├── Containerfile.node.example
 ├── README.md
 ├── bun.lock
+├── eslint.config.js
+├── lefthook.yml
 ├── package.json
+├── playwright.config.ts
 ├── secrets.example.yaml
 ├── svelte.config.js
 ├── tsconfig.json
 ├── vite.config.ts
+├── vitest.config.ts
+├── .github/
+│ ├── dependabot.yml
+│ └── workflows/
+│ └── ci.yml
 ├── content/
-│   ├── articles/
-│   │   └── sample-post.md
-│   ├── pages/
-│   │   └── home.yml
-│   ├── team/
-│   │   └── sample-person.yml
-│   └── testimonials/
-│       └── sample-testimonial.yml
+│ ├── articles/
+│ │ └── sample-post.md
+│ ├── pages/
+│ │ └── home.yml
+│ ├── team/
+│ │ └── sample-person.yml
+│ └── testimonials/
+│ └── sample-testimonial.yml
+├── deploy/
+│ ├── Caddyfile.example
+│ ├── env.example
+│ └── quadlets/
+│ ├── web.container
+│ └── web.network
 ├── docs/
-│   ├── ai-planning-context-prompt.md
-│   ├── template-maintenance.md
-│   ├── automations/
-│   │   ├── README.md
-│   │   ├── content-automation-contract.md
-│   │   ├── n8n-patterns.md
-│   │   ├── runtime-event-contract.md
-│   │   └── security-and-secrets.md
-│   ├── cms/
-│   │   ├── README.md
-│   │   ├── collection-patterns.md
-│   │   └── sveltia-content-contract.md
-│   ├── deployment/
-│   │   ├── README.md
-│   │   └── secrets.md
-│   ├── design-system/
-│   │   ├── README.md
-│   │   ├── component-css-rules.md
-│   │   ├── forms-guide.md
-│   │   ├── images.md
-│   │   ├── llm-css-rules.md
-│   │   ├── llm-html-rules.md
-│   │   ├── media-editor-guide.md
-│   │   ├── semantic-html-guide.md
-│   │   ├── tokens-guide.md
-│   │   └── typography.md
-│   ├── planning/
-│   │   ├── README.md
-│   │   ├── 00-vision.md
-│   │   ├── 01-principles.md
-│   │   ├── 02-scope-and-non-goals.md
-│   │   ├── 03-stack-decisions.md
-│   │   ├── 04-content-model.md
-│   │   ├── 06-agent-operating-model.md
-│   │   ├── 07-template-repo-spec.md
-│   │   ├── 08-quality-gates.md
-│   │   ├── 09-maintenance-loop.md
-│   │   ├── 10-build-decision-ledger.md
-│   │   ├── 11-template-build-backlog.md
-│   │   └── adrs/
-│   │       ├── ADR-001-one-generic-template.md
-│   │       ├── ADR-002-core-plus-dormant-modules.md
-│   │       ├── ADR-003-sveltia-for-content.md
-│   │       ├── ADR-004-postgres-for-runtime-data.md
-│   │       ├── ADR-005-css-token-architecture.md
-│   │       ├── ADR-006-agent-operating-model.md
-│   │       ├── ADR-007-podman-caddy-infrastructure.md
-│   │       ├── ADR-008-semantic-html-contract.md
-│   │       ├── ADR-009-image-pipeline.md
-│   │       ├── ADR-010-typography-and-font-loading.md
-│   │       ├── ADR-011-built-in-seo-system.md
-│   │       ├── ADR-012-bun-first-dependency-and-build-artifact-policy.md
-│   │       ├── ADR-013-sops-age-secrets-management.md
-│   │       ├── ADR-014-sveltia-content-system.md
-│   │       └── ADR-015-n8n-automation-bridge.md
-│   └── seo/
-│       ├── README.md
-│       ├── launch-checklist.md
-│       ├── page-contract.md
-│       └── schema-guide.md
+│ ├── ai-planning-context-prompt.md
+│ ├── getting-started.md
+│ ├── template-maintenance.md
+│ ├── template-update-strategy.md
+│ ├── automations/
+│ │ ├── README.md
+│ │ ├── content-automation-contract.md
+│ │ ├── n8n-patterns.md
+│ │ ├── runtime-event-contract.md
+│ │ └── security-and-secrets.md
+│ ├── cms/
+│ │ ├── README.md
+│ │ ├── collection-patterns.md
+│ │ ├── content-safety.md
+│ │ ├── sveltia-ai-reference.md
+│ │ ├── sveltia-content-contract.md
+│ │ └── sveltia-guide.md
+│ ├── content/
+│ │ └── markdown.md
+│ ├── deployment/
+│ │ ├── README.md
+│ │ ├── runbook.md
+│ │ └── secrets.md
+│ ├── design-system/
+│ │ ├── README.md
+│ │ ├── accessibility.md
+│ │ ├── component-css-rules.md
+│ │ ├── forms-guide.md
+│ │ ├── images.md
+│ │ ├── llm-css-rules.md
+│ │ ├── llm-html-rules.md
+│ │ ├── media-editor-guide.md
+│ │ ├── semantic-html-guide.md
+│ │ ├── tokens-guide.md
+│ │ └── typography.md
+│ ├── observability/
+│ │ ├── README.md
+│ │ ├── error-handling.md
+│ │ ├── n8n-workflows.md
+│ │ ├── runbook.md
+│ │ └── tiers.md
+│ ├── planning/
+│ │ ├── README.md
+│ │ ├── 00-vision.md
+│ │ ├── 01-principles.md
+│ │ ├── 02-scope-and-non-goals.md
+│ │ ├── 03-stack-decisions.md
+│ │ ├── 04-content-model.md
+│ │ ├── 06-agent-operating-model.md
+│ │ ├── 07-template-repo-spec.md
+│ │ ├── 08-quality-gates.md
+│ │ ├── 09-maintenance-loop.md
+│ │ ├── 10-build-decision-ledger.md
+│ │ ├── 11-template-build-backlog.md
+│ │ └── adrs/
+│ │ ├── ADR-001-one-generic-template.md
+│ │ ├── ADR-002-core-plus-dormant-modules.md
+│ │ ├── ADR-003-sveltia-for-content.md
+│ │ ├── ADR-004-postgres-for-runtime-data.md
+│ │ ├── ADR-005-css-token-architecture.md
+│ │ ├── ADR-006-agent-operating-model.md
+│ │ ├── ADR-007-podman-caddy-infrastructure.md
+│ │ ├── ADR-008-semantic-html-contract.md
+│ │ ├── ADR-009-image-pipeline.md
+│ │ ├── ADR-010-typography-and-font-loading.md
+│ │ ├── ADR-011-built-in-seo-system.md
+│ │ ├── ADR-012-bun-first-dependency-and-build-artifact-policy.md
+│ │ ├── ADR-013-sops-age-secrets-management.md
+│ │ ├── ADR-014-sveltia-content-system.md
+│ │ ├── ADR-015-n8n-automation-bridge.md
+│ │ ├── ADR-016-observability-and-error-handling.md
+│ │ ├── ADR-017-sveltia-cms-content-safety.md
+│ │ ├── ADR-018-production-runtime-and-deployment-contract.md
+│ │ └── ADR-019-security-headers-and-csp-baseline.md
+│ └── seo/
+│ ├── README.md
+│ ├── launch-checklist.md
+│ ├── page-contract.md
+│ └── schema-guide.md
 ├── scripts/
-│   ├── check-secrets.sh
-│   ├── check-seo.ts
-│   ├── optimize-images.js
-│   └── render-secrets.sh
+│ ├── check-assets.ts
+│ ├── check-cms-config.ts
+│ ├── check-content-diff.ts
+│ ├── check-launch.ts
+│ ├── check-secrets.sh
+│ ├── check-seo.ts
+│ ├── generate-placeholder-assets.ts
+│ ├── init-site.ts
+│ ├── optimize-images.js
+│ ├── render-secrets.sh
+│ └── validate-content.ts
 ├── src/
-│   ├── app.css
-│   ├── app.html
-│   ├── lib/
-│   │   ├── components/
-│   │   │   ├── CmsImage.svelte
-│   │   │   ├── Section.svelte
-│   │   │   └── seo/
-│   │   │       └── SEO.svelte
-│   │   ├── config/
-│   │   │   └── site.ts
-│   │   ├── content/
-│   │   │   ├── articles.ts
-│   │   │   ├── index.ts
-│   │   │   ├── pages.ts
-│   │   │   └── types.ts
-│   │   ├── seo/
-│   │   │   ├── metadata.ts
-│   │   │   ├── routes.ts
-│   │   │   ├── schemas.ts
-│   │   │   ├── sitemap.ts
-│   │   │   └── types.ts
-│   │   └── styles/
-│   │       ├── animations.css
-│   │       ├── base.css
-│   │       ├── forms.css
-│   │       ├── reset.css
-│   │       ├── tokens.css
-│   │       └── utilities.css
-│   └── routes/
-│       ├── +layout.svelte
-│       ├── +page.server.ts
-│       ├── +page.svelte
-│       ├── llms.txt/
-│       │   └── +server.ts
-│       ├── robots.txt/
-│       │   └── +server.ts
-│       ├── sitemap.xml/
-│       │   └── +server.ts
-│       └── styleguide/
-│           ├── +page.server.ts
-│           └── +page.svelte
-└── static/
-    ├── admin/
-    │   ├── config.yml
-    │   └── index.html
-    ├── fonts/.gitkeep
-    └── uploads/.gitkeep
-
+│ ├── app.css
+│ ├── app.d.ts
+│ ├── app.html
+│ ├── hooks.server.ts
+│ ├── lib/
+│ │ ├── components/
+│ │ │ ├── CmsImage.svelte
+│ │ │ ├── Section.svelte
+│ │ │ └── seo/
+│ │ │ └── SEO.svelte
+│ │ ├── config/
+│ │ │ └── site.ts
+│ │ ├── content/
+│ │ │ ├── articles.ts
+│ │ │ ├── index.ts
+│ │ │ ├── markdown.ts
+│ │ │ ├── pages.ts
+│ │ │ ├── team.ts
+│ │ │ ├── testimonials.ts
+│ │ │ └── types.ts
+│ │ ├── env/
+│ │ │ ├── private.ts
+│ │ │ └── public.ts
+│ │ ├── forms/
+│ │ │ └── contact.schema.ts
+│ │ ├── observability/
+│ │ │ └── types.ts
+│ │ ├── seo/
+│ │ │ ├── metadata.ts
+│ │ │ ├── routes.ts
+│ │ │ ├── schemas.ts
+│ │ │ ├── sitemap.ts
+│ │ │ └── types.ts
+│ │ ├── server/
+│ │ │ ├── csp.ts
+│ │ │ ├── env.ts
+│ │ │ ├── logger.ts
+│ │ │ ├── request-id.ts
+│ │ │ ├── safe-error.ts
+│ │ │ └── forms/
+│ │ │ ├── email-provider.ts
+│ │ │ ├── rate-limit.ts
+│ │ │ └── providers/
+│ │ │ ├── console.ts
+│ │ │ └── postmark.example.ts
+│ │ └── styles/
+│ │ ├── animations.css
+│ │ ├── base.css
+│ │ ├── brand.example.css
+│ │ ├── forms.css
+│ │ ├── reset.css
+│ │ ├── tokens.css
+│ │ └── utilities.css
+│ └── routes/
+│ ├── +error.svelte
+│ ├── +layout.svelte
+│ ├── +page.server.ts
+│ ├── +page.svelte
+│ ├── articles/
+│ │ ├── +page.server.ts
+│ │ ├── +page.svelte
+│ │ └── [slug]/
+│ │ ├── +page.server.ts
+│ │ └── +page.svelte
+│ ├── contact-example/ ← dormant; rename to /contact to activate
+│ │ ├── +page.server.ts
+│ │ └── +page.svelte
+│ ├── healthz/
+│ │ └── +server.ts
+│ ├── llms.txt/
+│ │ └── +server.ts
+│ ├── robots.txt/
+│ │ └── +server.ts
+│ ├── sitemap.xml/
+│ │ └── +server.ts
+│ └── styleguide/
+│ ├── +page.server.ts
+│ └── +page.svelte
+├── static/
+│ ├── admin/
+│ │ ├── config.yml
+│ │ └── index.html
+│ ├── apple-touch-icon.png
+│ ├── favicon-32.png
+│ ├── favicon.svg
+│ ├── og-default.png
+│ ├── site.webmanifest
+│ ├── fonts/.gitkeep
+│ └── uploads/.gitkeep
+└── tests/
+├── e2e/
+│ └── smoke.spec.ts
+└── unit/
+├── articles.test.ts
+├── env.test.ts
+└── seo-metadata.test.ts
 
 Prior source notes:
 I have older and newer notes covering the website stack, scaffolding, SEO, images, typography, CSS architecture, semantic HTML, secrets, deployment, Sveltia CMS, automations, checklists, and agent rules. Treat these as source material to distill into the final template. Do not treat old notes as binding if they conflict with current direction.
@@ -150,6 +241,7 @@ Important correction:
 Some older notes include SQLite/lite-path assumptions. Do not default to SQLite. The current direction is Postgres for runtime data unless a thread explicitly reopens that decision.
 
 Decision posture:
+
 - Optimize for performance, robustness, maintainability, simplicity, and long-term leverage.
 - Do not recommend technologies merely because they are common, popular, hiring-friendly, or industry-default.
 - Do not push React, Node.js, Prisma, Next.js, Tailwind, or other defaults unless there is a truly compelling reason and it beats the performance/simplicity bar.
@@ -161,6 +253,7 @@ Decision posture:
 - Do not overfit to one site idea. This is a reusable base template.
 
 Current high-level direction:
+
 - SvelteKit/Svelte-oriented template.
 - Bun-first: Bun is the exclusive package manager and script runner. Never npm/npx. bun.lock committed. Build artifacts (.svelte-kit/, build/, node_modules/) gitignored. See ADR-012.
 - Sveltia CMS with Git-backed content: `content/` directory holds all editorial content (YAML pages/team/testimonials, Markdown articles). Sveltia admin UI at `static/admin/`. Typed content loaders in `src/lib/content/`. See ADR-014 and docs/cms/.
@@ -179,17 +272,25 @@ Current high-level direction:
 - Documentation is part of the template contract, not an afterthought.
 
 Completed build phases (as of April 2026):
-- Phase 1 (project scaffold): SvelteKit + Bun + svelte-adapter-bun + TypeScript + vite.config.ts. Builds successfully. Still missing: +error.svelte.
-- Phase 2 (CSS/design system): Complete. tokens.css, reset.css, base.css, animations.css, utilities.css, forms.css. Styleguide route active at /styleguide.
-- Phase 3 (CMS/content): Substantially complete. content/ directory, Sveltia CMS admin files (static/admin/), typed content loaders (src/lib/content/), starter content files, home page route (+page.svelte + +page.server.ts), CMS docs (docs/cms/), automation docs (docs/automations/), ADR-014, ADR-015. Remaining per-project task: configure GitHub OAuth in static/admin/config.yml backend.repo. Template task outstanding: Markdown renderer for article body fields.
-- Phase 4 (SEO / images / accessibility / semantic HTML): Complete. SEO component, site config, schema helpers, sitemap/robots/llms routes, image pipeline (Sharp + enhanced:img + CmsImage), Section.svelte, quality gates, scripts/check-seo.ts, scripts/optimize-images.js.
-- Phase 6 (secrets): Partially complete. SOPS + age workflow documented and scripted: ADR-013, docs/deployment/secrets.md, .env.example, secrets.example.yaml, .sops.yaml.example, scripts/render-secrets.sh, scripts/check-secrets.sh, bun run secrets:render / secrets:check. Containerfile, Quadlet templates, Caddy config, and deployment runbook not yet done.
 
-Not yet started:
-- Phase 5 (forms/runtime data): Postgres, Drizzle, env validation, Superforms + contact form pattern, Postmark, typed automation event emitter (src/lib/automation/events.ts), HMAC signing (src/lib/automation/signing.ts).
-- Phase 6 (deployment — remaining): Containerfile, Quadlet templates, Caddy config, deployment runbook.
+- Phase 1 (project scaffold): COMPLETE. SvelteKit + Bun + svelte-adapter-bun + TypeScript + vite.config.ts. +error.svelte present (Batch B).
+- Phase 2 (CSS/design system): COMPLETE. tokens.css, reset.css, base.css, animations.css, utilities.css, forms.css; brand.example.css ("Warm Coral") re-skin example. Styleguide at /styleguide includes brand swatches, shadow demos, Buttons section.
+- Phase 3 (CMS/content): COMPLETE. content/ directory, Sveltia CMS admin files (static/admin/), typed content loaders (pages, articles, team, testimonials), Markdown renderer with three trust tiers (src/lib/content/markdown.ts — marked + sanitize-html), CMS content-safety scripts (check:cms, check:content, check:content-diff), CMS docs (sveltia-guide.md, content-safety.md), ADR-014, ADR-015, ADR-017. Remaining per-project task only: configure GitHub OAuth in static/admin/config.yml backend.repo via init:site or manually.
+- Phase 4 (SEO / images / accessibility / semantic HTML): COMPLETE. SEO component, site config, schema helpers, sitemap/robots/llms routes, image pipeline (Sharp + enhanced:img + CmsImage), Section.svelte, quality gates, scripts/check-seo.ts, scripts/check-assets.ts, scripts/optimize-images.js, accessibility doc with WCAG AA contrast fixes (Batch C).
+- Phase 4b (observability + CMS safety spine): COMPLETE. +error.svelte (with requestId display and contact link), /healthz, hooks.server.ts (request ID, safe error normalization, security headers, CSP, env init), logger, request-id, safe-error, observability types, ADR-016, ADR-017, observability docs (tiers, error-handling, n8n-workflows, runbook).
+- Phase 5 (forms/runtime data): PARTIALLY COMPLETE. Forms-as-optional-module is done (Batch D): Superforms + Valibot installed, contact-example route (dormant by default — rename to /contact to activate), Valibot contact schema (src/lib/forms/contact.schema.ts), EmailProvider seam (console default + postmark.example), in-memory token-bucket rate limiter, CSP form-action documented. Remaining: Postgres + Drizzle (still dormant), typed automation event emitter (src/lib/automation/events.ts), HMAC signing (src/lib/automation/signing.ts), `lead.created` and `newsletter.subscribed` event wiring, /readyz Postgres readiness probe, dead-letter table for failed events.
+- Phase 6 (deployment): COMPLETE for the website-only baseline. SOPS + age workflow (ADR-013, secrets.md, scripts/render-secrets.sh + check-secrets.sh). Production runtime (Batch A1): engines.bun, packageManager, preinstall guard, validation lifecycle split (validate vs validate:launch), default static assets (favicon, og-default, manifest), minimal app security headers, ADR-018. Containers + deploy (Batch A2): Containerfile (multi-stage Bun, non-root, HEALTHCHECK), Containerfile.node.example escape hatch, deploy/quadlets/{web.container,web.network}, deploy/Caddyfile.example, deploy/env.example, docs/deployment/runbook.md. CI (Batch A3): .github/workflows/ci.yml (validate/image/launch jobs, Trivy CRITICAL blocking, smoke tests, GHCR push), .github/dependabot.yml. Security baseline (Batch B): Valibot env schemas (src/lib/server/env.ts + src/lib/env/{public,private}.ts), CSP baseline (src/lib/server/csp.ts) with /admin allowance for Sveltia CDN, ADR-019. init:site interactive initializer (Batch B). Vitest + Playwright wired into validate (Batches B and C).
+- Phase E (ergonomics): COMPLETE. Lefthook (pre-commit prettier + eslint --fix), ESLint flat config, Prettier config, getting-started.md (11-step walkthrough), template-update-strategy.md (clone-and-customize model + future @<owner>/web-template-utils extraction path).
+- Phase F (UI groundwork): COMPLETE. .btn / .btn-primary / .btn-secondary / .btn-ghost / .btn-sm / .btn-lg utility classes in utilities.css; /articles index route (server load + cards + axe-clean); real header/footer nav with WCAG AA-passing active state.
+
+Remaining template work:
+
+- Phase 5 runtime data: Postgres + Drizzle activation, /readyz with DB connectivity, automation event emitter, HMAC signing, lead.created and newsletter.subscribed event wiring, dead-letter table for failed n8n events. (See backlog and ADR roadmap; deferred until Postgres is active.)
+- Phase 7 architecture/operations docs: optional; deferred to Phase 5+ when runtime data lands.
+- Phase 8 final validation pass: container build, Lighthouse/perf check, full doc-vs-implementation audit before tagging a v1 release.
 
 How I want you to work:
+
 1. Assume the purpose of this thread is to move the template closer to being done.
 2. Do not turn this into an open-ended planning exercise.
 3. Start from the current direction unless there is a serious reason to challenge it.

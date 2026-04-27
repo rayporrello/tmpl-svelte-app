@@ -15,7 +15,7 @@ When any conflict exists, this is the authority order — top wins:
 
 ## What planning docs are for
 
-- Explaining *why* a decision was made (ADRs)
+- Explaining _why_ a decision was made (ADRs)
 - Recording what was considered and rejected (scope docs)
 - Tracking remaining implementation work (backlog)
 - Providing context for future maintenance decisions
@@ -37,17 +37,17 @@ Update `docs/design-system/` and `AGENTS.md` first, then update ADRs only when a
 
 ## Files in this directory
 
-| File | Purpose |
-|------|---------|
-| `00-vision.md` | What the template is and who it is for |
-| `01-principles.md` | Guiding constraints for all decisions |
-| `02-scope-and-non-goals.md` | What is always-on, what is dormant, what is out of scope |
-| `03-stack-decisions.md` | Stack rationale |
-| `04-content-model.md` | Editorial content vs. runtime data model |
-| `06-agent-operating-model.md` | Agent rules rationale (superseded by `AGENTS.md`) |
-| `07-template-repo-spec.md` | File structure spec |
-| `08-quality-gates.md` | Quality gate checklist |
-| `09-maintenance-loop.md` | Ongoing maintenance process |
-| `10-build-decision-ledger.md` | Decision status ledger |
-| `11-template-build-backlog.md` | Implementation backlog |
-| `adrs/` | Architecture Decision Records |
+| File                           | Purpose                                                  |
+| ------------------------------ | -------------------------------------------------------- |
+| `00-vision.md`                 | What the template is and who it is for                   |
+| `01-principles.md`             | Guiding constraints for all decisions                    |
+| `02-scope-and-non-goals.md`    | What is always-on, what is dormant, what is out of scope |
+| `03-stack-decisions.md`        | Stack rationale                                          |
+| `04-content-model.md`          | Editorial content vs. runtime data model                 |
+| `06-agent-operating-model.md`  | Agent rules rationale (superseded by `AGENTS.md`)        |
+| `07-template-repo-spec.md`     | File structure spec — the structural contract            |
+| `08-quality-gates.md`          | Quality gate checklist                                   |
+| `09-maintenance-loop.md`       | Ongoing maintenance process                              |
+| `10-build-decision-ledger.md`  | Decision status ledger (Batches A1–F all ACCEPTED)       |
+| `11-template-build-backlog.md` | Implementation backlog (most phases complete)            |
+| `adrs/`                        | Architecture Decision Records — ADR-001 through ADR-019  |

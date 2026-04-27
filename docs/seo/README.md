@@ -4,19 +4,19 @@ SEO is built into this template. It is not optional and not a checklist item —
 
 ## What ships with the template
 
-| File | Purpose |
-|------|---------|
-| `src/lib/config/site.ts` | Single source of truth for site name, domain, OG image, organization, locale |
-| `src/lib/seo/types.ts` | TypeScript types for page and resolved SEO metadata |
-| `src/lib/seo/metadata.ts` | Helpers: canonical URL, image URL, title template, robots directive |
-| `src/lib/seo/schemas.ts` | JSON-LD schema helpers: Organization, WebSite, Article, Breadcrumb, Person, LocalBusiness, FAQ |
-| `src/lib/seo/routes.ts` | Static route registry — declares every route and its indexability |
-| `src/lib/seo/sitemap.ts` | Generates `sitemap.xml` content from the route registry |
-| `src/lib/components/seo/SEO.svelte` | Svelte component — renders all head tags for a page |
-| `src/routes/sitemap.xml/+server.ts` | Prerendered `/sitemap.xml` endpoint |
-| `src/routes/robots.txt/+server.ts` | Prerendered `/robots.txt` endpoint |
-| `src/routes/llms.txt/+server.ts` | Prerendered `/llms.txt` endpoint for AI discovery |
-| `scripts/check-seo.ts` | Validation script — fails on placeholder values and indexability errors |
+| File                                | Purpose                                                                                        |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `src/lib/config/site.ts`            | Single source of truth for site name, domain, OG image, organization, locale                   |
+| `src/lib/seo/types.ts`              | TypeScript types for page and resolved SEO metadata                                            |
+| `src/lib/seo/metadata.ts`           | Helpers: canonical URL, image URL, title template, robots directive                            |
+| `src/lib/seo/schemas.ts`            | JSON-LD schema helpers: Organization, WebSite, Article, Breadcrumb, Person, LocalBusiness, FAQ |
+| `src/lib/seo/routes.ts`             | Static route registry — declares every route and its indexability                              |
+| `src/lib/seo/sitemap.ts`            | Generates `sitemap.xml` content from the route registry                                        |
+| `src/lib/components/seo/SEO.svelte` | Svelte component — renders all head tags for a page                                            |
+| `src/routes/sitemap.xml/+server.ts` | Prerendered `/sitemap.xml` endpoint                                                            |
+| `src/routes/robots.txt/+server.ts`  | Prerendered `/robots.txt` endpoint                                                             |
+| `src/routes/llms.txt/+server.ts`    | Prerendered `/llms.txt` endpoint for AI discovery                                              |
+| `scripts/check-seo.ts`              | Validation script — fails on placeholder values and indexability errors                        |
 
 ## How to add a new public route
 
@@ -30,14 +30,16 @@ SEO is built into this template. It is not optional and not a checklist item —
 
 ```svelte
 <script lang="ts">
-  import SEO from '$lib/components/seo/SEO.svelte';
+	import SEO from '$lib/components/seo/SEO.svelte';
 </script>
 
-<SEO seo={{
-  title: 'About Us',
-  description: 'Learn about our company and team.',
-  canonicalPath: '/about'
-}} />
+<SEO
+	seo={{
+		title: 'About Us',
+		description: 'Learn about our company and team.',
+		canonicalPath: '/about',
+	}}
+/>
 ```
 
 That is the minimum. `title`, `description`, and `canonicalPath` are required. Everything else defaults from `site.ts`.
@@ -48,19 +50,19 @@ Open [src/lib/config/site.ts](../../src/lib/config/site.ts) and replace all plac
 
 ```ts
 export const site: SiteConfig = {
-  name: 'Acme Corp',
-  url: 'https://acme.com',
-  defaultTitle: 'Acme Corp — Build Better',
-  titleTemplate: '%s — Acme Corp',
-  defaultDescription: 'Acme Corp makes tools that help teams move faster.',
-  defaultOgImage: '/images/og-default.png',
-  locale: 'en_US',
-  indexing: true,
-  organization: {
-    name: 'Acme Corp',
-    logo: 'https://acme.com/images/logo.png',
-    sameAs: ['https://twitter.com/acmecorp']
-  }
+	name: 'Acme Corp',
+	url: 'https://acme.com',
+	defaultTitle: 'Acme Corp — Build Better',
+	titleTemplate: '%s — Acme Corp',
+	defaultDescription: 'Acme Corp makes tools that help teams move faster.',
+	defaultOgImage: '/images/og-default.png',
+	locale: 'en_US',
+	indexing: true,
+	organization: {
+		name: 'Acme Corp',
+		logo: 'https://acme.com/images/logo.png',
+		sameAs: ['https://twitter.com/acmecorp'],
+	},
 };
 ```
 
@@ -82,10 +84,12 @@ Add `indexable: false` in `routes.ts` and pass `robots: 'noindex, nofollow'` to 
 ## Validation
 
 ```bash
-bun run check:seo
+bun run check:seo       # SEO config + route registry sanity
+bun run check:launch    # release-grade: confirms ORIGIN/PUBLIC_SITE_URL look like a real HTTPS URL
 ```
 
-This script checks that:
+`check:seo` checks that:
+
 - `site.url` is not `https://example.com`
 - `site.name` and `site.defaultTitle` are not placeholder values
 - `site.defaultDescription` exists and is non-trivial
@@ -93,7 +97,13 @@ This script checks that:
 - SEO source files do not contain hardcoded `yourdomain.com`
 - `/styleguide`, `/admin`, `/preview`, `/draft` routes are not marked indexable
 
-Run this before deploying. It is not currently wired into the build — add it to a CI step or `prebuild` when you are ready to enforce it.
+Both scripts are wired into the validation pipeline:
+
+- `bun run validate` (PR-grade) runs `check:seo`
+- `bun run validate:launch` (release-grade) runs `check:seo` **and** `check:launch`
+- `.github/workflows/ci.yml` runs `validate` on every push and `validate:launch` on tags
+
+Run `validate:launch` before going live. The launch checks fail loudly on placeholder URLs.
 
 ## Further reading
 

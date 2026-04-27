@@ -23,9 +23,10 @@ Step-by-step guide for turning `tmpl-svelte-app` into a production site.
    ```
 3. Verify the scaffold works:
    ```bash
-   bun run dev    # starts at http://127.0.0.1:5173
-   bun run build  # must succeed before any deploy
+   bun run dev       # starts at http://127.0.0.1:5173
+   bun run validate  # full PR-grade pipeline: typecheck, SEO/CMS/content/asset checks, build, unit + e2e tests
    ```
+   `bun run validate` is the green-light check before any commit. It must succeed locally before pushing.
 
 ---
 
@@ -144,7 +145,7 @@ with real copy. The home route loads this file at build time — no database nee
 | Contact form       | Rename `src/routes/contact-example/` → `src/routes/contact/`; install an email provider (see [docs/design-system/forms-guide.md](design-system/forms-guide.md)) |
 | Postgres + Drizzle | Add `DATABASE_URL` to `.env`; create a schema file                                                                                                              |
 | n8n webhooks       | Add `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` env vars                                                                                                           |
-| Postmark email     | Copy `src/lib/server/forms/providers/postmark.example.ts` → `postmark.ts`; add `POSTMARK_API_TOKEN`                                                             |
+| Postmark email     | Copy `src/lib/server/forms/providers/postmark.example.ts` → `postmark.ts`; add `POSTMARK_SERVER_TOKEN` (matches `.env.example`)                                 |
 | Better Auth        | Follow the auth module docs                                                                                                                                     |
 
 ---
@@ -153,7 +154,8 @@ with real copy. The home route loads this file at build time — no database nee
 
 1. Build and verify locally:
    ```bash
-   bun run validate    # full check + build + tests
+   bun run validate          # PR-grade: typecheck, SEO/CMS/content/assets, build, unit + e2e
+   bun run validate:launch   # release-grade: validate + check:launch + check:content-diff
    ```
 2. Build the container image:
    ```bash
@@ -165,6 +167,7 @@ with real copy. The home route loads this file at build time — no database nee
    # visit http://127.0.0.1:3000/healthz — should return 200
    ```
 3. Follow the full deployment runbook: [docs/deployment/runbook.md](deployment/runbook.md)
+4. CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) runs `validate` on every push, builds the image, runs Trivy with CRITICAL gating, smoke-tests the running container, and pushes to GHCR on `main`. `validate:launch` is gated on tags.
 
 ---
 

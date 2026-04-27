@@ -1,12 +1,37 @@
 # Template Build Backlog
 
+## v1 readiness summary (as of April 2026)
+
+The template is feature-complete for the **website-only baseline** (landing pages, content sites, marketing sites). All of Phases 0–4b, 6, E, F are done. Phase 5 (forms / runtime data) is partially complete: forms scaffolding ships dormant, but Postgres + automation event wiring is intentionally deferred until a real project needs it.
+
+**Ready to use today:**
+
+- Spin up a new project, run `bun run init:site`, edit `tokens.css`, register routes in `src/lib/seo/routes.ts`, and ship.
+- `bun run validate` and `bun run validate:launch` enforce all template invariants (SEO, CMS, content, assets, build, unit, e2e + axe).
+- CI (.github/workflows/ci.yml) runs validate, builds the container image, runs Trivy with CRITICAL gating, smoke-tests the live container, and pushes to GHCR.
+- Container + reverse proxy: Containerfile, Quadlets, Caddyfile.example, deployment runbook.
+- Sveltia CMS at `/admin` is wired; content safety scripts gate writes; Markdown rendering ships with sanitisation.
+- Observability spine + security baseline (per-route CSP, Valibot env, request ID + safe error normalization).
+
+**Outstanding before tagging a hypothetical v1.0.0:**
+
+| Area                                                                                                         | What's missing                           | Why deferred                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lighthouse / perf check in CI                                                                                | Manual today; not wired into `validate`  | Needs decision on perf budget thresholds — tag-time only                                                                                     |
+| Final docs-vs-implementation audit                                                                           | Should re-verify after any further drift | Continuous — not a one-time gate                                                                                                             |
+| Phase 5 runtime data (Postgres, Drizzle, /readyz, automation event emitter, HMAC signing, dead-letter table) | Implementations not yet started          | Intentionally deferred until a project actually needs runtime data; the seams (env, types, contact form, observability) are already in place |
+
+Everything else is a per-project activation decision (see "Deferred / Phase 5+" at the bottom of this file).
+
+---
+
 ## Phase 0 — Planning consolidation
 
 - [x] Create build decision ledger
 - [x] Mark each decision ACCEPTED / CHALLENGE / DEFER / REJECTED
-- [x] Update ADRs to match accepted decisions (ADR-001 through ADR-012)
-- [x] Create permanent docs structure (docs/design-system/, docs/seo/, docs/planning/adrs/)
-- [ ] Move durable docs from planning into architecture/operations/reference drafts (operations and deployment docs not yet written)
+- [x] Update ADRs to match accepted decisions (ADR-001 through ADR-019)
+- [x] Create permanent docs structure (docs/design-system/, docs/seo/, docs/cms/, docs/observability/, docs/automations/, docs/deployment/, docs/content/, docs/planning/adrs/)
+- [x] Move durable docs from planning into permanent locations (deployment/runbook + secrets, cms guides, observability tiers + runbook, content/markdown trust tiers, design-system accessibility)
 
 ## Phase 1 — Base project scaffold
 
@@ -14,7 +39,7 @@
 - [x] Configure Bun scripts (dev, build, preview, check, check:seo, validate)
 - [x] Configure adapter (svelte-adapter-bun)
 - [x] Add TypeScript strictness
-- [ ] Add home page route (+page.svelte)
+- [x] Add home page route (+page.svelte + +page.server.ts loading content/pages/home.yml)
 - [x] Add error page (+error.svelte)
 
 ## Phase 2 — CSS/design system
@@ -162,15 +187,15 @@
 
 ## Phase 8 — Validation
 
-- [ ] Run build
-- [ ] Run typecheck
-- [ ] Run lint
-- [ ] Run formatting
-- [ ] Run accessibility checks
-- [ ] Run Lighthouse/perf check
-- [ ] Verify container build
-- [ ] Verify docs match implementation
-- [ ] Verify styleguide route renders all documented classes without errors
+- [x] Run build (wired into `bun run validate`; CI runs on every push)
+- [x] Run typecheck (`bun run check` — wired into `validate`)
+- [x] Run lint (`bun run lint` — ESLint flat config; lefthook runs on staged files pre-commit)
+- [x] Run formatting (`bun run format` — Prettier; lefthook auto-formats on commit)
+- [x] Run accessibility checks (`@axe-core/playwright` in tests/e2e/smoke.spec.ts; gates on zero violations)
+- [ ] Run Lighthouse/perf check (manual; not yet wired into CI — run before launch via `validate:launch`)
+- [x] Verify container build (CI image job builds Containerfile and runs Trivy CRITICAL scan)
+- [ ] Verify docs match implementation (re-audit before tagging v1)
+- [x] Verify styleguide route renders all documented classes without errors (e2e smoke + axe pass)
 
 ## Phase E — Ergonomics / polish (Batch E)
 

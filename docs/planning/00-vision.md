@@ -12,33 +12,58 @@ Starting a new web project from scratch means re-solving the same problems every
 
 ## What the Template Provides
 
-**Always on:**
-- SvelteKit/Svelte 5 skeleton
-- Bun tooling and runtime direction
-- Hand-authored CSS token/design-system baseline
-- Sveltia CMS / file-based content conventions
-- SEO, accessibility, semantic HTML, and image baseline
-- Podman Quadlet + Caddy deployment templates and documentation
-- Agent-readable operating rules (AGENTS.md, CLAUDE.md.template)
+**Always on (implemented):**
 
-**Prepared but dormant:**
+- SvelteKit/Svelte 5 skeleton with Bun tooling, svelte-adapter-bun, and `engines.bun`/`preinstall` guards
+- Hand-authored CSS token/design-system baseline (`tokens.css`, `reset.css`, `base.css`, `animations.css`, `utilities.css` with global button utilities, `forms.css`)
+- Sveltia CMS + Git-backed content for pages, articles, team, testimonials; sanitized Markdown renderer with three trust tiers
+- Built-in SEO (SEO component, schema helpers, sitemap, robots.txt, llms.txt, route registry, validation)
+- Image pipeline (Sharp prebuild for `static/uploads/`, `<enhanced:img>` for `src/lib/assets/`)
+- Typography baseline (Fontsource variable fonts; tokens in `tokens.css`)
+- Semantic HTML contract (`Section.svelte`, accessible site shell with skip link, real header/footer nav, `/articles` index)
+- Observability spine (friendly error page with request ID, `/healthz`, structured logging, safe error normalization)
+- Security baseline (Valibot env schemas, per-route CSP, minimal HTTP security headers)
+- CMS content safety (`check:cms`, `check:content`, `check:content-diff`)
+- Production runtime contract (Containerfile, Quadlet templates, Caddyfile example, deploy runbook)
+- CI (validate / image / launch with Trivy CRITICAL gating, smoke tests, GHCR push)
+- Tests (Vitest unit + Playwright + axe e2e)
+- Ergonomics (Lefthook pre-commit, ESLint flat config, Prettier, interactive `init:site`)
+- Secrets management (SOPS + age workflow, render and check scripts)
+- Agent-readable operating rules (`AGENTS.md`, `CLAUDE.md.template`)
+
+**Scaffolded but dormant (activate per project):**
+
+- Contact form pattern (Superforms + Valibot + EmailProvider seam + rate limiter at `src/routes/contact-example/`)
+- Postmark transactional email provider (`src/lib/server/forms/providers/postmark.example.ts`)
+- n8n integration env contract (`N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`)
+
+**Planned, not yet implemented (Phase 5+):**
+
 - Postgres + Drizzle for runtime data
-- n8n for automation workflows
-- Postmark or equivalent for transactional email
+- Typed automation event emitter + HMAC signing (`src/lib/automation/events.ts`, `signing.ts`)
+- `lead.created` / `newsletter.subscribed` event wiring
+- `/readyz` with Postgres connectivity probe
+- Dead-letter table for failed n8n events
 - Better Auth for auth and member/admin areas
 - Backup automation for database and media
 
 ## The Target Workflow
 
 When a new project starts:
+
 1. Use this template on GitHub to create the new repo.
-2. Configure site metadata, content collections, and which modules to activate.
-3. Deploy to a Podman/Caddy host — the Caddyfile, Quadlet definitions, and deploy documentation are already in the repo.
-4. Activate dormant modules only when the project actually needs them.
+2. Run `bun run init:site` — interactive prompt rewrites placeholders across 9 files (package name, site URL, organisation, repo, contact email, deploy hostname).
+3. Edit `tokens.css` for brand colors / fonts / shape (see `brand.example.css`).
+4. Register routes in `src/lib/seo/routes.ts`.
+5. Activate dormant modules only when the project actually needs them.
+6. Deploy to a Podman/Caddy host — Containerfile, Quadlets, Caddyfile, and runbook are already in the repo.
+
+See [docs/getting-started.md](../getting-started.md) for the full step-by-step walkthrough.
 
 ## Success Criteria
 
 This template is successful if:
+
 - A new project never has to write a Caddyfile, container definition, or backup script from scratch.
 - The CSS and content conventions are already in place and ready to extend.
 - Agent operating rules are already wired so AI-assisted work is safe and consistent from day one.

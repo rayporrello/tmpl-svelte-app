@@ -6,14 +6,20 @@ Reusable SvelteKit website template. Targets websites, landing pages, content si
 
 - SvelteKit / Svelte 5 skeleton with Bun tooling
 - Token-driven CSS design system (native CSS, no Tailwind, no component library)
-- `forms.css` visual form primitives — compatible with Superforms
-- **Built-in SEO system** — central site config, SEO component, schema helpers, sitemap, robots.txt, validation
-- Semantic HTML contract with `Section.svelte`, skip link, accessible site shell
-- **Git-backed content system** — `content/` directory, Sveltia CMS admin, typed content loaders
-- **Observability spine** — friendly error page, `/healthz`, structured logging, request IDs, safe error handling
+- Global button utilities (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-sm`, `.btn-lg`)
+- `forms.css` visual form primitives + Superforms + Valibot pre-installed (contact form ships dormant)
+- **Built-in SEO system** — central site config, SEO component, schema helpers, sitemap, robots.txt, llms.txt, validation
+- **Articles system** — `/articles` index + `/articles/[slug]` with sanitized Markdown rendering (three trust tiers)
+- Semantic HTML contract with `Section.svelte`, skip link, accessible site shell, real header/footer nav
+- **Git-backed content system** — `content/` directory, Sveltia CMS admin, typed content loaders for pages/articles/team/testimonials
+- **Observability spine** — friendly error page (with request ID + support link), `/healthz`, structured logging, safe error handling
+- **Security baseline** — Valibot env schemas, per-route CSP (`/admin`-aware for Sveltia CDN), minimal HTTP security headers
 - **CMS content safety** — validation scripts that catch blank fields, bad dates, and destructive diffs before deploy
 - **Automation-ready** — n8n patterns and contracts documented; no n8n dependency required
-- Podman Quadlet + Caddy deployment templates (planned)
+- **Production runtime contract** — Containerfile (multi-stage, non-root, HEALTHCHECK), Podman Quadlet templates, Caddyfile example
+- **CI** — GitHub Actions workflow with validate / image / launch jobs, Trivy CRITICAL gating, smoke tests, GHCR push
+- **Tests** — Vitest unit tests + Playwright e2e smoke (with axe accessibility checks) wired into `bun run validate`
+- **Ergonomics** — Lefthook pre-commit (prettier + eslint --fix on staged files), interactive `bun run init:site`
 - Agent-readable operating rules (`AGENTS.md`, `CLAUDE.md.template`)
 
 ## Design system
@@ -30,7 +36,9 @@ This is a website-first SvelteKit template. The design system is native CSS, tok
 
 **Tailwind is not included.** Styling uses `tokens.css` + scoped Svelte `<style>` blocks.
 
-**Superforms is the standard form behavior library.** Install per project when the first form with a server action is added: `bun add sveltekit-superforms valibot`. The CSS layer (`forms.css`) works without it for display-only forms.
+**Superforms + Valibot are pre-installed** as devDependencies. The contact form pattern ships at `src/routes/contact-example/` (noindex, dormant). Rename the directory to `contact/` to activate it. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md) for the activation walkthrough and email-provider swap instructions.
+
+A "Warm Coral" re-skin example lives at [src/lib/styles/brand.example.css](src/lib/styles/brand.example.css) — it shows exactly which token sections to swap when starting a new brand.
 
 ## SEO
 
@@ -86,19 +94,28 @@ See **[docs/getting-started.md](docs/getting-started.md)** for the full step-by-
 
 ## Bun-first workflow
 
-This template uses **Bun** for all package management and script execution.
+This template uses **Bun** for all package management and script execution. A `preinstall` guard (`npx only-allow bun`) and `engines.bun` enforce this. Never use `npm`, `npx`, `pnpm`, or `yarn`. Commit `bun.lock`.
 
 ```bash
 bun install                  # install dependencies
 bun run dev                  # start dev server
-bun run build                # production build
+bun run build                # production build (prebuild runs image optimizer)
 bun run check                # TypeScript + svelte-check
+bun run lint                 # ESLint
+bun run format               # Prettier
+bun run test                 # Vitest unit tests
+bun run test:e2e             # Playwright + axe smoke tests
 bun run images:optimize      # run image optimizer manually (idempotent)
 bun run check:seo            # validate SEO config
-bun run validate             # full pipeline: check → optimize → build → seo check
+bun run check:cms            # validate static/admin/config.yml
+bun run check:content        # validate content/ files
+bun run check:assets         # verify favicon / og-default / manifest defaults exist
+bun run init:site            # interactive site initializer (rewrites 9 files)
+bun run validate             # PR-grade: check → seo → cms → content → assets → images → build → unit → e2e
+bun run validate:launch      # release-grade: validate + check:launch + check:content-diff
 ```
 
-Never use `npm`, `npx`, `pnpm`, or `yarn`. Commit `bun.lock`. See [docs/template-maintenance.md](docs/template-maintenance.md) for the full workflow.
+The validation lifecycle has two tiers: `validate` runs on every PR/push; `validate:launch` runs before tagging or shipping a release. See [docs/template-maintenance.md](docs/template-maintenance.md) and [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
 
 ## Secrets management
 
@@ -138,16 +155,33 @@ The following are **never** committed to this repo:
 
 Visit `/styleguide` in development to see all design system primitives rendered live.
 
+## Deployment
+
+The template ships a complete container + reverse-proxy deployment path:
+
+| Artifact                        | Purpose                                                                    |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| `Containerfile`                 | Multi-stage Bun image (builder + lean runtime, non-root, HEALTHCHECK)      |
+| `Containerfile.node.example`    | Escape-hatch recipe for adapter-node swap (not CI-tested)                  |
+| `deploy/quadlets/web.container` | Systemd user unit via Podman Quadlet                                       |
+| `deploy/quadlets/web.network`   | Project-local Podman network                                               |
+| `deploy/Caddyfile.example`      | Caddy reverse proxy with TLS, HSTS, compression, `health_uri`              |
+| `deploy/env.example`            | Runtime env reference (distinct from SOPS secrets)                         |
+| `.github/workflows/ci.yml`      | Validate / image build / launch gating; Trivy CRITICAL blocking; GHCR push |
+
+Step-by-step bootstrap, rolling deploy, and rollback-by-SHA: [docs/deployment/runbook.md](docs/deployment/runbook.md). Production runtime contract: [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
+
 ## Dormant modules
 
-Planned and documented but not active in the base template:
+Active patterns that ship configured but inert. Activate per-project:
 
-| Module             | Activation                                      |
-| ------------------ | ----------------------------------------------- |
-| Postgres + Drizzle | Add `DATABASE_URL`, create schema               |
-| n8n webhooks       | Add webhook URL env var                         |
-| Postmark           | Add `POSTMARK_API_TOKEN`, implement mail helper |
-| Better Auth        | Follow auth module docs                         |
+| Module             | Activation                                                                                                                                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contact form       | Rename `src/routes/contact-example/` → `src/routes/contact/` and copy a provider (e.g. `postmark.example.ts → postmark.ts`). See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md). |
+| Postgres + Drizzle | Add `DATABASE_URL`, create schema, run `drizzle-kit push` (Phase 5)                                                                                                                                      |
+| n8n webhooks       | Add `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET`; implement event emitter (Phase 5)                                                                                                                        |
+| Postmark email     | Copy `src/lib/server/forms/providers/postmark.example.ts → postmark.ts`; add `POSTMARK_SERVER_TOKEN` (per `.env.example`)                                                                                |
+| Better Auth        | Follow the auth module docs (per-project only — not in base template)                                                                                                                                    |
 
 ## Observability
 
