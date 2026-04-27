@@ -1,0 +1,137 @@
+# Sveltia CMS configuration
+# Docs: https://github.com/sveltia/sveltia-cms
+#
+# SETUP REQUIRED: Update `backend.repo` with your GitHub owner/repo before deploying.
+# For local development, `local_backend: true` lets you edit files without GitHub auth.
+# Remove or set `local_backend: false` before shipping to production.
+
+backend:
+  name: github
+  repo: owner/repo-name   # REPLACE with your GitHub repository (e.g., acme/my-site)
+  branch: main
+
+local_backend: true
+
+media_folder: static/uploads
+public_folder: /uploads
+
+collections:
+  # ── Pages ──────────────────────────────────────────────────────────────────
+  # Singleton YAML files. Each entry is a specific page.
+  # Field names here are the data contract for Svelte components.
+  # Do not rename fields without also updating types.ts, loaders, and components.
+  - name: pages
+    label: Pages
+    files:
+      - name: home
+        label: Home Page
+        file: content/pages/home.yml
+        format: yaml
+        fields:
+          - { label: Title, name: title, widget: string }
+          - { label: Description, name: description, widget: text }
+          - label: Hero
+            name: hero
+            widget: object
+            fields:
+              - { label: Eyebrow, name: eyebrow, widget: string, required: false }
+              - { label: Headline, name: headline, widget: string }
+              - { label: Subheadline, name: subheadline, widget: text, required: false }
+              - label: Primary CTA
+                name: primary_cta
+                widget: object
+                required: false
+                fields:
+                  - { label: Label, name: label, widget: string }
+                  - { label: Link, name: href, widget: string }
+              - label: Secondary CTA
+                name: secondary_cta
+                widget: object
+                required: false
+                fields:
+                  - { label: Label, name: label, widget: string }
+                  - { label: Link, name: href, widget: string }
+          - label: Sections
+            name: sections
+            widget: list
+            required: false
+            fields:
+              - { label: Title, name: title, widget: string }
+              - { label: Body, name: body, widget: text }
+              - label: Items
+                name: items
+                widget: list
+                required: false
+                fields:
+                  - { label: Text, name: text, widget: string }
+
+  # ── Articles ───────────────────────────────────────────────────────────────
+  # Markdown files with YAML frontmatter. body is the Markdown content.
+  # Parsed by gray-matter in src/lib/content/articles.ts.
+  - name: articles
+    label: Articles
+    folder: content/articles
+    create: true
+    slug: '{{fields.slug}}'
+    extension: md
+    format: frontmatter
+    fields:
+      - { label: Title, name: title, widget: string }
+      - { label: Slug, name: slug, widget: string }
+      - { label: Description, name: description, widget: text }
+      - label: Date
+        name: date
+        widget: datetime
+        date_format: 'YYYY-MM-DD'
+        time_format: false
+        picker_utc: true
+      - { label: Draft, name: draft, widget: boolean, default: true }
+      - { label: Image, name: image, widget: image, required: false, allow_multiple: false }
+      - { label: Image Alt, name: image_alt, widget: string, required: false }
+      - { label: Body, name: body, widget: markdown }
+
+  # ── Team ───────────────────────────────────────────────────────────────────
+  # Pure YAML files. Parsed by js-yaml in src/lib/content/pages.ts pattern.
+  - name: team
+    label: Team
+    folder: content/team
+    create: true
+    slug: '{{fields.slug}}'
+    extension: yml
+    format: yaml
+    fields:
+      - { label: Name, name: name, widget: string }
+      - { label: Slug, name: slug, widget: string }
+      - { label: Role, name: role, widget: string }
+      - { label: Photo, name: photo, widget: image, required: false, allow_multiple: false }
+      - { label: Photo Alt, name: photo_alt, widget: string, required: false }
+      - { label: Bio, name: bio, widget: text, required: false }
+      - { label: Email, name: email, widget: string, required: false }
+      - { label: Order, name: order, widget: number, value_type: int, default: 99 }
+      - { label: Active, name: active, widget: boolean, default: true }
+
+  # ── Testimonials ───────────────────────────────────────────────────────────
+  # Pure YAML files. published: false keeps them out of the live site.
+  - name: testimonials
+    label: Testimonials
+    folder: content/testimonials
+    create: true
+    slug: '{{fields.slug}}'
+    extension: yml
+    format: yaml
+    fields:
+      - { label: Name, name: name, widget: string }
+      - { label: Slug, name: slug, widget: string }
+      - { label: Quote, name: quote, widget: text }
+      - { label: Source, name: source, widget: string, required: false }
+      - label: Rating
+        name: rating
+        widget: number
+        value_type: int
+        min: 1
+        max: 5
+        required: false
+      - { label: Photo, name: photo, widget: image, required: false, allow_multiple: false }
+      - { label: Photo Alt, name: photo_alt, widget: string, required: false }
+      - { label: Order, name: order, widget: number, value_type: int, default: 99 }
+      - { label: Published, name: published, widget: boolean, default: false }

@@ -35,12 +35,18 @@
 
 ## Phase 3 — Content/CMS
 
-- [ ] Add content directory
-- [ ] Add Sveltia admin files
-- [ ] Add content schema examples
-- [ ] Add content loader
-- [ ] Add sample pages/articles
-- [ ] Add content validation
+- [x] Add content directory (`content/pages/`, `content/articles/`, `content/team/`, `content/testimonials/`)
+- [x] Add Sveltia admin files (`static/admin/index.html`, `static/admin/config.yml`)
+- [x] Add content schema (config.yml collections: pages, articles, team, testimonials)
+- [x] Add content loaders (`src/lib/content/types.ts`, `pages.ts`, `articles.ts`, `index.ts`)
+- [x] Add starter content files (home.yml, sample-post.md, sample-person.yml, sample-testimonial.yml)
+- [x] Add home page route (`src/routes/+page.server.ts`, `src/routes/+page.svelte`)
+- [x] Add CMS docs (`docs/cms/README.md`, `sveltia-content-contract.md`, `collection-patterns.md`)
+- [x] Add automation docs (`docs/automations/` — 5 files covering n8n patterns and contracts)
+- [x] Add ADR-014 (Sveltia content system) and ADR-015 (n8n automation bridge)
+- [x] Wire /admin as noindex in `src/lib/seo/routes.ts`
+- [ ] Configure Sveltia GitHub OAuth per project (requires `backend.repo` in config.yml — update per project)
+- [ ] Add Markdown renderer for rich-text `body` fields when first article route is built
 
 ## Phase 4 — SEO/images/accessibility
 
@@ -67,15 +73,19 @@
 - [ ] Add Superforms (`bun add sveltekit-superforms valibot`) as part of first form scaffold
 - [ ] Add contact form pattern (forms.css + Superforms + Postmark)
 - [ ] Add Postmark pattern
-- [ ] Add optional n8n webhook pattern
+- [ ] Implement typed automation event emitter (`src/lib/automation/events.ts` — non-blocking webhook)
+- [ ] Implement HMAC signing (`src/lib/automation/signing.ts`)
+- [ ] Add `lead.created` event emission from contact form server action
+- [ ] Add `newsletter.subscribed` event emission from newsletter form server action
+- [ ] Document first n8n workflow (contact form → email notification)
 - [ ] Add backup docs
 
 ## Phase 6 — Deployment
 
+- [x] Add secrets workflow (SOPS + age — ADR-013, docs/deployment/secrets.md, .sops.yaml.example, secrets.example.yaml, .env.example, scripts/render-secrets.sh, scripts/check-secrets.sh, bun run secrets:render / secrets:check)
 - [ ] Add Containerfile
 - [ ] Add Quadlet templates
 - [ ] Add Caddy examples
-- [ ] Add secrets workflow
 - [ ] Add deployment runbook
 
 ## Phase 7 — Template documentation

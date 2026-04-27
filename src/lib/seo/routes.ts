@@ -36,5 +36,9 @@ export const routes: RouteEntry[] = [
 	{
 		path: '/styleguide',
 		indexable: false
+	},
+	{
+		path: '/admin',
+		indexable: false
 	}
 ];

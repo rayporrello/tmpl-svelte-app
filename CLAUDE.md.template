@@ -91,17 +91,74 @@ If yes:
 If no (display-only forms or not yet added):
 - Add Superforms when the first form with a server action is needed: `bun add sveltekit-superforms valibot`.
 
-## Content
+## Content and CMS
 
-- Content directory: [path, e.g., `src/content/`]
-- Schema: [location of content schema files]
-- CMS: `/admin` (Sveltia) — [auth requirements or "open in dev"]
+Full docs: [docs/cms/README.md](docs/cms/README.md) · Contract: [docs/cms/sveltia-content-contract.md](docs/cms/sveltia-content-contract.md)
+
+- **CMS editor:** `/admin` — Sveltia CMS (configure `backend.repo` in `static/admin/config.yml`)
+- **Content directory:** `content/` — Git-backed YAML and Markdown files
+- **Loaders:** `src/lib/content/` — `loadHomePage()`, `loadArticle()`, `loadArticles()`, etc.
+- **Types:** `src/lib/content/types.ts`
+- **Schema:** `static/admin/config.yml` — the definitive collection and field definitions
+
+### Parser rules — critical, do not mix
+
+| File type | Parser | Notes |
+|-----------|--------|-------|
+| `content/pages/*.yml`, `content/team/*.yml`, `content/testimonials/*.yml` | **js-yaml** | Pure YAML, no `---` delimiters |
+| `content/articles/*.md` | **gray-matter** | Remap `.content` → `.body` explicitly |
+
+- Never use gray-matter for pure YAML files
+- Never use js-yaml for Markdown frontmatter files
+- Always remap gray-matter body: `return { ...data, body: content }` — never `data.body`
+- File-reading routes must use `+page.server.ts`, not `+page.ts`
+
+### Sveltia CMS gotchas
+
+- Field names in `config.yml` = TypeScript properties = Svelte component data keys — they are a contract
+- Never rename a field without updating config, content files, types, loaders, components, and docs
+- Use `snake_case` for all YAML field names
+- Do not use `content` or `data` as field names — they clash with loader conventions
+- CMS image fields must render through `CmsImage`, not bare `<img>`
+- `local_backend: true` in `config.yml` is for local dev only — remove before deploying
+- To add a collection: config + starter file + type + loader + route + SEO entry + docs (all 6 steps)
+
+## Automation (n8n)
+
+Full docs: [docs/automations/README.md](docs/automations/README.md)
+
+n8n is an optional external automation layer. The site works without it.
+
+- **Do not** add n8n to `package.json`
+- **Do not** import n8n packages in any SvelteKit module
+- **Content automations:** n8n writes to `content/` via GitHub API — must follow `config.yml` schema
+- **Runtime automations (Phase 5):** server action → Postgres → non-blocking webhook → n8n
+- Webhook code must check `N8N_WEBHOOK_URL` and skip silently if unset
+- Webhook delivery failures must not break user-facing form submissions
+- Production webhooks must be HMAC-signed with `N8N_WEBHOOK_SECRET`
+- Do not commit real webhook URLs or secrets — use `.env.example` for variable names only
+- AI-generated content must default to `draft: true` / `published: false`
 
 ## Secrets and environment
 
-- Secrets via: [Infisical / `.env` file / other]
-- Required env vars: [list key vars or point to `.env.example`]
-- Never commit secrets to the repo.
+This project uses **SOPS + age** for secrets management (template default — see [docs/deployment/secrets.md](docs/deployment/secrets.md)).
+
+- `secrets.yaml` — encrypted source of truth; commit only after `sops --encrypt --in-place secrets.yaml`
+- `.env.example` — public contract for required variable names (no values)
+- `.env` — rendered local/runtime artifact; gitignored; never the source of truth
+- `~/.config/sops/age/keys.txt` — private age identity; never committed
+
+Required env vars: see `.env.example`
+Secrets workflow: `bun run secrets:render` / `bun run secrets:check`
+
+### Secrets rules for agents
+
+- Never commit `.env` or any `.env.*` file except `.env.example`.
+- Never commit plaintext `secrets.yaml` (check for `sops:` block before staging).
+- Never put real secret values in `src/lib/config/site.ts` or any module that can be imported by client-side code.
+- Never import `DATABASE_URL`, `SESSION_SECRET`, or other private secrets into `+page.svelte` or client-accessible `src/lib/` files.
+- Never add OpenBao, Doppler, Infisical, 1Password Secrets Automation, or cloud KMS integrations unless this project has explicitly changed this decision.
+- When adding a new required environment variable, update `.env.example` and `secrets.example.yaml` together.
 
 ## Deployment
 
@@ -168,4 +225,9 @@ bun run check:seo  # validate SEO config and route registry
 - Do not commit `node_modules/`, `.svelte-kit/`, `build/`, or generated image output directories.
 - Do not use `npm`, `npx`, `pnpm`, or `yarn` — this project is Bun-only.
 - Do not commit `.env` or any file containing real secrets.
+- Do not add SQLite — Postgres is the runtime data store.
+- Do not add n8n as a package dependency — it is an external operator, not an app dependency.
+- Do not use gray-matter for pure YAML files (`content/pages/`, `content/team/`, `content/testimonials/`).
+- Do not rename CMS fields without updating config, content files, types, loaders, components, and docs.
+- Do not make webhook calls blocking — n8n downtime must not break user-facing forms.
 - [Any project-specific prohibitions]

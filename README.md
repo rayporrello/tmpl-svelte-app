@@ -9,7 +9,8 @@ Reusable SvelteKit website template. Targets websites, landing pages, content si
 - `forms.css` visual form primitives — compatible with Superforms
 - **Built-in SEO system** — central site config, SEO component, schema helpers, sitemap, robots.txt, validation
 - Semantic HTML contract with `Section.svelte`, skip link, accessible site shell
-- Sveltia CMS / file-based content conventions (planned)
+- **Git-backed content system** — `content/` directory, Sveltia CMS admin, typed content loaders
+- **Automation-ready** — n8n patterns and contracts documented; no n8n dependency required
 - Podman Quadlet + Caddy deployment templates (planned)
 - Agent-readable operating rules (`AGENTS.md`, `CLAUDE.md.template`)
 
@@ -47,6 +48,31 @@ bun run check:seo   # fails on placeholder values; run before deploying
 
 Full docs: [docs/seo/README.md](docs/seo/README.md)
 
+## CMS and content
+
+The template ships a complete Git-backed content system:
+
+| Path | Purpose |
+|------|---------|
+| `static/admin/index.html` | Sveltia CMS editor UI (loads from CDN) |
+| `static/admin/config.yml` | CMS schema — update `backend.repo` before deploying |
+| `content/pages/home.yml` | Homepage content (edit via CMS or directly) |
+| `content/articles/` | Markdown articles with YAML frontmatter |
+| `content/team/` | Team member YAML files |
+| `content/testimonials/` | Testimonial YAML files |
+| `src/lib/content/` | Typed content loaders (js-yaml for YAML, gray-matter for Markdown) |
+
+Full docs: [docs/cms/README.md](docs/cms/README.md)
+
+## Automation readiness
+
+n8n is an optional automation layer — the site works without it. When needed:
+
+- **Content automations:** n8n writes files to `content/` via the GitHub API, following the same schema as Sveltia CMS
+- **Runtime automations (Phase 5):** SvelteKit server actions emit typed webhook events after Postgres writes; n8n handles downstream tasks
+
+Env vars `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.example` but not required. See [docs/automations/README.md](docs/automations/README.md).
+
 ## Using this template
 
 1. Create a new repo from this template on GitHub
@@ -55,8 +81,10 @@ Full docs: [docs/seo/README.md](docs/seo/README.md)
 4. Edit `tokens.css` with brand colors, fonts, and shape
 5. Update `src/app.html`: title, `theme-color` hex, favicon path
 6. Register all routes in `src/lib/seo/routes.ts`
-7. Install Superforms when adding the first form: `bun add sveltekit-superforms valibot`
-8. Activate dormant modules (Postgres, n8n, auth) only when needed
+7. Update `static/admin/config.yml`: set `backend.repo` and `backend.branch`
+8. Edit `content/pages/home.yml` with real site content
+9. Install Superforms when adding the first form: `bun add sveltekit-superforms valibot`
+10. Activate dormant modules (Postgres, n8n, auth) only when needed
 
 ## Bun-first workflow
 
@@ -73,6 +101,26 @@ bun run validate             # full pipeline: check → optimize → build → s
 ```
 
 Never use `npm`, `npx`, `pnpm`, or `yarn`. Commit `bun.lock`. See [docs/template-maintenance.md](docs/template-maintenance.md) for the full workflow.
+
+## Secrets management
+
+This template uses **SOPS + age** as the default secrets workflow.
+
+| File | Role |
+|------|------|
+| `.env.example` | Public contract — lists required variable names without values |
+| `secrets.example.yaml` | Example shape for `secrets.yaml` with fake values |
+| `.sops.yaml.example` | Example SOPS encryption config to copy per project |
+| `secrets.yaml` | Encrypted source of truth — committed only after encryption |
+| `.env` | Rendered local/runtime file — **never committed** |
+
+```bash
+bun run secrets:check   # verify no plaintext secrets are tracked
+bun run secrets:render  # decrypt secrets.yaml → .env (requires SOPS + age installed)
+```
+
+Full guide: [docs/deployment/secrets.md](docs/deployment/secrets.md)  
+Decision: [ADR-013](docs/planning/adrs/ADR-013-sops-age-secrets-management.md)
 
 ## Generated files are not committed
 

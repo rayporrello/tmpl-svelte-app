@@ -14,12 +14,31 @@ A project that grows into a full application should add app-shell features delib
 
 ```
 tmpl-svelte-app/
+  content/
+    pages/
+      home.yml                ← CMS-managed page content — parsed with js-yaml
+    articles/
+      *.md                    ← CMS-managed articles — parsed with gray-matter
+    team/
+      *.yml                   ← CMS-managed team members — parsed with js-yaml
+    testimonials/
+      *.yml                   ← CMS-managed testimonials — parsed with js-yaml
+  static/
+    admin/
+      index.html              ← Sveltia CMS editor UI
+      config.yml              ← CMS schema — the component data contract
+    uploads/                  ← CMS editor image uploads
   src/
     app.html                  ← HTML shell; update title, theme-color, favicon
     app.css                   ← design system entry; imports only
     lib/
       config/
         site.ts               ← BRAND FILE — SEO/site config; replace all placeholders per project
+      content/
+        types.ts              ← TypeScript types for all CMS collections
+        pages.ts              ← YAML page loaders (js-yaml)
+        articles.ts           ← Markdown article loaders (gray-matter)
+        index.ts              ← public re-export of content loader APIs
       seo/
         types.ts              ← SEO TypeScript types
         metadata.ts           ← canonical URL, title, robots helpers
@@ -38,6 +57,8 @@ tmpl-svelte-app/
           SEO.svelte          ← renders all head/meta/JSON-LD for a page
     routes/
       +layout.svelte          ← imports app.css; injects root Organization/WebSite schema
+      +page.server.ts         ← loads home.yml; returns typed home data
+      +page.svelte            ← homepage; consumes CMS data; uses SEO component
       sitemap.xml/
         +server.ts            ← prerendered /sitemap.xml
       robots.txt/
@@ -47,6 +68,8 @@ tmpl-svelte-app/
       styleguide/
         +page.svelte          ← design system demo; noindex; update when adding components
   docs/
+    cms/                      ← CMS documentation (README, content-contract, collection-patterns)
+    automations/              ← automation docs (n8n patterns, contracts, security)
     seo/                      ← SEO documentation (README, page-contract, schema-guide, launch-checklist)
     planning/                 ← planning documents (ADRs, vision, principles)
   scripts/

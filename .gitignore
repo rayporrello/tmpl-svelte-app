@@ -14,9 +14,17 @@ dist/
 bun.lockb
 
 # ── Environment variables ─────────────────────────────────────────────────────
+# Rendered env files are local/runtime artifacts — never the source of truth.
 .env
 .env.*
 !.env.example
+
+# ── SOPS / secrets ────────────────────────────────────────────────────────────
+# Decrypted secrets must never be committed.
+secrets.decrypted.yaml
+*.decrypted.yaml
+# Encrypted secrets.yaml is intentionally NOT ignored.
+# Commit it only after running: sops --encrypt --in-place secrets.yaml
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log

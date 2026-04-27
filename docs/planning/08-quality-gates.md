@@ -110,12 +110,51 @@ Full rules: `docs/design-system/typography.md`
 - [ ] OG image is accessible and renders correctly in link previews
 - [ ] Schema added to pages matches visible page content
 
+## Secrets gates
+
+Full guide: `docs/deployment/secrets.md`
+
+- [ ] `.env.example` exists and lists all required environment variable names
+- [ ] `secrets.example.yaml` exists and matches the shape of `.env.example`
+- [ ] `.sops.yaml.example` exists
+- [ ] `secrets.yaml`, when present, contains a `sops:` metadata block (i.e., is encrypted)
+- [ ] `.env` is not tracked by Git (`git ls-files .env` returns empty)
+- [ ] No `.env.*` files are tracked except `.env.example`
+- [ ] No `secrets.decrypted.yaml` or `*.decrypted.yaml` files are tracked
+- [ ] `bun run secrets:check` exits 0
+- [ ] No real secret values appear in `src/lib/config/site.ts` or any client-importable file
+
 ## Container / deploy gates
 
 - [ ] `podman build` (or `docker build`) completes with no errors
 - [ ] Application starts and responds at the expected port
 - [ ] Environment variables are validated at startup (not silently missing)
 - [ ] Secrets are never committed to the repo (check `.gitignore`, pre-commit hook)
+
+## CMS / content gates
+
+- [ ] `bun run build` exits 0 with content files present in `content/`
+- [ ] `content/pages/home.yml` is valid YAML (parseable with js-yaml)
+- [ ] `content/articles/*.md` files have valid frontmatter (parseable with gray-matter)
+- [ ] Homepage loads from `content/pages/home.yml` (verify `+page.server.ts` uses `loadHomePage()`)
+- [ ] `static/admin/config.yml` field names match `src/lib/content/types.ts` interfaces
+- [ ] No CMS image path field is rendered as a bare `<img>` — must use `CmsImage`
+- [ ] `content/articles/` loader remaps gray-matter `.content` to `.body` (never `data.body`)
+- [ ] Pure YAML files use js-yaml — not gray-matter
+- [ ] Markdown frontmatter files use gray-matter — not js-yaml
+- [ ] File-reading routes use `+page.server.ts` — not `+page.ts`
+- [ ] `docs/cms/collection-patterns.md` is updated when a collection is added or removed
+- [ ] `/admin` is registered in `src/lib/seo/routes.ts` as `indexable: false`
+
+## Automation-readiness gates
+
+- [ ] n8n is not listed in `package.json` dependencies
+- [ ] No SvelteKit module imports from n8n packages
+- [ ] `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.example` with empty values
+- [ ] No real webhook URL or secret is committed to the repo
+- [ ] `docs/automations/runtime-event-contract.md` documents the planned event shape
+- [ ] `docs/automations/content-automation-contract.md` documents the write rules
+- [ ] Site builds and serves correctly when `N8N_WEBHOOK_URL` is unset
 
 ## Template integrity gates (before publishing a new template version)
 

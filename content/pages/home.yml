@@ -1,0 +1,28 @@
+title: Welcome to Your New Site
+description: A clean, fast, accessible website built with SvelteKit and a token-driven design system.
+
+hero:
+  eyebrow: Built for performance
+  headline: Your site starts here
+  subheadline: A reusable SvelteKit template with a native CSS design system, built-in SEO, and Sveltia CMS.
+  primary_cta:
+    label: Get started
+    href: '#features'
+  secondary_cta:
+    label: Learn more
+    href: '#about'
+
+sections:
+  - title: Fast and accessible by default
+    body: This template ships with semantic HTML, a token-driven design system, and built-in SEO infrastructure — no configuration needed.
+    items:
+      - text: SvelteKit 5 with Svelte Runes
+      - text: Native CSS design tokens
+      - text: Built-in SEO system
+
+  - title: Content-first
+    body: Sveltia CMS connects editors to Git-backed content files. No database queries for blog posts, no lost articles if a server fails.
+    items:
+      - text: Git-backed content
+      - text: Sveltia CMS editor
+      - text: Automation-ready

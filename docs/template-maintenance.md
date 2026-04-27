@@ -129,10 +129,52 @@ If a future project needs a fully static output (no server), swap to `@sveltejs/
 When adding new capabilities to the base template:
 
 1. **Implement in `src/`** — implementation is truth.
-2. **Write or update the relevant doc** in `docs/design-system/` or `docs/seo/`.
+2. **Write or update the relevant doc** in `docs/design-system/`, `docs/seo/`, `docs/cms/`, or `docs/automations/`.
 3. **Update `AGENTS.md`** — add or update the relevant section so agents know the new rule.
 4. **Write an ADR** if the decision involves a third-party tool, a non-obvious tradeoff, or overrides a previous decision.
 5. **Run `bun run validate`** and confirm it exits 0.
 6. **Verify `git ls-files node_modules .svelte-kit build`** returns nothing.
 
-Never add Tailwind, shadcn, React, Prisma, or a pre-built component library to the base template.
+Never add Tailwind, shadcn, React, Prisma, SQLite, or a pre-built component library to the base template.
+
+---
+
+## Adding or changing CMS collections
+
+When adding a new CMS collection (e.g., jobs, services, events):
+
+1. Create a starter content file in the new `content/{collection}/` directory
+2. Add the collection to `static/admin/config.yml`
+3. Add the TypeScript interface to `src/lib/content/types.ts`
+4. Add a loader function to `src/lib/content/` and export it from `index.ts`
+5. Wire the loader to a `+page.server.ts` route
+6. Register the route in `src/lib/seo/routes.ts`
+7. Document the collection in `docs/cms/collection-patterns.md` — include the automation-safe write policy
+8. Run `bun run check` and `bun run build` to confirm no TypeScript errors
+
+When renaming a CMS field:
+- Update `static/admin/config.yml` (field definition)
+- Update all existing content files in `content/` that use the field
+- Update `src/lib/content/types.ts` (interface property)
+- Update any component that reads the field
+- Update `docs/cms/sveltia-content-contract.md` if the naming convention changes
+
+---
+
+## Reviewing automation workflows before enabling on a new site
+
+Before enabling an n8n content automation on a new site:
+
+1. Test the workflow on a branch (not `main`) — verify the generated file matches the CMS schema
+2. Run `bun run build` with the generated file present — build must exit 0
+3. Confirm AI-generated content uses `draft: true` or `published: false`
+4. Confirm the GitHub token used by n8n has minimum required permissions (`Contents: write` only)
+5. Confirm `N8N_WEBHOOK_SECRET` is set and the webhook signature is verified in n8n
+6. Document the workflow in the project's CLAUDE.md under "Project-specific rules"
+
+Before enabling a runtime webhook automation (Phase 5):
+
+1. Confirm the server action does not `await` the webhook call
+2. Test with `N8N_WEBHOOK_URL` unset — form submission must still succeed
+3. Test with n8n returning a 500 — form submission must still succeed
+4. Confirm the webhook call uses HMAC signing with `N8N_WEBHOOK_SECRET`

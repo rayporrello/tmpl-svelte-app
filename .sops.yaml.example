@@ -1,0 +1,19 @@
+# Copy this file to `.sops.yaml` in each real site repo.
+# Replace the placeholder recipient with the public key from:
+#   age-keygen -o ~/.config/sops/age/keys.txt
+#
+# The public recipient starts with `age1...`.
+# The private key starts with `AGE-SECRET-KEY-1...` — never commit it.
+#
+# To add a second operator or server:
+#   1. Generate their age keypair on their machine.
+#   2. Add their `age1...` public key as a second recipient below (comma-separated or on a new line).
+#   3. Run: sops updatekeys secrets.yaml
+#   4. Commit .sops.yaml and the rekeyed secrets.yaml.
+creation_rules:
+  - path_regex: secrets\.yaml$
+    age: age1replacewithyourpublicrecipientkey
+
+# Uncomment to support environment-specific secret files (optional, not active by default):
+#  - path_regex: secrets\.(dev|staging|prod)\.yaml$
+#    age: age1replacewithyourpublicrecipientkey

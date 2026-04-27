@@ -235,6 +235,39 @@ Schema guide: [docs/seo/schema-guide.md](docs/seo/schema-guide.md)
 
 ---
 
+## Secrets handling
+
+Full guide: [docs/deployment/secrets.md](docs/deployment/secrets.md)  
+Decision: [ADR-013](docs/planning/adrs/ADR-013-sops-age-secrets-management.md)
+
+### Always
+
+- Keep real secret values in encrypted `secrets.yaml` — this is the source of truth.
+- Add every new required environment variable to both `.env.example` and `secrets.example.yaml` at the same time.
+- Use `sops secrets.yaml` to open, edit, and re-encrypt atomically — never edit the encrypted blob by hand.
+- Treat rendered `.env` files as credential files — they are plaintext and must not be shared or committed.
+- Before completing deployment-related changes, run `bun run secrets:check`.
+
+### Never
+
+- Never commit `.env` or any `.env.*` file except `.env.example`.
+- Never commit plaintext `secrets.yaml` (without SOPS metadata). Verify encryption before committing.
+- Never put real secret values in `src/lib/config/site.ts` or any module that can be imported by client-side code.
+- Never import `DATABASE_URL`, `SESSION_SECRET`, API tokens, or other private secrets into `+page.svelte` or any `src/lib/` file that reaches the browser bundle.
+- Never add OpenBao, Doppler, Infisical, 1Password Secrets Automation, cloud KMS, or other secret manager integrations to the template. Per-project adoptions are out of scope here and must be explicitly requested.
+- Never manually decrypt `secrets.yaml` and re-encrypt it — use `sops secrets.yaml` for the full round-trip.
+- Never put public-safe config (brand name, public site URL, public analytics IDs) in `secrets.yaml` — only encrypt values that are genuinely secret.
+
+### When adding a new environment variable
+
+Update all three of:
+
+1. `.env.example` — add the variable name with an empty or example value
+2. `secrets.example.yaml` — add the variable with a representative fake value
+3. `docs/deployment/secrets.md` — add to the "What belongs in secrets" section if it is a new category
+
+---
+
 ## Template type
 
 **Website-first.** This template targets scrolling websites and landing pages — not dashboard applications. Normal document scrolling is the default. Do not add app-shell behaviors to the baseline.
@@ -327,6 +360,113 @@ src/
 
 ---
 
+## CMS / content loading
+
+Full reference: [docs/cms/README.md](docs/cms/README.md)  
+Content contract: [docs/cms/sveltia-content-contract.md](docs/cms/sveltia-content-contract.md)  
+Collection patterns: [docs/cms/collection-patterns.md](docs/cms/collection-patterns.md)
+
+### Parser rules — never mix these
+
+| File type | Parser | Location |
+|-----------|--------|---------|
+| `content/pages/*.yml` | **js-yaml** | Pure YAML, no `---` delimiters |
+| `content/team/*.yml` | **js-yaml** | Pure YAML |
+| `content/testimonials/*.yml` | **js-yaml** | Pure YAML |
+| `content/articles/*.md` | **gray-matter** | Markdown with YAML frontmatter |
+
+```ts
+// ✓ Correct — pure YAML
+import { parse } from 'js-yaml';
+const data = parse(readFileSync(path, 'utf-8'));
+
+// ✓ Correct — Markdown frontmatter
+import matter from 'gray-matter';
+const { data, content } = matter(raw);
+return { ...data, body: content }; // remap content → body explicitly
+
+// ✗ Wrong — never use gray-matter for pure YAML files
+// ✗ Wrong — never use js-yaml for Markdown frontmatter files
+```
+
+### File-reading routes
+
+Always use `+page.server.ts` for filesystem reads — never `+page.ts`:
+
+```ts
+// ✓ src/routes/+page.server.ts
+import { loadHomePage } from '$lib/content/index';
+export const load = async () => ({ home: loadHomePage() });
+```
+
+### CMS image fields
+
+Render CMS image path strings through `CmsImage`, not bare `<img>`:
+
+```svelte
+<!-- ✓ -->
+<CmsImage src={member.photo} alt={member.photo_alt ?? ''} width={400} height={400} />
+
+<!-- ✗ -->
+<img src={member.photo} alt={member.photo_alt} />
+```
+
+### CMS field naming rules
+
+- Use `snake_case` for all YAML field names
+- Do not use `content` or `data` as field names — they clash with loader conventions
+- `body` is reserved for the Markdown body in articles
+- Field names in `config.yml` = TypeScript interface properties = Svelte component data keys
+- **Never rename a CMS field** without also updating: `config.yml`, content files, `types.ts`, loaders, components, and docs
+
+### Adding a new collection
+
+All six steps are required — partial completion breaks the content contract:
+
+1. Create a starter content file in `content/{collection}/`
+2. Add to `static/admin/config.yml`
+3. Add TypeScript interface to `src/lib/content/types.ts`
+4. Add loader and export from `src/lib/content/index.ts`
+5. Wire to `+page.server.ts` route; register in `src/lib/seo/routes.ts`
+6. Update `docs/cms/collection-patterns.md`
+
+---
+
+## n8n automation posture
+
+Full reference: [docs/automations/README.md](docs/automations/README.md)
+
+### Hard rules
+
+- **Do not add n8n to `package.json`** — n8n is an external operator, not an app dependency
+- **Do not import n8n packages** in any SvelteKit module
+- **The site must work without n8n** — any webhook code must check `N8N_WEBHOOK_URL` and skip silently if unset
+- **Do not make webhook calls blocking** — use fire-and-forget; never let n8n downtime break a form submission
+- **Content automation files must match the CMS schema** — follow `static/admin/config.yml`; do not invent fields
+- **AI-generated content defaults to draft** — `draft: true` for articles, `published: false` for testimonials
+- **Do not commit webhook URLs or secrets** — use `.env.example` for variable names only; real values go in `secrets.yaml`
+- **Production webhooks must be signed** — HMAC-SHA256 with `N8N_WEBHOOK_SECRET`
+
+### Two automation categories
+
+```
+Content automations → n8n writes to content/ via GitHub API
+Runtime automations → SvelteKit server action → Postgres → non-blocking webhook → n8n
+```
+
+Content automation writes must pass the same schema validation as a human Sveltia CMS edit. They are not a separate path.
+
+---
+
+## Runtime data
+
+- Postgres is the runtime data store — not SQLite, not flat files in `content/`
+- `content/` is for durable editorial content only (committed to Git, version-controlled)
+- Operational data (form submissions, user accounts, session state) belongs in Postgres
+- Do not introduce SQLite
+
+---
+
 ## Before shipping
 
 Verify against [docs/planning/08-quality-gates.md](docs/planning/08-quality-gates.md):
@@ -337,3 +477,6 @@ Verify against [docs/planning/08-quality-gates.md](docs/planning/08-quality-gate
 - No disabled user zoom in `app.html`
 - Styleguide route renders all design system primitives without errors
 - All form controls pass the forms gates
+- CMS fields in `config.yml` match `types.ts` interfaces
+- No n8n package in `package.json`
+- `N8N_WEBHOOK_URL` is in `.env.example` with an empty value
