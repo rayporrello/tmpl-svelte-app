@@ -100,6 +100,12 @@
 ## Phase 6 — Deployment
 
 - [x] Add secrets workflow (SOPS + age — ADR-013, docs/deployment/secrets.md, .sops.yaml.example, secrets.example.yaml, .env.example, scripts/render-secrets.sh, scripts/check-secrets.sh, bun run secrets:render / secrets:check)
+- [x] Add Bun package guardrails (`engines.bun`, `packageManager`, `preinstall: npx only-allow bun`) — A1
+- [x] Add validation lifecycle split (`validate` PR-grade, `validate:launch` release-grade, `check:assets`, `check:launch`) — A1
+- [x] Add default static assets (favicon.svg, favicon-32.png, apple-touch-icon.png, og-default.png, site.webmanifest) — A1
+- [x] Add `<link rel="icon">`, `<link rel="apple-touch-icon">`, `<link rel="manifest">` in app.html — A1
+- [x] Add minimal app security headers (X-Content-Type-Options, Referrer-Policy, X-Frame-Options, Permissions-Policy) inline in hooks.server.ts — A1
+- [x] Add ADR-018 (production runtime and deployment contract) — A1
 - [ ] Add Containerfile
 - [ ] Add Quadlet templates
 - [ ] Add Caddy examples

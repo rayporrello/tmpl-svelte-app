@@ -1,7 +1,8 @@
 /**
- * SEO validation script. Fails when placeholder values remain in site config,
- * schema files contain hardcoded domains, or route registry has indexability
- * errors.
+ * SEO structural validation script. Fails on structural issues: hardcoded
+ * domains in SEO source files, route registry indexability errors.
+ * Warns on placeholder values in site config — those are launch-time concerns
+ * enforced as errors by check:launch (validate:launch path).
  *
  * Run: bun run scripts/check-seo.ts
  */
@@ -18,30 +19,32 @@ const NON_INDEXABLE_PATHS = ['/styleguide', '/admin', '/preview', '/draft'];
 let errors: string[] = [];
 let warnings: string[] = [];
 
-// ── 1. Site config checks ─────────────────────────────────────────────────────
+// ── 1. Site config checks (placeholder values → warnings, not errors) ────────
+// Placeholder detection is a launch-time concern owned by check:launch.
+// These warnings inform during development without blocking PRs.
 
 if (!site.url || site.url === PLACEHOLDER_URL) {
-	errors.push(`site.url is "${site.url}" — replace with the production domain before launch.`);
+	warnings.push(`site.url is "${site.url}" — replace with the production domain (enforced by check:launch).`);
 }
 
 if (!site.name || PLACEHOLDER_NAMES.includes(site.name)) {
-	errors.push(`site.name is "${site.name}" — replace with the real site name.`);
+	warnings.push(`site.name is "${site.name}" — replace with the real site name (enforced by check:launch).`);
 }
 
 if (!site.defaultTitle || PLACEHOLDER_NAMES.includes(site.defaultTitle)) {
-	errors.push(`site.defaultTitle is "${site.defaultTitle}" — replace with a real title.`);
+	warnings.push(`site.defaultTitle is "${site.defaultTitle}" — replace with a real title (enforced by check:launch).`);
 }
 
 if (!site.defaultDescription || site.defaultDescription.length < 10) {
-	errors.push(`site.defaultDescription is missing or too short.`);
+	warnings.push(`site.defaultDescription is missing or too short (enforced by check:launch).`);
 }
 
 if (!site.defaultOgImage) {
-	errors.push(`site.defaultOgImage is empty — add a default OG image path.`);
+	errors.push(`site.defaultOgImage is empty — add a default OG image path in src/lib/config/site.ts.`);
 }
 
 if (!site.organization.name || PLACEHOLDER_NAMES.includes(site.organization.name)) {
-	errors.push(`site.organization.name is "${site.organization.name}" — replace with the real org name.`);
+	warnings.push(`site.organization.name is "${site.organization.name}" — replace with the real org name (enforced by check:launch).`);
 }
 
 if (

@@ -5,7 +5,12 @@ import { toSafeError } from '$lib/server/safe-error';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.requestId = getOrCreateRequestId(event.request);
-	return resolve(event);
+	const response = await resolve(event);
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('X-Frame-Options', 'DENY');
+	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+	return response;
 };
 
 export const handleError: HandleServerError = ({ error, event, status }) => {

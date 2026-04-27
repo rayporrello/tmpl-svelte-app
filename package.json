@@ -3,7 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "bun@1.3.9",
+  "engines": {
+    "bun": ">=1.1"
+  },
   "scripts": {
+    "preinstall": "npx only-allow bun",
     "dev": "vite dev",
     "build": "vite build",
     "prebuild": "bun run scripts/optimize-images.js",
@@ -18,7 +23,10 @@
     "check:cms": "bun run scripts/check-cms-config.ts",
     "check:content": "bun run scripts/validate-content.ts",
     "check:content-diff": "bun run scripts/check-content-diff.ts",
-    "validate": "bun run check && bun run images:optimize && bun run build && bun run check:seo && bun run check:cms && bun run check:content",
+    "check:assets": "bun run scripts/check-assets.ts",
+    "check:launch": "bun run scripts/check-launch.ts",
+    "validate": "bun run check && bun run check:seo && bun run check:cms && bun run check:content && bun run check:assets && bun run images:optimize && bun run build",
+    "validate:launch": "bun run validate && bun run check:launch && bun run check:content-diff",
     "secrets:render": "bash scripts/render-secrets.sh",
     "secrets:check": "bash scripts/check-secrets.sh"
   },
