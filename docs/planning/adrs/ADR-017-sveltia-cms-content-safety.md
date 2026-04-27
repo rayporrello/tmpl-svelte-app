@@ -3,7 +3,7 @@
 **Status:** Accepted  
 **Date:** 2026-04-27  
 **Supersedes:** None  
-**Related:** ADR-003 (Sveltia CMS), ADR-014 (Sveltia content system)
+**Related:** ADR-014 (Sveltia content system)
 
 ---
 
@@ -40,22 +40,22 @@ CMS writes content
 
 ### Locked decisions
 
-| Rule | Rationale |
-|------|-----------|
-| YAML frontmatter is the default for Sveltia-managed Markdown | Consistent with the rest of the stack; avoids TOML parsing requirements |
-| Optional datetime fields are forbidden by default | Known source of silent blank-value failures in Sveltia |
-| ISO 8601 datetime with timezone is the canonical date format | Unambiguous; works in all timezones; TypeScript-friendly |
-| Empty optional date-like fields must be omitted | Blank values break loaders; `null` breaks TypeScript `string` types |
-| Repo validation scripts are authoritative for content validity | CMS UI success messages do not validate semantics |
-| Destructive content diffs must fail validation | Protects against accidental overwrites and CMS write errors |
+| Rule                                                           | Rationale                                                               |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| YAML frontmatter is the default for Sveltia-managed Markdown   | Consistent with the rest of the stack; avoids TOML parsing requirements |
+| Optional datetime fields are forbidden by default              | Known source of silent blank-value failures in Sveltia                  |
+| ISO 8601 datetime with timezone is the canonical date format   | Unambiguous; works in all timezones; TypeScript-friendly                |
+| Empty optional date-like fields must be omitted                | Blank values break loaders; `null` breaks TypeScript `string` types     |
+| Repo validation scripts are authoritative for content validity | CMS UI success messages do not validate semantics                       |
+| Destructive content diffs must fail validation                 | Protects against accidental overwrites and CMS write errors             |
 
 ### Scripts
 
-| Script | Command | Purpose |
-|--------|---------|---------|
-| CMS config validator | `bun run check:cms` | Validates `static/admin/config.yml` |
-| Content file validator | `bun run check:content` | Validates `.md` files under `content/` |
-| Content diff guard | `bun run check:content-diff` | Detects destructive changes in git diff |
+| Script                 | Command                      | Purpose                                 |
+| ---------------------- | ---------------------------- | --------------------------------------- |
+| CMS config validator   | `bun run check:cms`          | Validates `static/admin/config.yml`     |
+| Content file validator | `bun run check:content`      | Validates `.md` files under `content/`  |
+| Content diff guard     | `bun run check:content-diff` | Detects destructive changes in git diff |
 
 `check:cms` and `check:content` are included in `bun run validate`. `check:content-diff` is a pre-commit guard — it inspects uncommitted working-tree state and is run manually before content-heavy commits, not as part of the build pipeline.
 
@@ -64,12 +64,14 @@ CMS writes content
 ## Consequences
 
 **Positive:**
+
 - Broken content files are caught before deploy, not after.
 - Optional datetime fields cannot silently blank out required data.
 - Agents cannot create known-risk CMS schemas without the check script catching them.
 - The diff guard protects against CMS rewrites that destroy body content or wipe frontmatter.
 
 **Negative:**
+
 - The check scripts add a new failure mode: valid content that the scripts reject due to strict rules. This should be addressed by loosening specific checks (adding to `OPTIONAL_DATETIME_ALLOWLIST`) rather than disabling checks entirely.
 - The scripts require `gray-matter` and `js-yaml` — both are already in the template's dependencies.
 
@@ -87,7 +89,7 @@ Rejected. Field-level validation in Sveltia does not catch all failure modes (e.
 Deferred. This would require n8n or a serverless function to receive the webhook. The current scripts-based approach is simpler and works without external infrastructure.
 
 **Use a full content management platform with built-in validation**  
-Out of scope. This template uses Git-backed content as a deliberate architectural choice (ADR-003). Database-backed CMS validation is for a different architecture.
+Out of scope. This template uses Git-backed content as a deliberate architectural choice (ADR-014). Database-backed CMS validation is for a different architecture.
 
 ---
 

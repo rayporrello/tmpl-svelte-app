@@ -15,6 +15,7 @@ Sites built from this template commonly need two kinds of automation:
 The template already adopts Postgres for runtime data (ADR-004) and Sveltia CMS for Git-backed editorial content (ADR-014). An automation layer is needed to bridge these systems with external services and trigger workflows without requiring custom code for each integration.
 
 Requirements:
+
 - Non-developer-friendly workflow builder (visual)
 - Can operate on Git-backed content files (write to GitHub)
 - Can receive webhooks from SvelteKit server actions
@@ -32,8 +33,8 @@ Treat **n8n** as an optional first-class automation layer for websites built fro
 2. **n8n is external.** It is not a package dependency in this repo (`package.json`). It runs as a separate Podman container. It is not imported or required by any SvelteKit module.
 
 3. **Two categories of n8n interaction:**
-   - *Content automations:* n8n writes files to `content/` through the GitHub API. These files must follow the same schema as Sveltia CMS defines in `static/admin/config.yml`.
-   - *Runtime automations (Phase 5):* SvelteKit server actions save to Postgres, then emit a typed webhook event to n8n. n8n handles downstream tasks. The webhook call is non-blocking — user-facing flows must not fail if n8n is down.
+   - _Content automations:_ n8n writes files to `content/` through the GitHub API. These files must follow the same schema as Sveltia CMS defines in `static/admin/config.yml`.
+   - _Runtime automations (Phase 5):_ SvelteKit server actions save to Postgres, then emit a typed webhook event to n8n. n8n handles downstream tasks. The webhook call is non-blocking — user-facing flows must not fail if n8n is down.
 
 4. **Webhook security:** Production webhook calls from SvelteKit to n8n must be signed using HMAC-SHA256 with a shared secret (`N8N_WEBHOOK_SECRET`). Unsigned production webhooks are not acceptable.
 
@@ -44,6 +45,7 @@ Treat **n8n** as an optional first-class automation layer for websites built fro
 ## Consequences
 
 **Positive:**
+
 - Editors and non-developers can build integrations without custom code
 - Content automations and editorial workflows share a single source of truth (Git)
 - n8n's optional nature means every site starts lean — automations are added only when needed
@@ -51,6 +53,7 @@ Treat **n8n** as an optional first-class automation layer for websites built fro
 - Typed webhook events create a stable interface between the SvelteKit app and external workflows
 
 **Negative / tradeoffs:**
+
 - n8n workflow JSON is not version-controlled in this repo by default (it lives in n8n's own database); teams should export and back up workflows separately
 - If n8n is unavailable and a runtime webhook call fails silently, the failure may not be noticed without logging
 - Content automations that write directly to `main` carry deployment risk — a malformed file triggers a failed build
@@ -66,7 +69,8 @@ Treat **n8n** as an optional first-class automation layer for websites built fro
 
 - n8n is not installed or required in this template's `package.json`
 - Env vars `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.example` as empty placeholders
-- Docs: `docs/automations/` — README, n8n-patterns.md, content-automation-contract.md, runtime-event-contract.md, security-and-secrets.md
+- Docs: `docs/automations/` — README, n8n-patterns.md, content-automation-contract.md, security-and-secrets.md
+- Phase 5 spec: `docs/planning/runtime-event-contract.md` (lives under planning/ until the runtime emitter ships)
 - Phase 5 will implement `src/lib/automation/events.ts` (non-blocking webhook emitter) and `src/lib/automation/signing.ts` (HMAC signing)
 
 ## Revisit triggers

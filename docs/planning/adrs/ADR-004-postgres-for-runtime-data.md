@@ -8,7 +8,7 @@ Accepted
 
 Some planning notes and earlier template drafts included SQLite as a "lighter" default path for runtime data, on the grounds that many projects start small and SQLite is simpler to set up. However, SQLite introduces constraints (single-writer, file-on-disk, limited tooling) that become painful when a project grows into concurrent writes, multiple containers, or the need for a real migration workflow. Switching from SQLite to Postgres later is a disruptive migration.
 
-Editorial content (blog posts, landing page copy, static assets) is separately addressed by Sveltia CMS / file-based Git content (see ADR-003). This ADR concerns only dynamic, application-generated data.
+Editorial content (blog posts, landing page copy, static assets) is separately addressed by Sveltia CMS / file-based Git content (see ADR-014). This ADR concerns only dynamic, application-generated data.
 
 ## Decision
 

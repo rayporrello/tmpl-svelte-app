@@ -13,15 +13,17 @@ The template is feature-complete for the **website-only baseline** (landing page
 - Sveltia CMS at `/admin` is wired; content safety scripts gate writes; Markdown rendering ships with sanitisation.
 - Observability spine + security baseline (per-route CSP, Valibot env, request ID + safe error normalization).
 
-**Outstanding before tagging a hypothetical v1.0.0:**
+**Outstanding before tagging v1.0.0** (in priority order):
 
-| Area                                                                                                         | What's missing                           | Why deferred                                                                                                                                 |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lighthouse / perf check in CI                                                                                | Manual today; not wired into `validate`  | Needs decision on perf budget thresholds — tag-time only                                                                                     |
-| Final docs-vs-implementation audit                                                                           | Should re-verify after any further drift | Continuous — not a one-time gate                                                                                                             |
-| Phase 5 runtime data (Postgres, Drizzle, /readyz, automation event emitter, HMAC signing, dead-letter table) | Implementations not yet started          | Intentionally deferred until a project actually needs runtime data; the seams (env, types, contact form, observability) are already in place |
+| #   | Area                                          | Status      | Notes                                                                                                                                                                                                                                                                  |
+| --- | --------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Lighthouse CI gate                            | not started | Wire `treosh/lighthouse-ci-action` into `.github/workflows/ci.yml` with perf/a11y/SEO/best-practices budgets. Replaces the honor-system perf gates in `08-quality-gates.md`.                                                                                           |
+| 2   | Backup automation                             | not started | Nightly `static/uploads/` snapshot to off-host storage (R2/S3) on a systemd timer with monitor ping (Healthchecks.io / n8n) so silent failures get noticed. Extends to `pg_dump` once Phase 5 lands. Dedicated thread.                                                 |
+| 3   | Phase 5 runtime data bundle                   | not started | Postgres + Drizzle, `/readyz` with DB probe, automation event emitter (`src/lib/automation/events.ts`), HMAC signing (`src/lib/automation/signing.ts`), dead-letter table. Single coordinated batch. See `docs/planning/runtime-event-contract.md` for the event spec. |
+| 4   | Decisions on "beyond website baseline" topics | not started | i18n, analytics, cookie consent, newsletter dormant module, search, OG generation, visual regression, page archetypes, Better Auth, edge images. Each gets its own thread + ADR (defer or scope). See `docs/planning/12-post-v1-roadmap.md`.                           |
+| 5   | Final docs-vs-implementation audit            | continuous  | Re-run before tagging v1.0.0 to confirm planning docs match reality after items 1–4 land.                                                                                                                                                                              |
 
-Everything else is a per-project activation decision (see "Deferred / Phase 5+" at the bottom of this file).
+Per-project activation (Sveltia OAuth, brand swap, route registration) is **not** v1 work — those are deliberately left for the consumer of the template.
 
 ---
 

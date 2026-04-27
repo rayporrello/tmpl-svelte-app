@@ -64,7 +64,7 @@ Example future flows:
 - Newsletter signup → `newsletter.subscribed` event → n8n adds subscriber to mailing list
 - User submits a testimonial → `testimonial.submitted` event → n8n creates a draft file in `content/testimonials/`
 
-See [docs/automations/runtime-event-contract.md](runtime-event-contract.md) for the planned event shape.
+See [docs/planning/runtime-event-contract.md](../planning/runtime-event-contract.md) for the planned event shape (Phase 5 spec).
 
 ---
 
@@ -92,6 +92,6 @@ All production webhook calls to n8n should be signed using a shared secret. See 
 
 - [n8n-patterns.md](n8n-patterns.md) — specific workflow patterns with examples
 - [content-automation-contract.md](content-automation-contract.md) — rules for writing content files from n8n
-- [runtime-event-contract.md](runtime-event-contract.md) — typed event design for Phase 5
+- [docs/planning/runtime-event-contract.md](../planning/runtime-event-contract.md) — typed event design for Phase 5 (lives under planning/ until the emitter ships)
 - [security-and-secrets.md](security-and-secrets.md) — secrets, signing, and env vars
 - [docs/cms/README.md](../cms/README.md) — how content files work and how they relate to automations

@@ -1,3 +1,16 @@
+<!--
+MAINTAINER NOTE — added 2026-04-27
+
+This file is a one-shot LLM briefing for template-maintainer threads. It is a snapshot, not a contract — sections will drift as the template evolves. Trust the live repo over any specific claim here.
+
+Known drift as of this note:
+- The file-structure tree below still lists `06-agent-operating-model.md`, `ADR-003-sveltia-for-content.md`, `ADR-006-agent-operating-model.md`, and `docs/automations/runtime-event-contract.md`. Those files have been deleted or moved. The agent-operating-model rationale lives in `AGENTS.md`; the Sveltia decision lives in `ADR-014`; the runtime event spec moved to `docs/planning/runtime-event-contract.md`.
+- The numbered planning sequence has gaps (no `05`, no `06`) — that's intentional, see `docs/planning/README.md`.
+- For the current v1.0.0 readiness state, read `docs/planning/11-template-build-backlog.md` (top section) and `docs/planning/12-post-v1-roadmap.md`.
+
+If any other section here conflicts with the live repo, the live repo wins. Update the conflicting section in a focused commit rather than letting drift accumulate.
+-->
+
 You are helping me finish my reusable "golden template" website repo, not just plan it.
 
 Repo name/context:

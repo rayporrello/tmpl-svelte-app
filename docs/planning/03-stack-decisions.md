@@ -25,8 +25,8 @@ CSS layer (`forms.css`) works without it for display-only forms.
 
 ## CMS
 
-**Sveltia CMS** — file-based, Git-backed. Dormant in base template; activate per project.  
-See [ADR-003](adrs/ADR-003-sveltia-for-content.md).
+**Sveltia CMS** — file-based, Git-backed. Wired into the template; activate per project by setting `backend.repo` in `static/admin/config.yml`.  
+See [ADR-014](adrs/ADR-014-sveltia-content-system.md).
 
 ## Database
 

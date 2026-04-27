@@ -7,7 +7,7 @@ Every project spawned from this template includes these by default.
 - **SvelteKit / Svelte 5 skeleton** — routing, layouts, and page structure.
 - **Bun** — package manager, dev server, and runtime direction.
 - **CSS token/design-system baseline** — custom properties, explicit CSS layers, and hand-authored component styles. No Tailwind dependency. Includes `forms.css` for visual form primitives.
-- **Superforms** — the standard form behavior library for any form with submission behavior. Install per project when the first form with a server action is added (`bun add sveltekit-superforms valibot`). The CSS layer (`forms.css`) works without it for display-only forms, but Superforms is always the right choice when a form submits.
+- **Superforms + Valibot** — the standard form behavior library for any form with submission behavior. Already shipped as a devDependency; the dormant `src/routes/contact-example/` route demonstrates the wiring. The CSS layer (`forms.css`) works independently for display-only forms.
 - **Sveltia CMS / file-based content conventions** — Git-backed editorial content via Markdown/JSON; Sveltia admin at `/admin`.
 - **SEO, accessibility, semantic HTML, and image baseline** — meta tags, Open Graph, structured data stubs, accessible markup conventions, and image handling patterns.
 - **Podman Quadlet + Caddy deployment templates and documentation** — Caddyfile, Quadlet service definitions, and deploy notes committed to the repo.
@@ -18,14 +18,14 @@ Every project spawned from this template includes these by default.
 
 These capabilities are part of the template but off by default. Activating them should require enabling a defined seam — not structural rework.
 
-| Module | What it provides | Activation |
-|---|---|---|
-| Postgres + Drizzle | Runtime data: forms, waitlists, app state | Add Quadlet service + run migrations |
-| n8n | Automation workflows and webhook handling | Add Quadlet service + configure webhook URLs |
-| Postmark / email | Transactional email delivery | Add credentials + enable email module |
-| Better Auth | Auth, sessions, member areas, admin | Add auth config + enable protected routes |
-| Backup automation | pg_dump + media to Cloudflare R2 | Enable when Postgres is activated |
-| GitHub Actions deploy | Automated CI/CD to production | Optional; manual deploy documented as the baseline |
+| Module                | What it provides                          | Activation                                         |
+| --------------------- | ----------------------------------------- | -------------------------------------------------- |
+| Postgres + Drizzle    | Runtime data: forms, waitlists, app state | Add Quadlet service + run migrations               |
+| n8n                   | Automation workflows and webhook handling | Add Quadlet service + configure webhook URLs       |
+| Postmark / email      | Transactional email delivery              | Add credentials + enable email module              |
+| Better Auth           | Auth, sessions, member areas, admin       | Add auth config + enable protected routes          |
+| Backup automation     | pg_dump + media to Cloudflare R2          | Enable when Postgres is activated                  |
+| GitHub Actions deploy | Automated CI/CD to production             | Optional; manual deploy documented as the baseline |
 
 ## 3. Per-Project Configurable
 

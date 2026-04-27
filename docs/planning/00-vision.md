@@ -37,15 +37,33 @@ Starting a new web project from scratch means re-solving the same problems every
 - Postmark transactional email provider (`src/lib/server/forms/providers/postmark.example.ts`)
 - n8n integration env contract (`N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`)
 
-**Planned, not yet implemented (Phase 5+):**
+**Planned, not yet implemented:**
+
+Phase 5 — runtime data bundle (single coordinated batch; needs Postgres to land first):
 
 - Postgres + Drizzle for runtime data
 - Typed automation event emitter + HMAC signing (`src/lib/automation/events.ts`, `signing.ts`)
 - `lead.created` / `newsletter.subscribed` event wiring
-- `/readyz` with Postgres connectivity probe
+- `/readyz` with Postgres connectivity probe (today it would be identical to `/healthz`; only meaningful once a backing service exists)
 - Dead-letter table for failed n8n events
-- Better Auth for auth and member/admin areas
-- Backup automation for database and media
+
+Independent of Phase 5 — small wins, can be picked up anytime:
+
+- Lighthouse CI gate (perf budget enforcement on PRs; today the perf gates in `08-quality-gates.md` are honor-system)
+- Backup automation (uploads → off-host storage on a schedule; extends to `pg_dump` once Postgres lands)
+
+Beyond the website-only baseline — each will be scoped in its own thread (see `12-post-v1-roadmap.md`):
+
+- i18n / localisation
+- Analytics / RUM
+- Cookie consent / privacy banner
+- Newsletter subscription dormant module
+- Site search (Pagefind)
+- Per-article OG image generation
+- Visual regression testing
+- Page archetypes / examples gallery
+- Better Auth for gated/member areas
+- Edge image storage (R2 tier)
 
 ## The Target Workflow
 

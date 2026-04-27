@@ -26,8 +26,10 @@ Checks that must pass before a project built from this template ships or before 
 
 ## Performance gates
 
-- [ ] Lighthouse performance score ≥ 90 on mobile (production build)
-- [ ] LCP ≤ 2.5s on simulated mid-tier mobile
+> **Status:** today these are honor-system — Lighthouse is not wired into `bun run validate` or CI. Adding Lighthouse CI with budget enforcement is on the v1.0.0 readiness list (see `docs/planning/12-post-v1-roadmap.md`). Until then, run `npx lighthouse <url>` manually before launch.
+
+- [ ] Lighthouse performance score ≥ 90 on mobile (production build) — _manual until CI integration_
+- [ ] LCP ≤ 2.5s on simulated mid-tier mobile — _manual until CI integration_
 - [ ] No render-blocking font loads (Fontsource variable fonts self-hosted via `@import`)
 - [ ] No images without `width` and `height` attributes (prevents layout shift)
 - [ ] LCP image uses `loading="eager"` and `fetchpriority="high"` — never `loading="lazy"`
@@ -152,7 +154,7 @@ Full guide: `docs/deployment/secrets.md`
 - [ ] No SvelteKit module imports from n8n packages
 - [ ] `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.example` with empty values
 - [ ] No real webhook URL or secret is committed to the repo
-- [ ] `docs/automations/runtime-event-contract.md` documents the planned event shape
+- [ ] `docs/planning/runtime-event-contract.md` documents the planned event shape (Phase 5)
 - [ ] `docs/automations/content-automation-contract.md` documents the write rules
 - [ ] Site builds and serves correctly when `N8N_WEBHOOK_URL` is unset
 
@@ -164,7 +166,7 @@ Full guide: `docs/deployment/secrets.md`
 - [ ] Logs include `requestId` where practical (injected by `src/hooks.server.ts`)
 - [ ] Logs do not include secrets, tokens, cookies, or raw sensitive form payloads
 - [ ] Form actions return safe user-facing errors via `toSafeError()` — no stack traces to browser
-- [ ] Runtime sites define whether `/readyz` is required (Tier 2+ only)
+- [ ] `/readyz` is **deferred until Phase 5** (Postgres). With no backing service, a `/readyz` route would be identical to `/healthz` and add nothing. Tier 2+ sites must implement it once Postgres is active so orchestrators can drain traffic during DB unavailability.
 - [ ] n8n-enabled sites have a central Error Workflow configured
 - [ ] n8n-enabled sites document retry and failure behavior for each workflow
 - [ ] n8n-enabled sites pass `request_id` into webhook payloads
