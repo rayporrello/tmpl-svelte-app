@@ -28,19 +28,23 @@
     "init:site": "bun run scripts/init-site.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate": "bun run check && bun run check:seo && bun run check:cms && bun run check:content && bun run check:assets && bun run images:optimize && bun run build && bun run test",
+    "test:e2e": "playwright test",
+    "validate": "bun run check && bun run check:seo && bun run check:cms && bun run check:content && bun run check:assets && bun run images:optimize && bun run build && bun run test && bun run test:e2e",
     "validate:launch": "bun run validate && bun run check:launch && bun run check:content-diff",
     "secrets:render": "bash scripts/render-secrets.sh",
     "secrets:check": "bash scripts/check-secrets.sh"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
     "@fontsource-variable/jetbrains-mono": "^5.1.0",
     "@fontsource-variable/plus-jakarta-sans": "^5.1.0",
+    "@playwright/test": "^1.59.1",
     "@sveltejs/enhanced-img": "^0.6.0",
     "@sveltejs/kit": "^2.16.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.6.0",
+    "@types/sanitize-html": "^2.16.1",
     "glob": "^11.0.0",
     "sharp": "^0.33.0",
     "svelte": "^5.0.0",
@@ -53,6 +57,8 @@
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.1.1",
+    "marked": "^18.0.2",
+    "sanitize-html": "^2.17.3"
   }
 }

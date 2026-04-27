@@ -69,12 +69,14 @@
 
     /* Typography */
     --text-primary:   light-dark(var(--brand-dark), var(--brand-white));
+    /* Solid values used instead of transparency mixes to meet WCAG AA 4.5:1
+       on the brand-light (#f5f9ff) background. L=45 → ~5:1 contrast. */
     --text-secondary: light-dark(
-      color-mix(in oklch, var(--brand-dark) 70%, transparent),
+      oklch(45% 0.04 260),
       color-mix(in oklch, var(--brand-white) 70%, transparent)
     );
     --text-muted: light-dark(
-      color-mix(in oklch, var(--brand-dark) 40%, transparent),
+      oklch(50% 0.03 260),
       color-mix(in oklch, var(--brand-white) 40%, transparent)
     );
 

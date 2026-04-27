@@ -46,7 +46,7 @@
 - [x] Add ADR-014 (Sveltia content system) and ADR-015 (n8n automation bridge)
 - [x] Wire /admin as noindex in `src/lib/seo/routes.ts`
 - [ ] Configure Sveltia GitHub OAuth per project (requires `backend.repo` in config.yml — update per project)
-- [ ] Add Markdown renderer for rich-text `body` fields when first article route is built
+- [x] Add Markdown renderer for rich-text `body` fields (src/lib/content/markdown.ts — marked + sanitize-html, trust tiers) — C
 
 ## Phase 4 — SEO/images/accessibility
 
@@ -128,6 +128,14 @@
 - [x] Add Vitest (vitest.config.ts, $lib alias, 3 unit test files: env, seo-metadata, articles) — B
 - [x] Wire bun run test into validate; CI validate job provides ORIGIN/PUBLIC_SITE_URL stubs — B
 - [x] Update AGENTS.md (security headers policy, env variable policy, CSP extension guide) — B
+- [x] Add sanitized Markdown renderer (src/lib/content/markdown.ts — marked + sanitize-html, three trust tiers, heading IDs, external link rel, language classes; fallback from @aloskutov/dompurify-node which is 404 on npm) — C
+- [x] Add article route (src/routes/articles/[slug]/+page.server.ts + +page.svelte — loadArticle + renderMarkdown, full SEO with Article schema) — C
+- [x] Add optional content loaders (src/lib/content/team.ts, testimonials.ts — mirrors articles.ts shape; exported from index.ts) — C
+- [x] Add Playwright smoke tests (@playwright/test + @axe-core/playwright; playwright.config.ts; tests/e2e/smoke.spec.ts — 10 tests; all pass) — C
+- [x] Wire bun run test:e2e into validate; CI validate job installs Playwright chromium — C
+- [x] Add docs/content/markdown.md (trust model, allow-lists, renderer behaviors) — C
+- [x] Add docs/design-system/accessibility.md (skip link, focus-visible, reduced-motion, semantic HTML, color contrast) — C
+- [x] Fix --text-secondary and --text-muted light-mode tokens to use solid oklch values (WCAG AA 4.5:1 on brand-light background; was using transparency mix that produced 2.61:1) — C
 
 ## Phase 7 — Template documentation
 
