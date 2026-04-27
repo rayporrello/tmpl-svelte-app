@@ -75,6 +75,12 @@ test.describe('Axe accessibility', () => {
 		expect(results.violations).toEqual([]);
 	});
 
+	test('/articles has no violations', async ({ page }) => {
+		await page.goto('/articles');
+		const results = await new AxeBuilder({ page }).analyze();
+		expect(results.violations).toEqual([]);
+	});
+
 	test('/styleguide has no violations', async ({ page }) => {
 		await page.goto('/styleguide');
 		const results = await new AxeBuilder({ page }).analyze();

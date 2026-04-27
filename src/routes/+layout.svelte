@@ -3,6 +3,7 @@
 	import SEO from '$lib/components/seo/SEO.svelte';
 	import { organizationSchema, websiteSchema } from '$lib/seo/schemas';
 	import { site } from '$lib/config/site';
+	import { page } from '$app/state';
 
 	let { children } = $props();
 
@@ -16,7 +17,7 @@
 		title: site.defaultTitle,
 		description: site.defaultDescription,
 		canonicalPath: '/',
-		schema: rootSchema
+		schema: rootSchema,
 	}}
 />
 
@@ -27,7 +28,21 @@
 	<div class="container">
 		<a href="/" class="site-logo">[Site Name]</a>
 		<nav aria-label="Primary">
-			<!-- Navigation placeholder — add links per project -->
+			<ul role="list" class="nav-list">
+				<li>
+					<a href="/" class="nav-link" aria-current={page.url.pathname === '/' ? 'page' : undefined}
+						>Home</a
+					>
+				</li>
+				<li>
+					<a
+						href="/articles"
+						class="nav-link"
+						aria-current={page.url.pathname.startsWith('/articles') ? 'page' : undefined}
+						>Articles</a
+					>
+				</li>
+			</ul>
 		</nav>
 	</div>
 </header>
@@ -39,7 +54,26 @@
 <footer class="site-footer">
 	<div class="container">
 		<nav aria-label="Footer">
-			<!-- Footer nav placeholder -->
+			<ul role="list" class="nav-list">
+				<li>
+					<a href="/" class="nav-link" aria-current={page.url.pathname === '/' ? 'page' : undefined}
+						>Home</a
+					>
+				</li>
+				<li>
+					<a
+						href="/articles"
+						class="nav-link"
+						aria-current={page.url.pathname.startsWith('/articles') ? 'page' : undefined}
+						>Articles</a
+					>
+				</li>
+				{#if import.meta.env.DEV}
+					<li>
+						<a href="/styleguide" class="nav-link">Styleguide</a>
+					</li>
+				{/if}
+			</ul>
 		</nav>
 		<p><small>&copy; [Year] [Site Name]. All rights reserved.</small></p>
 	</div>
@@ -89,6 +123,37 @@
 		font-size: var(--text-lg);
 		color: var(--text-primary);
 		text-decoration: none;
+	}
+
+	.nav-list {
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.nav-link {
+		color: var(--text-secondary);
+		text-decoration: none;
+		font-size: var(--text-sm);
+		font-weight: var(--weight-medium);
+		padding-block: var(--space-1);
+		transition: color var(--duration-fast);
+	}
+
+	.nav-link:hover {
+		color: var(--text-primary);
+	}
+
+	.nav-link[aria-current='page'] {
+		color: var(--text-primary);
+		font-weight: var(--weight-semibold);
+		text-decoration: underline;
+		text-decoration-color: var(--brand-accent);
+		text-decoration-thickness: 2px;
+		text-underline-offset: 3px;
 	}
 
 	/* Site footer */

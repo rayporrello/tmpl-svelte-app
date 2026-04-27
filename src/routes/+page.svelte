@@ -95,34 +95,6 @@
 		padding-block-start: var(--space-4);
 	}
 
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		padding-block: var(--space-3);
-		padding-inline: var(--space-6);
-		border-radius: var(--radius-md);
-		font-weight: var(--weight-medium);
-		font-size: var(--text-base);
-		text-decoration: none;
-		transition: opacity var(--duration-fast);
-		min-height: 44px;
-	}
-
-	.btn-primary {
-		background: var(--brand-accent);
-		color: var(--brand-dark);
-	}
-
-	.btn-secondary {
-		background: var(--surface-raised);
-		color: var(--text-primary);
-		border: 1px solid var(--border-structural);
-	}
-
-	.btn:hover {
-		opacity: 0.85;
-	}
-
 	h2 {
 		font-size: var(--text-2xl);
 		font-weight: var(--weight-semibold);

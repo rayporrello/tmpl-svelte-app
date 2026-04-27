@@ -302,6 +302,39 @@ const greeting = 'Hello, world!';</code
 	</div>
 </section>
 
+<!-- ── Buttons ──────────────────────────────────────────────────────────── -->
+<section id="buttons">
+	<div class="container">
+		<h2>Buttons</h2>
+		<p class="text-secondary" style="max-width: var(--content-prose)">
+			Compose <code>.btn</code> with a modifier class. Use <code>&lt;a href&gt;</code> for
+			navigation and <code>&lt;button&gt;</code> for actions. See the "Button vs Link Semantics" subsection
+			below for the full rule.
+		</p>
+
+		<h3>Variants</h3>
+		<div class="cluster">
+			<a href="#buttons" class="btn btn-primary">Primary link</a>
+			<button type="button" class="btn btn-secondary">Secondary button</button>
+			<button type="button" class="btn btn-ghost">Ghost button</button>
+		</div>
+
+		<h3>Sizes</h3>
+		<div class="cluster" style="align-items: center">
+			<a href="#buttons" class="btn btn-primary btn-sm">Small</a>
+			<a href="#buttons" class="btn btn-primary">Default</a>
+			<a href="#buttons" class="btn btn-primary btn-lg">Large</a>
+		</div>
+
+		<h3>Disabled state</h3>
+		<div class="cluster">
+			<button type="button" class="btn btn-primary" disabled>Primary disabled</button>
+			<button type="button" class="btn btn-secondary" disabled>Secondary disabled</button>
+			<button type="button" class="btn btn-ghost" disabled>Ghost disabled</button>
+		</div>
+	</div>
+</section>
+
 <!-- ── Animation Utilities ────────────────────────────────────────────── -->
 <section id="animations" style="background: var(--surface-sunken)">
 	<div class="container">

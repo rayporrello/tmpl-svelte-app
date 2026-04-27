@@ -6,151 +6,299 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @layer utilities {
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      LAYOUT PRIMITIVES (universal — never change)
      ══════════════════════════════════════════════════════════════════════ */
 
-  /* ── Display ─────────────────────────────────────────────────────────── */
-  .hidden       { display: none; }
-  .block        { display: block; }
-  .inline       { display: inline; }
-  .inline-block { display: inline-block; }
-  .flex         { display: flex; }
-  .inline-flex  { display: inline-flex; }
-  .grid         { display: grid; }
-  .contents     { display: contents; }
+	/* ── Display ─────────────────────────────────────────────────────────── */
+	.hidden {
+		display: none;
+	}
+	.block {
+		display: block;
+	}
+	.inline {
+		display: inline;
+	}
+	.inline-block {
+		display: inline-block;
+	}
+	.flex {
+		display: flex;
+	}
+	.inline-flex {
+		display: inline-flex;
+	}
+	.grid {
+		display: grid;
+	}
+	.contents {
+		display: contents;
+	}
 
-  /* ── Flexbox ─────────────────────────────────────────────────────────── */
-  .flex-1    { flex: 1 1 0%; }
-  .flex-auto { flex: 1 1 auto; }
-  .flex-none { flex: none; }
+	/* ── Flexbox ─────────────────────────────────────────────────────────── */
+	.flex-1 {
+		flex: 1 1 0%;
+	}
+	.flex-auto {
+		flex: 1 1 auto;
+	}
+	.flex-none {
+		flex: none;
+	}
 
-  /* ── Alignment ───────────────────────────────────────────────────────── */
-  .items-start   { align-items: flex-start; }
-  .items-center  { align-items: center; }
-  .items-end     { align-items: flex-end; }
-  .items-stretch { align-items: stretch; }
+	/* ── Alignment ───────────────────────────────────────────────────────── */
+	.items-start {
+		align-items: flex-start;
+	}
+	.items-center {
+		align-items: center;
+	}
+	.items-end {
+		align-items: flex-end;
+	}
+	.items-stretch {
+		align-items: stretch;
+	}
 
-  .justify-start   { justify-content: flex-start; }
-  .justify-center  { justify-content: center; }
-  .justify-end     { justify-content: flex-end; }
-  .justify-between { justify-content: space-between; }
+	.justify-start {
+		justify-content: flex-start;
+	}
+	.justify-center {
+		justify-content: center;
+	}
+	.justify-end {
+		justify-content: flex-end;
+	}
+	.justify-between {
+		justify-content: space-between;
+	}
 
-  /* ── Gap ──────────────────────────────────────────────────────────────── */
-  .gap-0  { gap: 0; }
-  .gap-1  { gap: var(--space-1); }
-  .gap-2  { gap: var(--space-2); }
-  .gap-3  { gap: var(--space-3); }
-  .gap-4  { gap: var(--space-4); }
-  .gap-5  { gap: var(--space-5); }
-  .gap-6  { gap: var(--space-6); }
-  .gap-8  { gap: var(--space-8); }
-  .gap-10 { gap: var(--space-10); }
-  .gap-12 { gap: var(--space-12); }
-  .gap-16 { gap: var(--space-16); }
+	/* ── Gap ──────────────────────────────────────────────────────────────── */
+	.gap-0 {
+		gap: 0;
+	}
+	.gap-1 {
+		gap: var(--space-1);
+	}
+	.gap-2 {
+		gap: var(--space-2);
+	}
+	.gap-3 {
+		gap: var(--space-3);
+	}
+	.gap-4 {
+		gap: var(--space-4);
+	}
+	.gap-5 {
+		gap: var(--space-5);
+	}
+	.gap-6 {
+		gap: var(--space-6);
+	}
+	.gap-8 {
+		gap: var(--space-8);
+	}
+	.gap-10 {
+		gap: var(--space-10);
+	}
+	.gap-12 {
+		gap: var(--space-12);
+	}
+	.gap-16 {
+		gap: var(--space-16);
+	}
 
-  /* ── Sizing ──────────────────────────────────────────────────────────── */
-  .w-full { width: 100%; }
-  .w-auto { width: auto; }
-  .w-fit  { width: fit-content; }
-  .w-max  { width: max-content; }
-  .w-min  { width: min-content; }
+	/* ── Sizing ──────────────────────────────────────────────────────────── */
+	.w-full {
+		width: 100%;
+	}
+	.w-auto {
+		width: auto;
+	}
+	.w-fit {
+		width: fit-content;
+	}
+	.w-max {
+		width: max-content;
+	}
+	.w-min {
+		width: min-content;
+	}
 
-  .h-full   { height: 100%; }
-  .h-auto   { height: auto; }
-  .h-fit    { height: fit-content; }
-  .h-screen { height: 100vh; }
-  .h-dvh    { height: 100dvh; }
+	.h-full {
+		height: 100%;
+	}
+	.h-auto {
+		height: auto;
+	}
+	.h-fit {
+		height: fit-content;
+	}
+	.h-screen {
+		height: 100vh;
+	}
+	.h-dvh {
+		height: 100dvh;
+	}
 
-  .min-h-0    { min-height: 0; }
-  .min-h-full { min-height: 100%; }
+	.min-h-0 {
+		min-height: 0;
+	}
+	.min-h-full {
+		min-height: 100%;
+	}
 
-  .max-w-prose   { max-width: var(--content-prose); }
-  .max-w-content { max-width: var(--content-wide); }
+	.max-w-prose {
+		max-width: var(--content-prose);
+	}
+	.max-w-content {
+		max-width: var(--content-wide);
+	}
 
-  /* ── Overflow ─────────────────────────────────────────────────────────── */
-  .overflow-auto    { overflow: auto; }
-  .overflow-hidden  { overflow: hidden; }
-  .overflow-clip    { overflow: clip; }
-  .overflow-x-auto  { overflow-x: auto; }
-  .overflow-y-auto  { overflow-y: auto; }
+	/* ── Overflow ─────────────────────────────────────────────────────────── */
+	.overflow-auto {
+		overflow: auto;
+	}
+	.overflow-hidden {
+		overflow: hidden;
+	}
+	.overflow-clip {
+		overflow: clip;
+	}
+	.overflow-x-auto {
+		overflow-x: auto;
+	}
+	.overflow-y-auto {
+		overflow-y: auto;
+	}
 
-  /* ── Position ────────────────────────────────────────────────────────── */
-  .relative { position: relative; }
-  .absolute { position: absolute; }
-  .fixed    { position: fixed; }
-  .sticky   { position: sticky; }
-  .inset-0  { inset: 0; }
+	/* ── Position ────────────────────────────────────────────────────────── */
+	.relative {
+		position: relative;
+	}
+	.absolute {
+		position: absolute;
+	}
+	.fixed {
+		position: fixed;
+	}
+	.sticky {
+		position: sticky;
+	}
+	.inset-0 {
+		inset: 0;
+	}
 
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      TYPOGRAPHY UTILITIES
      ══════════════════════════════════════════════════════════════════════ */
 
-  .text-xs   { font-size: var(--text-xs); }
-  .text-sm   { font-size: var(--text-sm); }
-  .text-base { font-size: var(--text-base); }
-  .text-lg   { font-size: var(--text-lg); }
-  .text-xl   { font-size: var(--text-xl); }
-  .text-2xl  { font-size: var(--text-2xl); }
-  .text-3xl  { font-size: var(--text-3xl); }
+	.text-xs {
+		font-size: var(--text-xs);
+	}
+	.text-sm {
+		font-size: var(--text-sm);
+	}
+	.text-base {
+		font-size: var(--text-base);
+	}
+	.text-lg {
+		font-size: var(--text-lg);
+	}
+	.text-xl {
+		font-size: var(--text-xl);
+	}
+	.text-2xl {
+		font-size: var(--text-2xl);
+	}
+	.text-3xl {
+		font-size: var(--text-3xl);
+	}
 
-  .font-normal   { font-weight: var(--weight-normal); }
-  .font-medium   { font-weight: var(--weight-medium); }
-  .font-semibold { font-weight: var(--weight-semibold); }
-  .font-bold     { font-weight: var(--weight-bold); }
+	.font-normal {
+		font-weight: var(--weight-normal);
+	}
+	.font-medium {
+		font-weight: var(--weight-medium);
+	}
+	.font-semibold {
+		font-weight: var(--weight-semibold);
+	}
+	.font-bold {
+		font-weight: var(--weight-bold);
+	}
 
-  .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+	.truncate {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 
-  .line-clamp-1 {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
+	.line-clamp-1 {
+		display: -webkit-box;
+		-webkit-line-clamp: 1;
+		line-clamp: 1;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
 
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
+	.line-clamp-2 {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
 
-  .line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
+	.line-clamp-3 {
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
 
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      COLOR UTILITIES
      ══════════════════════════════════════════════════════════════════════ */
 
-  .text-primary   { color: var(--text-primary); }
-  .text-secondary { color: var(--text-secondary); }
-  .text-muted     { color: var(--text-muted); }
-  .text-accent    { color: var(--brand-accent); }
-  .text-success   { color: var(--color-success); }
-  .text-warning   { color: var(--color-warning); }
-  .text-danger    { color: var(--color-danger); }
+	.text-primary {
+		color: var(--text-primary);
+	}
+	.text-secondary {
+		color: var(--text-secondary);
+	}
+	.text-muted {
+		color: var(--text-muted);
+	}
+	.text-accent {
+		color: var(--brand-accent);
+	}
+	.text-success {
+		color: var(--color-success);
+	}
+	.text-warning {
+		color: var(--color-warning);
+	}
+	.text-danger {
+		color: var(--color-danger);
+	}
 
-  .bg-ground      { background: var(--surface-ground); }
-  .bg-raised      { background: var(--surface-raised); }
-  .bg-sunken      { background: var(--surface-sunken); }
-  .bg-transparent { background: transparent; }
+	.bg-ground {
+		background: var(--surface-ground);
+	}
+	.bg-raised {
+		background: var(--surface-raised);
+	}
+	.bg-sunken {
+		background: var(--surface-sunken);
+	}
+	.bg-transparent {
+		background: transparent;
+	}
 
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      SECTION / CONTAINER PATTERN
      The foundational page layout. Every thematic block is:
        <section> → full-bleed background, vertical rhythm, gutter
@@ -158,219 +306,332 @@
      See docs/semantic-html.md for the full pattern.
      ══════════════════════════════════════════════════════════════════════ */
 
-  /* All direct-child sections of <main> get vertical rhythm + gutter */
-  :where(main > section) {
-    display: flex;
-    flex-direction: column;
-    padding-block: var(--section-space);
-    padding-inline: var(--gutter);
-    gap: var(--container-gap);
-  }
+	/* All direct-child sections of <main> get vertical rhythm + gutter */
+	:where(main > section) {
+		display: flex;
+		flex-direction: column;
+		padding-block: var(--section-space);
+		padding-inline: var(--gutter);
+		gap: var(--container-gap);
+	}
 
-  /* The inner container centers content and enforces max-width */
-  .container {
-    display: flex;
-    flex-direction: column;
-    margin-inline: auto;
-    width: 100%;
-    max-width: var(--content-width);
-  }
+	/* The inner container centers content and enforces max-width */
+	.container {
+		display: flex;
+		flex-direction: column;
+		margin-inline: auto;
+		width: 100%;
+		max-width: var(--content-width);
+	}
 
-  /* Width variants for the Section.svelte component */
-  .container--narrow { max-width: var(--content-narrow); }
-  .container--wide   { max-width: var(--content-wide); }
-  .container--full   { max-width: none; }
+	/* Width variants for the Section.svelte component */
+	.container--narrow {
+		max-width: var(--content-narrow);
+	}
+	.container--wide {
+		max-width: var(--content-wide);
+	}
+	.container--full {
+		max-width: none;
+	}
 
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      SPACING & LAYOUT PATTERNS
      ══════════════════════════════════════════════════════════════════════ */
 
-  /* ── Stack (vertical flex) ───────────────────────────────────────────── */
-  .stack {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-component-gap);
-  }
+	/* ── Stack (vertical flex) ───────────────────────────────────────────── */
+	.stack {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-component-gap);
+	}
 
-  .stack[data-gap="sm"] { gap: var(--space-element-gap); }
-  .stack[data-gap="lg"] { gap: var(--space-section-gap); }
+	.stack[data-gap='sm'] {
+		gap: var(--space-element-gap);
+	}
+	.stack[data-gap='lg'] {
+		gap: var(--space-section-gap);
+	}
 
-  /* ── Cluster (horizontal flex, wrapping) ─────────────────────────────── */
-  .cluster {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-component-gap);
-  }
+	/* ── Cluster (horizontal flex, wrapping) ─────────────────────────────── */
+	.cluster {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-component-gap);
+	}
 
-  .cluster[data-gap="sm"] { gap: var(--space-element-gap); }
-  .cluster[data-gap="lg"] { gap: var(--space-section-gap); }
+	.cluster[data-gap='sm'] {
+		gap: var(--space-element-gap);
+	}
+	.cluster[data-gap='lg'] {
+		gap: var(--space-section-gap);
+	}
 
-  /* ── Flow (rich text vertical rhythm) ────────────────────────────────── */
-  .flow {
-    --flow-space: var(--space-4);
-  }
+	/* ── Flow (rich text vertical rhythm) ────────────────────────────────── */
+	.flow {
+		--flow-space: var(--space-4);
+	}
 
-  .flow > * + * {
-    margin-block-start: var(--flow-space);
-  }
+	.flow > * + * {
+		margin-block-start: var(--flow-space);
+	}
 
-  /* Headings need more space above them */
-  .flow > * + h2,
-  .flow > * + h3 {
-    margin-block-start: var(--space-8);
-  }
+	/* Headings need more space above them */
+	.flow > * + h2,
+	.flow > * + h3 {
+		margin-block-start: var(--space-8);
+	}
 
-  /* Headings group tightly with the next element */
-  .flow h2 + *,
-  .flow h3 + *,
-  .flow h4 + * {
-    margin-block-start: var(--space-2);
-  }
+	/* Headings group tightly with the next element */
+	.flow h2 + *,
+	.flow h3 + *,
+	.flow h4 + * {
+		margin-block-start: var(--space-2);
+	}
 
-  /* Tighter spacing between list items */
-  .flow ul > * + *,
-  .flow ol > * + * {
-    margin-block-start: var(--space-1);
-  }
+	/* Tighter spacing between list items */
+	.flow ul > * + *,
+	.flow ol > * + * {
+		margin-block-start: var(--space-1);
+	}
 
-  /* ── Constrained Column ──────────────────────────────────────────────── */
-  .constrained-column {
-    width: 100%;
-    max-width: var(--content-editorial);
-    margin-inline: auto;
-  }
+	/* ── Constrained Column ──────────────────────────────────────────────── */
+	.constrained-column {
+		width: 100%;
+		max-width: var(--content-editorial);
+		margin-inline: auto;
+	}
 
-  /* ── Container Query Utility ─────────────────────────────────────────── */
-  .container-inline {
-    container-type: inline-size;
-  }
+	/* ── Container Query Utility ─────────────────────────────────────────── */
+	.container-inline {
+		container-type: inline-size;
+	}
 
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      BORDER UTILITIES
      ══════════════════════════════════════════════════════════════════════ */
 
-  .border   { border: 1px solid var(--border-default); }
-  .border-0 { border: none; }
-  .border-block-start { border-block-start: 1px solid var(--border-default); }
-  .border-block-end   { border-block-end: 1px solid var(--border-default); }
-  .border-inline-start { border-inline-start: 1px solid var(--border-default); }
-  .border-inline-end   { border-inline-end: 1px solid var(--border-default); }
+	.border {
+		border: 1px solid var(--border-default);
+	}
+	.border-0 {
+		border: none;
+	}
+	.border-block-start {
+		border-block-start: 1px solid var(--border-default);
+	}
+	.border-block-end {
+		border-block-end: 1px solid var(--border-default);
+	}
+	.border-inline-start {
+		border-inline-start: 1px solid var(--border-default);
+	}
+	.border-inline-end {
+		border-inline-end: 1px solid var(--border-default);
+	}
 
-  .border-subtle { border-color: var(--border-subtle); }
+	.border-subtle {
+		border-color: var(--border-subtle);
+	}
 
-  .rounded-none { border-radius: 0; }
-  .rounded-sm   { border-radius: var(--radius-sm); }
-  .rounded      { border-radius: var(--radius-md); }
-  .rounded-lg   { border-radius: var(--radius-lg); }
-  .rounded-xl   { border-radius: var(--radius-xl); }
-  .rounded-full { border-radius: var(--radius-full); }
+	.rounded-none {
+		border-radius: 0;
+	}
+	.rounded-sm {
+		border-radius: var(--radius-sm);
+	}
+	.rounded {
+		border-radius: var(--radius-md);
+	}
+	.rounded-lg {
+		border-radius: var(--radius-lg);
+	}
+	.rounded-xl {
+		border-radius: var(--radius-xl);
+	}
+	.rounded-full {
+		border-radius: var(--radius-full);
+	}
 
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      SHADOW UTILITIES
      ══════════════════════════════════════════════════════════════════════ */
 
-  .shadow-none { box-shadow: none; }
-  .shadow-sm   { box-shadow: var(--shadow-sm); }
-  .shadow-md   { box-shadow: var(--shadow-md); }
-  .shadow-lg   { box-shadow: var(--shadow-lg); }
+	.shadow-none {
+		box-shadow: none;
+	}
+	.shadow-sm {
+		box-shadow: var(--shadow-sm);
+	}
+	.shadow-md {
+		box-shadow: var(--shadow-md);
+	}
+	.shadow-lg {
+		box-shadow: var(--shadow-lg);
+	}
 
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      INTERACTION UTILITIES
      ══════════════════════════════════════════════════════════════════════ */
 
-  .cursor-pointer     { cursor: pointer; }
-  .cursor-not-allowed { cursor: not-allowed; }
-  .select-none        { user-select: none; }
-  .pointer-events-none { pointer-events: none; }
+	.cursor-pointer {
+		cursor: pointer;
+	}
+	.cursor-not-allowed {
+		cursor: not-allowed;
+	}
+	.select-none {
+		user-select: none;
+	}
+	.pointer-events-none {
+		pointer-events: none;
+	}
 
-  /* ── Clickable Parent ────────────────────────────────────────────────── */
-  /* Apply .interactive-card to the parent, .card-link to the <a> inside. */
-  .interactive-card {
-    position: relative;
-    transition: filter 150ms ease-out, transform 50ms ease-out;
-  }
+	/* ── Clickable Parent ────────────────────────────────────────────────── */
+	/* Apply .interactive-card to the parent, .card-link to the <a> inside. */
+	.interactive-card {
+		position: relative;
+		transition:
+			filter 150ms ease-out,
+			transform 50ms ease-out;
+	}
 
-  .interactive-card:hover {
-    filter: brightness(1.05);
-  }
+	.interactive-card:hover {
+		filter: brightness(1.05);
+	}
 
-  .interactive-card:active {
-    transform: scale(0.99);
-  }
+	.interactive-card:active {
+		transform: scale(0.99);
+	}
 
-  .card-link::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-  }
+	.card-link::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+	}
 
-  /* ── Focus Helper ────────────────────────────────────────────────────── */
-  .focusable:focus-visible {
-    outline: 2px solid var(--border-focus);
-    outline-offset: 2px;
-  }
+	/* ── Focus Helper ────────────────────────────────────────────────────── */
+	.focusable:focus-visible {
+		outline: 2px solid var(--border-focus);
+		outline-offset: 2px;
+	}
 
-  /* ── Disabled State ──────────────────────────────────────────────────── */
-  /* Note: opacity is correct here — dimming the entire element (including
+	/* ── Disabled State ──────────────────────────────────────────────────── */
+	/* Note: opacity is correct here — dimming the entire element (including
      children) IS the intended behavior for disabled states. The opacity ban
      applies to translucent backgrounds/borders, not whole-element dimming. */
-  .disabled,
-  [disabled],
-  [aria-disabled="true"] {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
+	.disabled,
+	[disabled],
+	[aria-disabled='true'] {
+		opacity: 0.5;
+		cursor: not-allowed;
+		pointer-events: none;
+	}
 
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      ACCESSIBILITY
      ══════════════════════════════════════════════════════════════════════ */
 
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
 
-
-  /* ══════════════════════════════════════════════════════════════════════
+	/* ══════════════════════════════════════════════════════════════════════
      COMPONENT DEFAULTS
      ══════════════════════════════════════════════════════════════════════ */
 
-  .card {
-    background: var(--surface-raised);
-    border: 1px solid var(--border-structural);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
-  }
+	.card {
+		background: var(--surface-raised);
+		border: 1px solid var(--border-structural);
+		border-radius: var(--radius-md);
+		padding: var(--space-4);
+	}
 
-  .card-flat {
-    background: var(--surface-raised);
-    border: 1px solid var(--border-structural);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
-    box-shadow: none;
-  }
+	.card-flat {
+		background: var(--surface-raised);
+		border: 1px solid var(--border-structural);
+		border-radius: var(--radius-md);
+		padding: var(--space-4);
+		box-shadow: none;
+	}
 
+	/* ══════════════════════════════════════════════════════════════════════
+     BUTTONS
+     Composable button primitives. Pair a modifier (.btn-primary, .btn-sm)
+     with the base .btn class. Works on <a> and <button> alike.
+     ══════════════════════════════════════════════════════════════════════ */
 
-  /* ══════════════════════════════════════════════════════════════════════
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding-block: var(--space-3);
+		padding-inline: var(--space-5);
+		border-radius: var(--radius-md);
+		font-weight: var(--weight-medium);
+		font-size: var(--text-base);
+		text-decoration: none;
+		cursor: pointer;
+		min-height: 44px;
+		transition: opacity var(--duration-fast);
+		border: none;
+		white-space: nowrap;
+	}
+
+	.btn-primary {
+		background: var(--brand-accent);
+		color: var(--brand-dark);
+	}
+
+	.btn-secondary {
+		background: var(--surface-raised);
+		color: var(--text-primary);
+		border: 1px solid var(--border-structural);
+	}
+
+	.btn-ghost {
+		background: transparent;
+		color: var(--text-primary);
+		border: 1px solid var(--border-structural);
+	}
+
+	.btn-sm {
+		padding-block: var(--space-2);
+		padding-inline: var(--space-4);
+		font-size: var(--text-sm);
+		min-height: 36px;
+	}
+
+	.btn-lg {
+		padding-block: var(--space-4);
+		padding-inline: var(--space-8);
+		font-size: var(--text-lg);
+		min-height: 52px;
+	}
+
+	.btn:hover:not(:disabled) {
+		opacity: 0.85;
+	}
+
+	.btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	/* ══════════════════════════════════════════════════════════════════════
      BRAND-SPECIFIC OPTICAL LAYER
      Add per-project visual effects below this line.
      Examples: glass panels, indicator lights, ambient bleed, app canvas.
      Strip or replace this section when starting a new brand.
      ══════════════════════════════════════════════════════════════════════ */
-
 }

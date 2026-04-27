@@ -186,6 +186,21 @@
 - [x] Enrich /styleguide: add brand primitives swatches, semantic surfaces label, shadows section, token overview intro — E
 - [x] Fix ESLint issues surfaced by first lint run: prefer-const, no-unused-vars, preserve-caught-error, each-block keys, no-at-html-tags comments — E
 
+## Phase F — UI groundwork (Batch F)
+
+- [x] Lift .btn / .btn-primary / .btn-secondary out of +page.svelte scope into utilities.css @layer utilities — F
+- [x] Add .btn-ghost, .btn-sm, .btn-lg, .btn:hover:not(:disabled), .btn:disabled to utilities.css — F
+- [x] Remove redundant scoped .btn styles from src/routes/+page.svelte — F
+- [x] Add Buttons section to /styleguide with all variants and disabled state using real <a> and <button> — F
+- [x] Add src/routes/articles/+page.server.ts (loadArticles, published-only, sorted newest-first) — F
+- [x] Add src/routes/articles/+page.svelte (SEO, empty state, article cards with h2/p/time) — F
+- [x] Register /articles in src/lib/seo/routes.ts (indexable: true, priority: 0.7) — F
+- [x] Add /articles axe zero-violations test to tests/e2e/smoke.spec.ts — F
+- [x] Replace nav placeholder in +layout.svelte with real <ul role="list"> of nav links (/ and /articles) — F
+- [x] Add .nav-link and .nav-link[aria-current='page'] scoped styles to +layout.svelte — F
+- [x] Add footer nav with same two links + /styleguide in DEV-only block — F
+- [x] Fix active nav link contrast: use var(--text-primary) + brand-accent text-decoration-color instead of brand-accent fg (brand-accent on brand-light = 1.45:1, fails WCAG AA) — F
+
 ## Deferred / Phase 5+
 
 - Formsnap — not planned; Superforms is the standard form library, add it directly

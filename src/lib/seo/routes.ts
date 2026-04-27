@@ -1,11 +1,4 @@
-export type Changefreq =
-	| 'always'
-	| 'hourly'
-	| 'daily'
-	| 'weekly'
-	| 'monthly'
-	| 'yearly'
-	| 'never';
+export type Changefreq = 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
 
 export interface RouteEntry {
 	path: string;
@@ -31,21 +24,27 @@ export const routes: RouteEntry[] = [
 		path: '/',
 		indexable: true,
 		changefreq: 'weekly',
-		priority: 1.0
+		priority: 1.0,
+	},
+	{
+		path: '/articles',
+		indexable: true,
+		changefreq: 'weekly',
+		priority: 0.7,
 	},
 	{
 		path: '/styleguide',
-		indexable: false
+		indexable: false,
 	},
 	{
 		path: '/admin',
-		indexable: false
+		indexable: false,
 	},
 	// contact-example is noindex until activated: rename to /contact and set indexable: true.
 	{
 		path: '/contact-example',
-		indexable: false
-	}
+		indexable: false,
+	},
 	// Article routes (/articles/[slug]) are dynamic — add published article paths here
 	// or generate them dynamically in the sitemap builder from loadArticles().
 ];
