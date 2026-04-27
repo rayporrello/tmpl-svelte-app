@@ -1,0 +1,50 @@
+# deploy/Caddyfile.example — Caddy reverse proxy for a SvelteKit site
+#
+# Replace example.com with the real domain before use.
+# See docs/deployment/runbook.md for the full deployment procedure.
+#
+# Security header ownership (ADR-018, ADR-019):
+#   Caddy owns:  TLS, HSTS, compression, access logging
+#   App owns:    CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy
+#   Do NOT duplicate app-owned headers here — the app already sets them.
+
+example.com {
+    # ── TLS ───────────────────────────────────────────────────────────────────
+    # Let's Encrypt automatic certificate via ACME HTTP-01 challenge.
+    # No configuration needed — Caddy handles it automatically.
+    tls {
+        protocols tls1.2 tls1.3
+    }
+
+    # ── HSTS ─────────────────────────────────────────────────────────────────
+    # Caddy owns HSTS. Do not set Strict-Transport-Security in the app.
+    # Adjust max-age and includeSubDomains before adding to the preload list.
+    header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # ── Compression ──────────────────────────────────────────────────────────
+    # Caddy owns compression. Do not compress in the app.
+    encode zstd gzip
+
+    # ── Access logging ────────────────────────────────────────────────────────
+    # Log to stdout so journald captures it via the Caddy systemd unit.
+    log {
+        output stdout
+        format json
+    }
+
+    # ── Reverse proxy ─────────────────────────────────────────────────────────
+    # The SvelteKit app listens on port 3000. In a Podman Quadlet setup the
+    # container is reachable at 127.0.0.1:3000 (or via container hostname if
+    # Caddy is on the same Podman network).
+    reverse_proxy 127.0.0.1:3000 {
+        # Health check — Caddy marks the upstream as healthy before serving.
+        health_uri /healthz
+        health_interval 10s
+        health_timeout 3s
+    }
+}
+
+# Redirect www → apex (optional — remove if not using www)
+www.example.com {
+    redir https://example.com{uri} permanent
+}

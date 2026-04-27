@@ -1,0 +1,54 @@
+# Containerfile.node.example — ESCAPE HATCH for adapter-node
+#
+# NOT exercised in CI. Review and rename to `Containerfile.node` (or swap into
+# the main Containerfile) to activate. See ADR-018 for the full swap procedure.
+#
+# When to use:
+#   - svelte-adapter-bun becomes unmaintained or breaks on a new Bun version
+#   - @sveltejs/enhanced-img assets are not served correctly from the Bun runtime
+#
+# Swap steps:
+#   1. bun add -d @sveltejs/adapter-node
+#   2. In svelte.config.js: replace import from 'svelte-adapter-bun' with '@sveltejs/adapter-node'
+#   3. Replace this file's content into the main Containerfile
+#   4. BODY_SIZE_LIMIT and other adapter-node env vars become active
+#
+# Environment variable contract (adapter-node):
+#   PORT              — port to listen on (default: 3000)
+#   HOST              — bind address (default: 0.0.0.0)
+#   ORIGIN            — full origin URL (REQUIRED)
+#   BODY_SIZE_LIMIT   — max request body size in bytes (e.g. 524288 = 512 KB)
+#   ADDRESS_HEADER    — header for client IP behind proxy
+#   XFF_DEPTH         — trusted proxy depth for X-Forwarded-For
+
+# ── Stage 1: builder ──────────────────────────────────────────────────────────
+FROM oven/bun:1-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY . .
+RUN bun run build
+
+# ── Stage 2: runtime (Node) ───────────────────────────────────────────────────
+FROM node:22-alpine AS runtime
+
+WORKDIR /app
+
+RUN addgroup -g 1001 -S app && adduser -u 1001 -S app -G app
+
+# Install only production dependencies with npm (Node runtime path)
+COPY --from=builder --chown=app:app /app/build ./build
+COPY --from=builder --chown=app:app /app/package.json ./
+RUN npm install --omit=dev --ignore-scripts
+
+USER app
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/healthz || exit 1
+
+CMD ["node", "build/index.js"]

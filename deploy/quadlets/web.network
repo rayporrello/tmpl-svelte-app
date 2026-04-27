@@ -1,0 +1,22 @@
+# deploy/quadlets/web.network — Podman Quadlet network unit
+#
+# Creates a project-local network that the SvelteKit app and Caddy share.
+# Only Caddy should be attached to both this network and the public interface.
+# Replace <project> with the actual project name (e.g., my-site).
+#
+# Usage:
+#   1. Run `bun run init:site` (Batch B) to replace <project> placeholders.
+#   2. Copy to ~/.config/containers/systemd/<project>.network on the host.
+#   3. systemctl --user daemon-reload
+#   (The network is created automatically when the first container using it starts.)
+
+[Unit]
+Description=Project network — <project>
+
+[Network]
+# Internal-only network — containers communicate by hostname, not IP.
+# Caddy container must join this network to reach the app.
+Internal=false
+
+[Install]
+WantedBy=default.target

@@ -106,10 +106,13 @@
 - [x] Add `<link rel="icon">`, `<link rel="apple-touch-icon">`, `<link rel="manifest">` in app.html — A1
 - [x] Add minimal app security headers (X-Content-Type-Options, Referrer-Policy, X-Frame-Options, Permissions-Policy) inline in hooks.server.ts — A1
 - [x] Add ADR-018 (production runtime and deployment contract) — A1
-- [ ] Add Containerfile
-- [ ] Add Quadlet templates
-- [ ] Add Caddy examples
-- [ ] Add deployment runbook
+- [x] Add Containerfile (multi-stage oven/bun:1-alpine, non-root, HEALTHCHECK, node_modules copy for runtime deps) — A2
+- [x] Add Containerfile.node.example (escape-hatch recipe, not CI-tested) — A2
+- [x] Add Quadlet templates (deploy/quadlets/web.container, web.network) — A2
+- [x] Add Caddy example (deploy/Caddyfile.example — TLS, HSTS, compression, health_uri) — A2
+- [x] Add deploy/env.example (runtime env reference, distinct from SOPS secrets) — A2
+- [x] Add deployment runbook (docs/deployment/runbook.md — bootstrap, deploy, rollback, smoke) — A2
+- [x] Update docs/deployment/README.md (drop "planned but not yet implemented" placeholder) — A2
 
 ## Phase 7 — Template documentation
 

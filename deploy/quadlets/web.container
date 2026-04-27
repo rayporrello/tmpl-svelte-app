@@ -1,0 +1,56 @@
+# deploy/quadlets/web.container — Podman Quadlet unit for the SvelteKit app
+#
+# Usage:
+#   1. Run `bun run init:site` (Batch B) to replace <owner>, <name>, and <project>
+#      placeholders with real values.
+#   2. Copy to ~/.config/containers/systemd/<unit-name>.container on the host.
+#   3. systemctl --user daemon-reload
+#   4. systemctl --user start <unit-name>
+#
+# Rolling deploy:
+#   Edit the Image= line to the new SHA, then daemon-reload + restart.
+#   See docs/deployment/runbook.md for the full deploy procedure.
+
+[Unit]
+Description=SvelteKit web app — <project>
+After=network-online.target
+
+[Container]
+# Replace <owner>/<name>:<sha> with the actual GHCR image and commit SHA.
+# Never use :latest in production — pin the full SHA for deterministic rollback.
+Image=ghcr.io/<owner>/<name>:<sha>
+
+# Read runtime env vars from the rendered secrets file.
+# This file is produced by bun run secrets:render and contains ORIGIN, PUBLIC_SITE_URL, etc.
+EnvironmentFile=%h/secrets/<project>.prod.env
+
+# Container networking — only Caddy can reach the app via the project network.
+# Port is NOT published to the host; Caddy proxies to the container hostname.
+Network=<project>.network
+
+# Container hostname for Caddy reverse_proxy directive.
+HostName=<project>-web
+
+# Non-root user matches the uid/gid created in the Containerfile.
+User=1001
+Group=1001
+
+# Never pull at start — CI pushed the image; unexpected pulls would fail silently.
+Pull=never
+
+# Mirrors the Containerfile HEALTHCHECK.
+HealthCmd=wget -qO- http://127.0.0.1:3000/healthz || exit 1
+HealthInterval=10s
+HealthTimeout=3s
+HealthStartPeriod=5s
+HealthRetries=3
+
+[Service]
+Restart=on-failure
+RestartSec=5
+# Resource limits — tune per project.
+MemoryHigh=512M
+CPUQuota=100%
+
+[Install]
+WantedBy=default.target
