@@ -1,0 +1,48 @@
+# .github/dependabot.yml — automated dependency update policy
+#
+# Protected packages (ADR-012) are ignored so Dependabot doesn't fight the
+# locked-version policy. These packages must only be updated with explicit
+# human approval after testing against the full template build.
+#
+# Protected package list (keep in sync with ADR-012):
+#   svelte, @sveltejs/kit, @sveltejs/adapter-*, svelte-adapter-bun,
+#   better-auth, esm-env, vite
+
+version: 2
+
+updates:
+  # ── npm / Bun ecosystem ───────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    ignore:
+      # Protected packages — must not be bumped without explicit approval (ADR-012)
+      - dependency-name: svelte
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: "@sveltejs/kit"
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: "@sveltejs/adapter-*"
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: "@sveltejs/vite-plugin-svelte"
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: "@sveltejs/enhanced-img"
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: svelte-adapter-bun
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: better-auth
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: esm-env
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: vite
+        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+
+  # ── GitHub Actions ────────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5

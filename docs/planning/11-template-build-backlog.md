@@ -113,6 +113,8 @@
 - [x] Add deploy/env.example (runtime env reference, distinct from SOPS secrets) — A2
 - [x] Add deployment runbook (docs/deployment/runbook.md — bootstrap, deploy, rollback, smoke) — A2
 - [x] Update docs/deployment/README.md (drop "planned but not yet implemented" placeholder) — A2
+- [x] Add CI workflow (.github/workflows/ci.yml — validate/image/launch; Trivy CRITICAL blocking; smoke; GHCR push) — A3
+- [x] Add Dependabot config (.github/dependabot.yml — ADR-012 protected-package ignore list) — A3
 
 ## Phase 7 — Template documentation
 
