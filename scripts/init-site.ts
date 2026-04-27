@@ -53,7 +53,10 @@ async function initInput(): Promise<void> {
 }
 
 function closeInput(): void {
-	if (_rl) { _rl.close(); _rl = null; }
+	if (_rl) {
+		_rl.close();
+		_rl = null;
+	}
 }
 
 function ask(question: string, defaultValue: string): Promise<string> {
@@ -87,20 +90,6 @@ function extractSiteField(content: string, field: string): string {
 	return m?.[1] ?? '';
 }
 
-function extractYamlField(content: string, field: string): string {
-	const m = content.match(new RegExp(`^\\s*${field}:\\s*(.+)$`, 'm'));
-	return m?.[1]?.trim().replace(/\s*#.*$/, '').trim() ?? '';
-}
-
-function extractJsonManifestField(content: string, field: string): string {
-	try {
-		const obj = JSON.parse(content);
-		return obj[field] ?? '';
-	} catch {
-		return '';
-	}
-}
-
 function extractCaddyDomain(content: string): string {
 	// First non-comment line that looks like a domain
 	const m = content.match(/^([a-z0-9][a-z0-9.-]+\.[a-z]{2,})\s*\{/m);
@@ -132,7 +121,7 @@ function rewriteSiteTs(
 		name,
 		url,
 		description,
-		contactEmail
+		contactEmail,
 	}: { name: string; url: string; description: string; contactEmail: string }
 ): string {
 	let out = content;
@@ -224,9 +213,15 @@ function rewriteQuadlet(
 		(_, prefix, _p, suffix) => `${prefix}${project}${suffix}`
 	);
 	// Network= line
-	out = out.replace(/^(Network=)([^.]+)(\.network)$/m, (_, prefix, _p, suffix) => `${prefix}${project}${suffix}`);
+	out = out.replace(
+		/^(Network=)([^.]+)(\.network)$/m,
+		(_, prefix, _p, suffix) => `${prefix}${project}${suffix}`
+	);
 	// HostName= line
-	out = out.replace(/^(HostName=)([^-\n]+)(-web)$/m, (_, prefix, _p, suffix) => `${prefix}${project}${suffix}`);
+	out = out.replace(
+		/^(HostName=)([^-\n]+)(-web)$/m,
+		(_, prefix, _p, suffix) => `${prefix}${project}${suffix}`
+	);
 	// Description line
 	out = out.replace(
 		/^(Description=SvelteKit web app — )(.+)$/m,
@@ -259,7 +254,6 @@ async function main() {
 	const currentSiteUrl = extractSiteField(siteTs, 'url');
 	const currentDescription = extractSiteField(siteTs, 'defaultDescription');
 	const currentContactEmail = extractSiteField(siteTs, 'email');
-	const currentGhRepo = extractYamlField(configYml, 'repo');
 	const currentDomain = extractCaddyDomain(caddyfile);
 	const currentQuadletImage = extractQuadletImage(quadlet);
 	const currentProject = extractQuadletProject(quadlet);
@@ -268,16 +262,48 @@ async function main() {
 	const [currentOwner = 'owner', currentRepo = 'repo-name'] = currentQuadletImage.split('/');
 
 	// ── Prompts ────────────────────────────────────────────────────────────────
-	const packageName = await ask('Package name (package.json "name")', currentPackageName || 'my-site');
-	const siteName = await ask('Site name (shown in titles and OG tags)', currentSiteName || 'My Site');
-	const siteUrl = await ask('Production URL (HTTPS, no trailing slash)', currentSiteUrl !== 'https://example.com' ? currentSiteUrl : `https://${packageName}.com`);
-	const description = await ask('Default meta description (≤155 chars)', currentDescription || 'A short description of this site.');
-	const ghOwner = await ask('GitHub owner (username or org)', currentOwner !== 'owner' ? currentOwner : '');
-	const ghRepo = await ask('GitHub repository name', currentRepo !== 'repo-name' ? currentRepo : packageName);
-	const contactEmail = await ask('Support contact email (shown on error pages)', currentContactEmail !== 'support@example.com' ? currentContactEmail : `hello@${new URL(siteUrl).hostname}`);
-	const project = await ask('Project slug (used for container/Quadlet names)', currentProject !== 'project' ? currentProject : packageName.replace(/[^a-z0-9-]/g, '-'));
-	const domain = await ask('Production domain (for Caddyfile)', currentDomain !== 'example.com' ? currentDomain : new URL(siteUrl).hostname);
-	const shortName = await ask('PWA short name (≤12 chars, for site.webmanifest)', siteName.length <= 12 ? siteName : siteName.split(' ')[0]);
+	const packageName = await ask(
+		'Package name (package.json "name")',
+		currentPackageName || 'my-site'
+	);
+	const siteName = await ask(
+		'Site name (shown in titles and OG tags)',
+		currentSiteName || 'My Site'
+	);
+	const siteUrl = await ask(
+		'Production URL (HTTPS, no trailing slash)',
+		currentSiteUrl !== 'https://example.com' ? currentSiteUrl : `https://${packageName}.com`
+	);
+	const description = await ask(
+		'Default meta description (≤155 chars)',
+		currentDescription || 'A short description of this site.'
+	);
+	const ghOwner = await ask(
+		'GitHub owner (username or org)',
+		currentOwner !== 'owner' ? currentOwner : ''
+	);
+	const ghRepo = await ask(
+		'GitHub repository name',
+		currentRepo !== 'repo-name' ? currentRepo : packageName
+	);
+	const contactEmail = await ask(
+		'Support contact email (shown on error pages)',
+		currentContactEmail !== 'support@example.com'
+			? currentContactEmail
+			: `hello@${new URL(siteUrl).hostname}`
+	);
+	const project = await ask(
+		'Project slug (used for container/Quadlet names)',
+		currentProject !== 'project' ? currentProject : packageName.replace(/[^a-z0-9-]/g, '-')
+	);
+	const domain = await ask(
+		'Production domain (for Caddyfile)',
+		currentDomain !== 'example.com' ? currentDomain : new URL(siteUrl).hostname
+	);
+	const shortName = await ask(
+		'PWA short name (≤12 chars, for site.webmanifest)',
+		siteName.length <= 12 ? siteName : siteName.split(' ')[0]
+	);
 
 	// ── Apply rewrites ─────────────────────────────────────────────────────────
 	const ghFullRepo = `${ghOwner}/${ghRepo}`;
@@ -292,7 +318,7 @@ async function main() {
 			name: siteName,
 			url: siteUrl,
 			description,
-			contactEmail
+			contactEmail,
 		});
 		if (updated !== siteTs) writeFile('src/lib/config/site.ts', updated);
 	}

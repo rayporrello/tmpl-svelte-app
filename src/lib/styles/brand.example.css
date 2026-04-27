@@ -1,0 +1,74 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   BRAND OVERRIDE EXAMPLE — "Warm Coral" Re-skin
+
+   This file shows how to re-skin the entire design system by overriding only
+   the brand primitive and font tokens. All components consume semantic tokens
+   (--surface-*, --text-*, --border-*, etc.) which cascade automatically from
+   the primitives below — nothing in components or utilities needs to change.
+
+   HOW TO USE:
+   1. Copy this file and rename it (e.g. src/lib/styles/tokens.css).
+   2. Replace the values in sections 1, 5, and 8 for your brand.
+   3. Replace the @import lines in src/app.css to match your font choice.
+   4. Delete the original tokens.css (or rename it tokens.default.css).
+
+   See docs/design-system/tokens-guide.md for the full token reference.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer tokens {
+	:root {
+		color-scheme: light dark;
+
+		/* ── 1. BRAND PRIMITIVES ──────────────────────────────────────────── */
+		/* These 5-7 values are THE brand DNA. Everything else derives from    */
+		/* them via color-mix() and light-dark() — change only these.          */
+
+		--brand-black: oklch(0% 0 0);
+		--brand-dark: oklch(20% 0.04 30); /* warm charcoal-brown (replaces navy) */
+		--brand-light: oklch(97% 0.01 60); /* warm cream (replaces cool off-white) */
+		--brand-accent: oklch(65% 0.2 35); /* coral / terracotta (replaces mint)  */
+		--brand-warning: oklch(75% 0.15 75); /* golden amber                        */
+		--brand-danger: oklch(55% 0.2 18); /* deep red                             */
+		--brand-white: oklch(100% 0 0);
+
+		/* ── 2-4, 6-7, 9-14: UNCHANGED ──────────────────────────────────── */
+		/* Derived palette, semantic surfaces, text, borders, spacing, shape, */
+		/* layout, animation, shadows, z-index, state, and form tokens all    */
+		/* cascade automatically from the primitives above. No edits needed.  */
+
+		/* ── 5. FONTS ────────────────────────────────────────────────────── */
+		/* Replace font family names AND the @import lines in app.css.        */
+		/* Full checklist: docs/design-system/typography.md                   */
+		--font-sans: 'Lato', ui-sans-serif, system-ui, sans-serif;
+		--font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+
+		/* ── 8. SHAPE ─────────────────────────────────────────────────────── */
+		/* 0 = sharp / brutalist. Increase for rounder, softer brands.        */
+		--radius-sm: 0.125rem; /* inputs, tags — barely rounded                */
+		--radius-md: 0.25rem; /* cards, buttons — subtle                       */
+		--radius-lg: 0.5rem; /* large cards                                    */
+		--radius-xl: 0.75rem; /* modals, drawers                               */
+		--radius-full: 9999px; /* pills, avatars — keep large                  */
+	}
+
+	:root[data-theme='light'] {
+		color-scheme: light;
+	}
+	:root[data-theme='dark'] {
+		color-scheme: dark;
+	}
+}
+
+/* ── SWAP CHECKLIST ─────────────────────────────────────────────────────────
+   After replacing tokens, verify these before deploying:
+
+   1. Run /styleguide — confirm brand-accent is used for links, CTAs, and
+      focus rings; confirm surface-ground / surface-raised look correct in
+      both light and dark modes.
+   2. Check contrast with a browser extension (aim WCAG AA 4.5:1 for body
+      text on --surface-ground). Adjust --text-secondary and --text-muted
+      L values in tokens.css if needed (see Batch C WCAG fix in the ledger).
+   3. Update app.css @import lines to match --font-sans / --font-mono above.
+   4. Run `bun run check` — zero type errors expected.
+   5. Run `bun run build` — zero build errors expected.
+   ───────────────────────────────────────────────────────────────────────── */

@@ -20,7 +20,7 @@ export function loadTeamMember(slug: string): TeamMember {
 	try {
 		return load(raw) as TeamMember;
 	} catch (err) {
-		throw new Error(`YAML parse error in content/team/${slug}.yml: ${err}`);
+		throw new Error(`YAML parse error in content/team/${slug}.yml: ${err}`, { cause: err });
 	}
 }
 

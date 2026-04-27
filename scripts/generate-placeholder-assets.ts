@@ -18,7 +18,6 @@ import { createHash } from 'crypto';
 
 mkdirSync('static', { recursive: true });
 
-const BG = { r: 11, g: 17, b: 32, alpha: 1 } as const;
 const FG = '#ffffff';
 
 // ── favicon.svg ───────────────────────────────────────────────────────────────
@@ -87,8 +86,8 @@ const manifest = {
 	background_color: '#0B1120',
 	icons: [
 		{ src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-		{ src: '/favicon-32.png', sizes: '32x32', type: 'image/png' }
-	]
+		{ src: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+	],
 };
 writeFileSync('static/site.webmanifest', JSON.stringify(manifest, null, 2), 'utf-8');
 console.log('✓ static/site.webmanifest');

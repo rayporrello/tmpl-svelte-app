@@ -24,14 +24,14 @@ const HIGH_RISK_FIELDS = [
 	'canonical',
 	'featuredImage',
 	'seoTitle',
-	'seoDescription'
+	'seoDescription',
 ];
 
 // Required fields per content type (matched by directory name)
 const REQUIRED_FIELDS: Record<string, string[]> = {
 	posts: ['title', 'description', 'publishedAt', 'status'],
 	articles: ['title', 'description', 'date'],
-	pages: ['title', 'description', 'status']
+	pages: ['title', 'description', 'status'],
 };
 
 let errors = 0;
@@ -60,7 +60,7 @@ function isDateLikeKey(key: string): boolean {
 	return (
 		lower === 'date' ||
 		lower.includes('date') ||
-		lower.endsWith('at') ||   // publishedAt, updatedAt, createdAt, occurredAt
+		lower.endsWith('at') || // publishedAt, updatedAt, createdAt, occurredAt
 		lower === 'published' ||
 		lower === 'created' ||
 		lower === 'updated' ||
@@ -94,7 +94,7 @@ function collectMarkdownFiles(dir: string): string[] {
 
 function getContentType(filePath: string): string | null {
 	const parts = filePath.replace(/\\/g, '/').split('/');
-	for (const [dir, fields] of Object.entries(REQUIRED_FIELDS)) {
+	for (const [dir] of Object.entries(REQUIRED_FIELDS)) {
 		if (parts.includes(dir)) return dir;
 	}
 	return null;
@@ -112,8 +112,12 @@ function validateFile(filePath: string): void {
 
 	// Must have YAML frontmatter
 	if (!raw.startsWith('---')) {
-		fail(rel, '(frontmatter)', 'File does not start with YAML frontmatter (---).',
-			'Add --- frontmatter block at the top of the file.');
+		fail(
+			rel,
+			'(frontmatter)',
+			'File does not start with YAML frontmatter (---).',
+			'Add --- frontmatter block at the top of the file.'
+		);
 		return;
 	}
 
@@ -122,8 +126,12 @@ function validateFile(filePath: string): void {
 		const parsed = matter(raw);
 		data = parsed.data as Record<string, unknown>;
 	} catch (err) {
-		fail(rel, '(frontmatter)', `Frontmatter YAML parse error: ${String(err)}`,
-			'Fix the YAML syntax in the frontmatter block.');
+		fail(
+			rel,
+			'(frontmatter)',
+			`Frontmatter YAML parse error: ${String(err)}`,
+			'Fix the YAML syntax in the frontmatter block.'
+		);
 		return;
 	}
 
@@ -134,11 +142,14 @@ function validateFile(filePath: string): void {
 	for (const field of requiredFields) {
 		const value = data[field];
 		if (value === undefined) {
-			fail(rel, field, 'Required field is missing.',
-				`Add "${field}: <value>" to the frontmatter.`);
+			fail(rel, field, 'Required field is missing.', `Add "${field}: <value>" to the frontmatter.`);
 		} else if (isNullValue(value)) {
-			fail(rel, field, `Required field is blank or null (got: ${JSON.stringify(value)}).`,
-				`Set "${field}" to a valid non-empty value.`);
+			fail(
+				rel,
+				field,
+				`Required field is blank or null (got: ${JSON.stringify(value)}).`,
+				`Set "${field}" to a valid non-empty value.`
+			);
 		}
 	}
 
@@ -147,8 +158,12 @@ function validateFile(filePath: string): void {
 		if (!(field in data)) continue;
 		const value = data[field];
 		if (isNullValue(value)) {
-			warn(rel, field, `High-risk field is blank or null (got: ${JSON.stringify(value)}).`,
-				`Remove "${field}" from frontmatter if unused, or set a valid value.`);
+			warn(
+				rel,
+				field,
+				`High-risk field is blank or null (got: ${JSON.stringify(value)}).`,
+				`Remove "${field}" from frontmatter if unused, or set a valid value.`
+			);
 		}
 	}
 
@@ -158,8 +173,12 @@ function validateFile(filePath: string): void {
 		if (value === undefined || value === null) continue; // Omitted is fine
 
 		if (isNullValue(value)) {
-			fail(rel, key, `Date-like field saved as blank/null (got: ${JSON.stringify(value)}).`,
-				`Remove "${key}" from frontmatter when unused instead of saving as "" or null.`);
+			fail(
+				rel,
+				key,
+				`Date-like field saved as blank/null (got: ${JSON.stringify(value)}).`,
+				`Remove "${key}" from frontmatter when unused instead of saving as "" or null.`
+			);
 			continue;
 		}
 
@@ -168,9 +187,12 @@ function validateFile(filePath: string): void {
 			const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
 			const fullIso = DATE_RE.test(value);
 			if (!dateOnly && !fullIso) {
-				warn(rel, key,
+				warn(
+					rel,
+					key,
 					`Date value "${value}" is not ISO 8601 with timezone (e.g. 2026-04-27T12:00:00Z).`,
-					`Use ISO 8601 datetime with timezone for stored dates.`);
+					`Use ISO 8601 datetime with timezone for stored dates.`
+				);
 			}
 		}
 	}
@@ -179,8 +201,12 @@ function validateFile(filePath: string): void {
 	if ('status' in data) {
 		const status = data['status'];
 		if (typeof status === 'string' && !VALID_STATUS.has(status)) {
-			fail(rel, 'status', `Invalid status value "${status}".`,
-				`Set status to one of: draft, published, archived.`);
+			fail(
+				rel,
+				'status',
+				`Invalid status value "${status}".`,
+				`Set status to one of: draft, published, archived.`
+			);
 		}
 	}
 
@@ -188,8 +214,12 @@ function validateFile(filePath: string): void {
 	if ('slug' in data) {
 		const slug = data['slug'];
 		if (typeof slug === 'string' && slug.length > 0 && !SLUG_RE.test(slug)) {
-			fail(rel, 'slug', `Slug "${slug}" is not URL-safe.`,
-				`Use lowercase letters, numbers, and hyphens only (e.g. "my-article-title").`);
+			fail(
+				rel,
+				'slug',
+				`Slug "${slug}" is not URL-safe.`,
+				`Use lowercase letters, numbers, and hyphens only (e.g. "my-article-title").`
+			);
 		}
 	}
 }
@@ -219,7 +249,9 @@ for (const file of allFiles) {
 // ── Summary ───────────────────────────────────────────────────────────────────
 
 if (errors > 0) {
-	console.error(`Content validation: ${errors} error(s), ${warnings} warning(s). Fix errors above.`);
+	console.error(
+		`Content validation: ${errors} error(s), ${warnings} warning(s). Fix errors above.`
+	);
 	process.exit(1);
 } else if (warnings > 0) {
 	console.log(`Content validation passed with ${warnings} warning(s). Review warnings above.`);

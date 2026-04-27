@@ -16,23 +16,29 @@ const PLACEHOLDER_NAMES = ['Your Site Name'];
 const HARDCODED_DOMAIN_PATTERNS = ['yourdomain.com', 'Your Site Name'];
 const NON_INDEXABLE_PATHS = ['/styleguide', '/admin', '/preview', '/draft'];
 
-let errors: string[] = [];
-let warnings: string[] = [];
+const errors: string[] = [];
+const warnings: string[] = [];
 
 // ── 1. Site config checks (placeholder values → warnings, not errors) ────────
 // Placeholder detection is a launch-time concern owned by check:launch.
 // These warnings inform during development without blocking PRs.
 
 if (!site.url || site.url === PLACEHOLDER_URL) {
-	warnings.push(`site.url is "${site.url}" — replace with the production domain (enforced by check:launch).`);
+	warnings.push(
+		`site.url is "${site.url}" — replace with the production domain (enforced by check:launch).`
+	);
 }
 
 if (!site.name || PLACEHOLDER_NAMES.includes(site.name)) {
-	warnings.push(`site.name is "${site.name}" — replace with the real site name (enforced by check:launch).`);
+	warnings.push(
+		`site.name is "${site.name}" — replace with the real site name (enforced by check:launch).`
+	);
 }
 
 if (!site.defaultTitle || PLACEHOLDER_NAMES.includes(site.defaultTitle)) {
-	warnings.push(`site.defaultTitle is "${site.defaultTitle}" — replace with a real title (enforced by check:launch).`);
+	warnings.push(
+		`site.defaultTitle is "${site.defaultTitle}" — replace with a real title (enforced by check:launch).`
+	);
 }
 
 if (!site.defaultDescription || site.defaultDescription.length < 10) {
@@ -40,17 +46,18 @@ if (!site.defaultDescription || site.defaultDescription.length < 10) {
 }
 
 if (!site.defaultOgImage) {
-	errors.push(`site.defaultOgImage is empty — add a default OG image path in src/lib/config/site.ts.`);
+	errors.push(
+		`site.defaultOgImage is empty — add a default OG image path in src/lib/config/site.ts.`
+	);
 }
 
 if (!site.organization.name || PLACEHOLDER_NAMES.includes(site.organization.name)) {
-	warnings.push(`site.organization.name is "${site.organization.name}" — replace with the real org name (enforced by check:launch).`);
+	warnings.push(
+		`site.organization.name is "${site.organization.name}" — replace with the real org name (enforced by check:launch).`
+	);
 }
 
-if (
-	!site.organization.logo ||
-	site.organization.logo.includes('example.com')
-) {
+if (!site.organization.logo || site.organization.logo.includes('example.com')) {
 	warnings.push(`site.organization.logo still points to example.com — update before launch.`);
 }
 
@@ -87,7 +94,9 @@ for (const route of routes) {
 
 	// Warn on indexable routes that have no priority set.
 	if (route.indexable && route.priority === undefined) {
-		warnings.push(`Route "${route.path}" is indexable but has no priority set — defaulting to 0.5.`);
+		warnings.push(
+			`Route "${route.path}" is indexable but has no priority set — defaulting to 0.5.`
+		);
 	}
 }
 
@@ -104,5 +113,7 @@ if (errors.length > 0) {
 	console.error(`\n${errors.length} error(s) found. Fix the above before deploying.\n`);
 	process.exit(1);
 } else {
-	console.log('\n✓ SEO check passed' + (warnings.length ? ` with ${warnings.length} warning(s)` : '') + '.\n');
+	console.log(
+		'\n✓ SEO check passed' + (warnings.length ? ` with ${warnings.length} warning(s)` : '') + '.\n'
+	);
 }

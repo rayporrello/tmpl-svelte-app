@@ -11,7 +11,7 @@
 	seo={{
 		title: home.title,
 		description: home.description,
-		canonicalPath: '/'
+		canonicalPath: '/',
 	}}
 />
 
@@ -42,13 +42,13 @@
 </Section>
 
 {#if home.sections}
-	{#each home.sections as section}
+	{#each home.sections as section, i (i)}
 		<Section>
 			<h2>{section.title}</h2>
 			<p>{section.body}</p>
 			{#if section.items}
 				<ul class="feature-list">
-					{#each section.items as item}
+					{#each section.items as item, j (j)}
 						<li>{item.text}</li>
 					{/each}
 				</ul>

@@ -20,7 +20,7 @@ export function loadTestimonial(slug: string): Testimonial {
 	try {
 		return load(raw) as Testimonial;
 	} catch (err) {
-		throw new Error(`YAML parse error in content/testimonials/${slug}.yml: ${err}`);
+		throw new Error(`YAML parse error in content/testimonials/${slug}.yml: ${err}`, { cause: err });
 	}
 }
 

@@ -53,14 +53,12 @@
 
 	<!-- Search Console verification (only if configured) -->
 	{#if site.searchConsoleVerification}
-		<meta
-			name="google-site-verification"
-			content={site.searchConsoleVerification}
-		/>
+		<meta name="google-site-verification" content={site.searchConsoleVerification} />
 	{/if}
 
 	<!-- JSON-LD -->
 	{#if schemaJson}
+		<!-- eslint-disable-next-line svelte/no-at-html-tags, no-useless-escape -- JSON-LD uses internal schema data; <\/script> escape is required to prevent HTML parser from closing the <script> element prematurely -->
 		{@html `<script type="application/ld+json">${schemaJson}<\/script>`}
 	{/if}
 </svelte:head>

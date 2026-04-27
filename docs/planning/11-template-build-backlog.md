@@ -27,11 +27,11 @@
 - [x] Add forms.css (visual-only; Superforms is the standard behavior layer for any form with submission)
 - [x] Add app.css import order (website-first; no overflow: hidden; no app-shell)
 - [x] Add z-index token scale (--z-base through --z-tooltip)
-- [x] Add interaction state tokens (--state-hover-bg, --state-focus-ring, --state-disabled-*)
+- [x] Add interaction state tokens (--state-hover-bg, --state-focus-ring, --state-disabled-\*)
 - [x] Add form semantic alias tokens (--field-bg, --field-border, --field-border-invalid, etc.)
 - [x] Add CSS authoring rules to AGENTS.md
 - [x] Add styleguide route (/styleguide) demonstrating all design system primitives
-- [ ] Add example brand token override file (showing how to swap tokens.css for a new brand)
+- [x] Add example brand token override file (src/lib/styles/brand.example.css — "Warm Coral" re-skin showing which sections to swap) — E
 
 ## Phase 3 — Content/CMS
 
@@ -52,7 +52,7 @@
 
 - [x] Add central site config (`src/lib/config/site.ts`)
 - [x] Add SEO types and metadata helpers (`src/lib/seo/types.ts`, `src/lib/seo/metadata.ts`)
-- [x] Add SEO component (`src/lib/components/seo/SEO.svelte`) with title, description, canonical, og:*, twitter:*, JSON-LD
+- [x] Add SEO component (`src/lib/components/seo/SEO.svelte`) with title, description, canonical, og:_, twitter:_, JSON-LD
 - [x] Add schema.org helpers (`src/lib/seo/schemas.ts`): Organization, WebSite, Article, Breadcrumb, Person, LocalBusiness, FAQ
 - [x] Add static route registry (`src/lib/seo/routes.ts`) and sitemap generator (`src/lib/seo/sitemap.ts`)
 - [x] Add sitemap route (`src/routes/sitemap.xml/+server.ts`)
@@ -121,7 +121,7 @@
 - [x] Update docs/deployment/README.md (drop "planned but not yet implemented" placeholder) — A2
 - [x] Add CI workflow (.github/workflows/ci.yml — validate/image/launch; Trivy CRITICAL blocking; smoke; GHCR push) — A3
 - [x] Add Dependabot config (.github/dependabot.yml — ADR-012 protected-package ignore list) — A3
-- [x] Add Valibot env schema (src/lib/server/env.ts — publicEnv/privateEnv, initEnv(), REQUIRED_*_ENV_VARS) — B
+- [x] Add Valibot env schema (src/lib/server/env.ts — publicEnv/privateEnv, initEnv(), REQUIRED\_\*\_ENV_VARS) — B
 - [x] Add env import paths (src/lib/env/public.ts, src/lib/env/private.ts — separate import path contract) — B
 - [x] Wire initEnv() into hooks.server.ts handle (validates on first request; CI provides ORIGIN stub) — B
 - [x] Update check:launch to read required env var list from env.ts schemas (removes static allowlist) — B
@@ -156,9 +156,9 @@
 - [x] Add media editor guide (docs/design-system/media-editor-guide.md)
 - [x] Add SEO docs (docs/seo/ — README.md, page-contract.md, schema-guide.md, launch-checklist.md, ADR-011)
 - [x] Add template maintenance / toolchain guide (docs/template-maintenance.md, ADR-012)
-- [ ] Add architecture docs (content system overview)
-- [ ] Add operations docs (secrets, deployment, backups)
-- [ ] Add "new site from template" setup guide
+- [ ] Add architecture docs (content system overview) — Phase 5+ deferral
+- [ ] Add operations docs (secrets, deployment, backups) — Phase 5+ deferral
+- [x] Add "new site from template" setup guide (docs/getting-started.md — 11-step walkthrough, init:site, brand swap, deploy) — E
 
 ## Phase 8 — Validation
 
@@ -172,7 +172,21 @@
 - [ ] Verify docs match implementation
 - [ ] Verify styleguide route renders all documented classes without errors
 
-## Deferred / backlog
+## Phase E — Ergonomics / polish (Batch E)
+
+- [x] Add lefthook (lefthook.yml — pre-commit only: prettier + eslint --fix on staged files; stage_fixed: true) — E
+- [x] Add prepare script (`lefthook install`) to package.json — E
+- [x] Add prettier + prettier-plugin-svelte to devDependencies; add .prettierrc — E
+- [x] Add eslint + eslint-plugin-svelte + typescript-eslint + @eslint/js + globals to devDependencies; add eslint.config.js — E
+- [x] Add docs/getting-started.md (11-step guide: init:site, brand, routes, CMS, deploy) — E
+- [x] Update README.md "Using this template" to point at docs/getting-started.md — E
+- [x] Add docs/template-update-strategy.md (clone-and-customize model; future extraction path to @<owner>/web-template-utils) — E
+- [x] Add src/lib/styles/brand.example.css ("Warm Coral" re-skin; swap checklist; full annotation) — E
+- [x] Update docs/design-system/tokens-guide.md with brand override guide paragraph — E
+- [x] Enrich /styleguide: add brand primitives swatches, semantic surfaces label, shadows section, token overview intro — E
+- [x] Fix ESLint issues surfaced by first lint run: prefer-const, no-unused-vars, preserve-caught-error, each-block keys, no-at-html-tags comments — E
+
+## Deferred / Phase 5+
 
 - Formsnap — not planned; Superforms is the standard form library, add it directly
 - Tailwind — explicitly not part of this template (see ADR-005)
@@ -182,3 +196,8 @@
 - n8n Error Workflow setup — Tier 2; document per project once n8n is active
 - Sentry integration — Tier 2; per-project only; do not add to base template
 - OpenTelemetry — Tier 3; seam in place (`event.locals.requestId`); full implementation deferred
+- Architecture docs (content system overview) — Phase 5+ deferral
+- Operations docs (secrets, deployment, backups) — Phase 5+ deferral
+- Typed automation event emitter (`src/lib/automation/events.ts`) — Phase 5, after Postgres is active
+- `/readyz` with Postgres connectivity check — Phase 5, after `DATABASE_URL` is active
+- Template update strategy: @<owner>/web-template-utils extraction — deferred until 3+ projects use the template (see docs/template-update-strategy.md)

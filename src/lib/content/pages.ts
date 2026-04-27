@@ -20,7 +20,7 @@ export function loadPage<T = unknown>(filename: string): T {
 	try {
 		return load(raw) as T;
 	} catch (err) {
-		throw new Error(`YAML parse error in content/pages/${filename}: ${err}`);
+		throw new Error(`YAML parse error in content/pages/${filename}: ${err}`, { cause: err });
 	}
 }
 

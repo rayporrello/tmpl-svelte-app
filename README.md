@@ -20,13 +20,13 @@ Reusable SvelteKit website template. Targets websites, landing pages, content si
 
 This is a website-first SvelteKit template. The design system is native CSS, token-driven, and dependency-light.
 
-| Guide | Purpose |
-|-------|---------|
-| [docs/design-system/README.md](docs/design-system/README.md) | Overview, file structure, how to customize |
-| [docs/design-system/tokens-guide.md](docs/design-system/tokens-guide.md) | Complete token reference |
-| [docs/design-system/component-css-rules.md](docs/design-system/component-css-rules.md) | CSS authoring rules for components |
-| [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md) | Forms: CSS layer + Superforms behavior |
-| [docs/design-system/llm-css-rules.md](docs/design-system/llm-css-rules.md) | Concise rules for AI agents (paste into CLAUDE.md) |
+| Guide                                                                                  | Purpose                                            |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| [docs/design-system/README.md](docs/design-system/README.md)                           | Overview, file structure, how to customize         |
+| [docs/design-system/tokens-guide.md](docs/design-system/tokens-guide.md)               | Complete token reference                           |
+| [docs/design-system/component-css-rules.md](docs/design-system/component-css-rules.md) | CSS authoring rules for components                 |
+| [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md)                 | Forms: CSS layer + Superforms behavior             |
+| [docs/design-system/llm-css-rules.md](docs/design-system/llm-css-rules.md)             | Concise rules for AI agents (paste into CLAUDE.md) |
 
 **Tailwind is not included.** Styling uses `tokens.css` + scoped Svelte `<style>` blocks.
 
@@ -36,13 +36,13 @@ This is a website-first SvelteKit template. The design system is native CSS, tok
 
 Every site built from this template inherits a complete SEO system:
 
-| File | Purpose |
-|------|---------|
-| `src/lib/config/site.ts` | Site name, domain, OG image, org info — replace all values per project |
-| `src/lib/seo/routes.ts` | Register every route; declare `indexable: true/false` |
-| `src/lib/components/seo/SEO.svelte` | Add to every `+page.svelte` with `title`, `description`, `canonicalPath` |
-| `src/lib/seo/schemas.ts` | JSON-LD helpers — use when visible page content supports the schema type |
-| `/sitemap.xml`, `/robots.txt`, `/llms.txt` | Auto-generated from config and route registry |
+| File                                       | Purpose                                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| `src/lib/config/site.ts`                   | Site name, domain, OG image, org info — replace all values per project   |
+| `src/lib/seo/routes.ts`                    | Register every route; declare `indexable: true/false`                    |
+| `src/lib/components/seo/SEO.svelte`        | Add to every `+page.svelte` with `title`, `description`, `canonicalPath` |
+| `src/lib/seo/schemas.ts`                   | JSON-LD helpers — use when visible page content supports the schema type |
+| `/sitemap.xml`, `/robots.txt`, `/llms.txt` | Auto-generated from config and route registry                            |
 
 ```bash
 bun run check:seo   # fails on placeholder values; run before deploying
@@ -54,15 +54,15 @@ Full docs: [docs/seo/README.md](docs/seo/README.md)
 
 The template ships a complete Git-backed content system:
 
-| Path | Purpose |
-|------|---------|
-| `static/admin/index.html` | Sveltia CMS editor UI (loads from CDN) |
-| `static/admin/config.yml` | CMS schema — update `backend.repo` before deploying |
-| `content/pages/home.yml` | Homepage content (edit via CMS or directly) |
-| `content/articles/` | Markdown articles with YAML frontmatter |
-| `content/team/` | Team member YAML files |
-| `content/testimonials/` | Testimonial YAML files |
-| `src/lib/content/` | Typed content loaders (js-yaml for YAML, gray-matter for Markdown) |
+| Path                      | Purpose                                                            |
+| ------------------------- | ------------------------------------------------------------------ |
+| `static/admin/index.html` | Sveltia CMS editor UI (loads from CDN)                             |
+| `static/admin/config.yml` | CMS schema — update `backend.repo` before deploying                |
+| `content/pages/home.yml`  | Homepage content (edit via CMS or directly)                        |
+| `content/articles/`       | Markdown articles with YAML frontmatter                            |
+| `content/team/`           | Team member YAML files                                             |
+| `content/testimonials/`   | Testimonial YAML files                                             |
+| `src/lib/content/`        | Typed content loaders (js-yaml for YAML, gray-matter for Markdown) |
 
 Full docs: [docs/cms/README.md](docs/cms/README.md)
 
@@ -77,16 +77,12 @@ Env vars `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.exam
 
 ## Using this template
 
-1. Create a new repo from this template on GitHub
-2. Copy `CLAUDE.md.template` → `CLAUDE.md`, fill in project details
-3. Edit `src/lib/config/site.ts` — replace all placeholder values with production site info
-4. Edit `tokens.css` with brand colors, fonts, and shape
-5. Update `src/app.html`: title, `theme-color` hex, favicon path
-6. Register all routes in `src/lib/seo/routes.ts`
-7. Update `static/admin/config.yml`: set `backend.repo` and `backend.branch`
-8. Edit `content/pages/home.yml` with real site content
-9. Install Superforms when adding the first form: `bun add sveltekit-superforms valibot`
-10. Activate dormant modules (Postgres, n8n, auth) only when needed
+See **[docs/getting-started.md](docs/getting-started.md)** for the full step-by-step guide, including:
+
+- Running `bun run init:site` to replace all placeholders in one shot
+- Swapping `tokens.css` for your brand colors, fonts, and shape
+- Registering routes, updating CMS config, and activating dormant modules
+- Deploying via container and running `bun run validate:launch` before go-live
 
 ## Bun-first workflow
 
@@ -108,13 +104,13 @@ Never use `npm`, `npx`, `pnpm`, or `yarn`. Commit `bun.lock`. See [docs/template
 
 This template uses **SOPS + age** as the default secrets workflow.
 
-| File | Role |
-|------|------|
-| `.env.example` | Public contract — lists required variable names without values |
-| `secrets.example.yaml` | Example shape for `secrets.yaml` with fake values |
-| `.sops.yaml.example` | Example SOPS encryption config to copy per project |
-| `secrets.yaml` | Encrypted source of truth — committed only after encryption |
-| `.env` | Rendered local/runtime file — **never committed** |
+| File                   | Role                                                           |
+| ---------------------- | -------------------------------------------------------------- |
+| `.env.example`         | Public contract — lists required variable names without values |
+| `secrets.example.yaml` | Example shape for `secrets.yaml` with fake values              |
+| `.sops.yaml.example`   | Example SOPS encryption config to copy per project             |
+| `secrets.yaml`         | Encrypted source of truth — committed only after encryption    |
+| `.env`                 | Rendered local/runtime file — **never committed**              |
 
 ```bash
 bun run secrets:check   # verify no plaintext secrets are tracked
@@ -128,13 +124,13 @@ Decision: [ADR-013](docs/planning/adrs/ADR-013-sops-age-secrets-management.md)
 
 The following are **never** committed to this repo:
 
-| Path | Why |
-|------|-----|
-| `node_modules/` | Installed by `bun install` |
-| `.svelte-kit/` | Generated by SvelteKit at dev/sync time |
-| `build/` | Production bundle — regenerated on every deploy |
-| `.env`, `.env.*` | May contain secrets — use `.env.example` for safe defaults |
-| `bun.lockb` | Legacy binary lockfile — this repo uses `bun.lock` (text format) |
+| Path             | Why                                                              |
+| ---------------- | ---------------------------------------------------------------- |
+| `node_modules/`  | Installed by `bun install`                                       |
+| `.svelte-kit/`   | Generated by SvelteKit at dev/sync time                          |
+| `build/`         | Production bundle — regenerated on every deploy                  |
+| `.env`, `.env.*` | May contain secrets — use `.env.example` for safe defaults       |
+| `bun.lockb`      | Legacy binary lockfile — this repo uses `bun.lock` (text format) |
 
 **Exception — image `.webp` files in `static/uploads/`:** Generated `.webp` siblings are committed alongside their source images. The prebuild script is idempotent; committing both means the site works without a prebuild on every checkout. See [ADR-009](docs/planning/adrs/ADR-009-image-pipeline.md) and [docs/design-system/images.md](docs/design-system/images.md).
 
@@ -146,24 +142,24 @@ Visit `/styleguide` in development to see all design system primitives rendered 
 
 Planned and documented but not active in the base template:
 
-| Module | Activation |
-|--------|-----------|
-| Postgres + Drizzle | Add `DATABASE_URL`, create schema |
-| n8n webhooks | Add webhook URL env var |
-| Postmark | Add `POSTMARK_API_TOKEN`, implement mail helper |
-| Better Auth | Follow auth module docs |
+| Module             | Activation                                      |
+| ------------------ | ----------------------------------------------- |
+| Postgres + Drizzle | Add `DATABASE_URL`, create schema               |
+| n8n webhooks       | Add webhook URL env var                         |
+| Postmark           | Add `POSTMARK_API_TOKEN`, implement mail helper |
+| Better Auth        | Follow auth module docs                         |
 
 ## Observability
 
 The template ships a lean default safety spine. Medium and large sites can extend it without changing the baseline.
 
-| Guide | Purpose |
-|-------|---------|
-| [docs/observability/README.md](docs/observability/README.md) | Overview — what's included, what's optional, why tiered |
-| [docs/observability/tiers.md](docs/observability/tiers.md) | Small / medium / large tier model with upgrade paths |
-| [docs/observability/error-handling.md](docs/observability/error-handling.md) | Errors, logging, request IDs, safe messages |
-| [docs/observability/n8n-workflows.md](docs/observability/n8n-workflows.md) | n8n naming, payload shape, failure policy |
-| [docs/observability/runbook.md](docs/observability/runbook.md) | Practical operator runbook for common failures |
+| Guide                                                                        | Purpose                                                 |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------- |
+| [docs/observability/README.md](docs/observability/README.md)                 | Overview — what's included, what's optional, why tiered |
+| [docs/observability/tiers.md](docs/observability/tiers.md)                   | Small / medium / large tier model with upgrade paths    |
+| [docs/observability/error-handling.md](docs/observability/error-handling.md) | Errors, logging, request IDs, safe messages             |
+| [docs/observability/n8n-workflows.md](docs/observability/n8n-workflows.md)   | n8n naming, payload shape, failure policy               |
+| [docs/observability/runbook.md](docs/observability/runbook.md)               | Practical operator runbook for common failures          |
 
 Medium/large observability features (Sentry, OpenTelemetry, dashboards) are documented but **not installed by default**. The base template works without them.
 

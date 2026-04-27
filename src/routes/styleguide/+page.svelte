@@ -8,7 +8,7 @@
 		title: 'Styleguide',
 		description: 'Design system reference — not for public indexing.',
 		canonicalPath: '/styleguide',
-		robots: 'noindex, nofollow'
+		robots: 'noindex, nofollow',
 	}}
 />
 
@@ -30,27 +30,30 @@
 		<h2>Typography</h2>
 		<div class="flow" style="max-width: var(--content-prose)">
 			<p class="text-muted text-sm">
-				<code>&lt;h1&gt;</code> is the page title — see the hero section above.
-				Demonstrated below: h2 through h4 and body type.
+				<code>&lt;h1&gt;</code> is the page title — see the hero section above. Demonstrated below: h2
+				through h4 and body type.
 			</p>
 			<h2>Heading 2 — Section</h2>
 			<h3>Heading 3 — Subsection</h3>
 			<h4>Heading 4 — Label</h4>
 			<p>
-				Body text. The quick brown fox jumps over the lazy dog.
-				Design tokens drive all spacing, color, and type. This paragraph
-				shows the default prose measure and <a href="#typography">link color</a>.
+				Body text. The quick brown fox jumps over the lazy dog. Design tokens drive all spacing,
+				color, and type. This paragraph shows the default prose measure and <a href="#typography"
+					>link color</a
+				>.
 			</p>
 			<p>
 				<small>Small / muted text for captions, legal copy, and metadata.</small>
 			</p>
 			<blockquote>
-				A blockquote pulls a key thought out of the body copy and gives it
-				breathing room with an accent border.
+				A blockquote pulls a key thought out of the body copy and gives it breathing room with an
+				accent border.
 			</blockquote>
 			<p>Inline <code>code</code> and a <mark>highlighted term</mark>.</p>
-			<pre><code>// Code block
-const greeting = 'Hello, world!';</code></pre>
+			<pre><code
+					>// Code block
+const greeting = 'Hello, world!';</code
+				></pre>
 		</div>
 	</div>
 </section>
@@ -60,9 +63,11 @@ const greeting = 'Hello, world!';</code></pre>
 	<div class="container">
 		<h2>Semantic HTML Patterns</h2>
 		<p class="text-secondary" style="max-width: var(--content-prose)">
-			The semantic HTML contract for this template. Use these patterns by default.
-			Reach for a <code>&lt;div&gt;</code> only when no semantic element fits.
-			Full reference: <code>docs/design-system/semantic-html-guide.md</code>.
+			The semantic HTML contract for this template. Use these patterns by default. Reach for a <code
+				>&lt;div&gt;</code
+			>
+			only when no semantic element fits. Full reference:
+			<code>docs/design-system/semantic-html-guide.md</code>.
 		</p>
 
 		<!-- Article -->
@@ -75,8 +80,8 @@ const greeting = 'Hello, world!';</code></pre>
 			<article class="card" style="max-width: 20rem">
 				<h4>Self-contained card</h4>
 				<p>
-					Blog posts, news items, and product cards are <code>&lt;article&gt;</code> elements —
-					they make sense independently of the surrounding page.
+					Blog posts, news items, and product cards are <code>&lt;article&gt;</code> elements — they make
+					sense independently of the surrounding page.
 				</p>
 				<p><a href="#semantic-html">Read more</a></p>
 			</article>
@@ -85,8 +90,8 @@ const greeting = 'Hello, world!';</code></pre>
 		<!-- Figure with image -->
 		<h3>Figure &amp; Figcaption</h3>
 		<p class="text-secondary text-sm" style="max-width: var(--content-prose)">
-			Meaningful images and media are wrapped in <code>&lt;figure&gt;</code>.
-			CSS <code>background-image</code> is only for decorative visuals.
+			Meaningful images and media are wrapped in <code>&lt;figure&gt;</code>. CSS
+			<code>background-image</code> is only for decorative visuals.
 		</p>
 		<figure
 			style="
@@ -112,13 +117,11 @@ const greeting = 'Hello, world!';</code></pre>
 		<!-- Blockquote in figure -->
 		<h3>Blockquote with Attribution</h3>
 		<p class="text-secondary text-sm" style="max-width: var(--content-prose)">
-			A <code>&lt;blockquote&gt;</code> inside <code>&lt;figure&gt;</code> enables
-			proper semantic attribution via <code>&lt;figcaption&gt;</code>.
+			A <code>&lt;blockquote&gt;</code> inside <code>&lt;figure&gt;</code> enables proper semantic
+			attribution via <code>&lt;figcaption&gt;</code>.
 		</p>
 		<figure style="max-width: var(--content-prose)">
-			<blockquote>
-				Good design is as little design as possible.
-			</blockquote>
+			<blockquote>Good design is as little design as possible.</blockquote>
 			<figcaption>— <cite>Dieter Rams</cite>, Ten Principles of Good Design</figcaption>
 		</figure>
 
@@ -147,16 +150,16 @@ const greeting = 'Hello, world!';</code></pre>
 			<details>
 				<summary>Why use semantic HTML?</summary>
 				<p>
-					Semantic elements convey meaning to browsers, search engines, and assistive
-					technology. They reduce the need for ARIA roles and improve SEO by default.
+					Semantic elements convey meaning to browsers, search engines, and assistive technology.
+					They reduce the need for ARIA roles and improve SEO by default.
 				</p>
 			</details>
 			<details>
 				<summary>When is a div acceptable?</summary>
 				<p>
-					A <code>&lt;div&gt;</code> is a layout-only wrapper with no semantic meaning.
-					Use it for the inner <code>.container</code>, grid wrappers, and grouping
-					when no semantic element fits.
+					A <code>&lt;div&gt;</code> is a layout-only wrapper with no semantic meaning. Use it for
+					the inner <code>.container</code>, grid wrappers, and grouping when no semantic element
+					fits.
 				</p>
 			</details>
 		</div>
@@ -168,8 +171,8 @@ const greeting = 'Hello, world!';</code></pre>
 			<code>datetime</code> attribute for parsers, search engines, and assistive technology.
 		</p>
 		<p>
-			Published on <time datetime="2026-04-26">April 26, 2026</time>.
-			Event starts at <time datetime="2026-04-26T09:00">9:00 AM</time>.
+			Published on <time datetime="2026-04-26">April 26, 2026</time>. Event starts at
+			<time datetime="2026-04-26T09:00">9:00 AM</time>.
 		</p>
 
 		<!-- Aside / callout -->
@@ -179,16 +182,16 @@ const greeting = 'Hello, world!';</code></pre>
 			<code>&lt;aside&gt;</code> — sidebars, callout boxes, related links.
 		</p>
 		<aside class="form-message" style="max-width: var(--content-prose)">
-			<strong>Note:</strong> This callout is an <code>&lt;aside&gt;</code> element,
-			not a <code>&lt;div&gt;</code>. It signals complementary content to assistive technology.
+			<strong>Note:</strong> This callout is an <code>&lt;aside&gt;</code> element, not a
+			<code>&lt;div&gt;</code>. It signals complementary content to assistive technology.
 		</aside>
 
 		<!-- Button vs link -->
 		<h3>Button vs Link Semantics</h3>
 		<p class="text-secondary text-sm" style="max-width: var(--content-prose)">
 			Use <code>&lt;a href&gt;</code> when it navigates. Use
-			<code>&lt;button&gt;</code> when it triggers an action.
-			Never use a <code>&lt;div&gt;</code> for either.
+			<code>&lt;button&gt;</code> when it triggers an action. Never use a <code>&lt;div&gt;</code> for
+			either.
 		</p>
 		<div class="cluster">
 			<a
@@ -235,9 +238,9 @@ const greeting = 'Hello, world!';</code></pre>
 	<div class="container">
 		<h2>Section / Container Pattern</h2>
 		<p style="max-width: var(--content-prose)">
-			Every thematic block uses <code>&lt;section&gt;</code> for full-bleed background +
-			vertical rhythm, and <code>.container</code> for centered max-width content.
-			The <code>Section</code> Svelte component wraps this two-layer pattern.
+			Every thematic block uses <code>&lt;section&gt;</code> for full-bleed background + vertical
+			rhythm, and <code>.container</code> for centered max-width content. The <code>Section</code> Svelte
+			component wraps this two-layer pattern.
 		</p>
 		<div class="cluster">
 			<div class="card">Default container (72rem)</div>
@@ -331,20 +334,15 @@ const greeting = 'Hello, world!';</code></pre>
 		<h2>Forms</h2>
 
 		<form class="form">
-
 			<!-- Form-level messages -->
-			<div class="form-message" data-variant="success">
-				Your message was sent successfully.
-			</div>
+			<div class="form-message" data-variant="success">Your message was sent successfully.</div>
 			<div class="form-message" data-variant="warning">
 				Some fields need attention before you continue.
 			</div>
 			<div class="form-message" data-variant="danger">
 				There was a problem submitting the form. Please try again.
 			</div>
-			<div class="form-message">
-				We found a matching account. You may want to sign in instead.
-			</div>
+			<div class="form-message">We found a matching account. You may want to sign in instead.</div>
 
 			<div class="form-section">
 				<h3>Contact information</h3>
@@ -355,22 +353,11 @@ const greeting = 'Hello, world!';</code></pre>
 							First name
 							<span class="field-required" aria-hidden="true">*</span>
 						</label>
-						<input
-							id="sg-first-name"
-							class="input"
-							type="text"
-							placeholder="Jane"
-							required
-						/>
+						<input id="sg-first-name" class="input" type="text" placeholder="Jane" required />
 					</div>
 					<div class="field">
 						<label class="field-label" for="sg-last-name">Last name</label>
-						<input
-							id="sg-last-name"
-							class="input"
-							type="text"
-							placeholder="Smith"
-						/>
+						<input id="sg-last-name" class="input" type="text" placeholder="Smith" />
 					</div>
 				</div>
 
@@ -379,13 +366,7 @@ const greeting = 'Hello, world!';</code></pre>
 						Email address
 						<span class="field-required" aria-hidden="true">*</span>
 					</label>
-					<input
-						id="sg-email"
-						class="input"
-						type="email"
-						placeholder="jane@example.com"
-						required
-					/>
+					<input id="sg-email" class="input" type="email" placeholder="jane@example.com" required />
 					<p class="field-help">We'll never share your email with anyone.</p>
 				</div>
 
@@ -399,9 +380,7 @@ const greeting = 'Hello, world!';</code></pre>
 						aria-invalid="true"
 						aria-describedby="sg-phone-error"
 					/>
-					<p class="field-error" id="sg-phone-error">
-						Please enter a valid phone number.
-					</p>
+					<p class="field-error" id="sg-phone-error">Please enter a valid phone number.</p>
 				</div>
 
 				<div class="field">
@@ -507,7 +486,6 @@ const greeting = 'Hello, world!';</code></pre>
 					Cancel
 				</button>
 			</div>
-
 		</form>
 	</div>
 </section>
@@ -517,25 +495,25 @@ const greeting = 'Hello, world!';</code></pre>
 	<div class="container">
 		<h2>Images</h2>
 		<p class="text-secondary" style="max-width: var(--content-prose)">
-			Two image paths are standard. Use <code>&lt;enhanced:img&gt;</code> for developer-owned
-			assets in <code>src/lib/assets/</code>. Use <code>&lt;CmsImage&gt;</code> for
-			editor-uploaded images in <code>static/uploads/</code>.
-			Full rules: <code>docs/design-system/images.md</code>.
+			Two image paths are standard. Use <code>&lt;enhanced:img&gt;</code> for developer-owned assets
+			in <code>src/lib/assets/</code>. Use <code>&lt;CmsImage&gt;</code> for editor-uploaded images
+			in <code>static/uploads/</code>. Full rules: <code>docs/design-system/images.md</code>.
 		</p>
 
 		<!-- Brand image (enhanced:img) — code pattern only (no real asset in template) -->
 		<h3>Tier 1 — Brand images (<code>enhanced:img</code>)</h3>
 		<p class="text-secondary text-sm" style="max-width: var(--content-prose)">
-			For images committed to <code>src/lib/assets/</code>. SvelteKit processes them at
-			build time and generates optimised variants automatically.
+			For images committed to <code>src/lib/assets/</code>. SvelteKit processes them at build time
+			and generates optimised variants automatically.
 		</p>
-		<pre><code><!-- LCP hero — never lazy-load the primary viewport image -->
+		<pre><code
+				><!-- LCP hero — never lazy-load the primary viewport image -->
 &lt;enhanced:img
   src="{'{'}heroImage{'}'}"
   alt="Hero description"
   loading="eager"
   fetchpriority="high"
-  width={"{"}{1200}{"}"} height={"{"}{600}{"}"}
+  width={'{'}{1200}{'}'} height={'{'}{600}{'}'}
 /&gt;
 
 &lt;!-- Below the fold --&gt;
@@ -544,17 +522,18 @@ const greeting = 'Hello, world!';</code></pre>
     src="{'{'}teamPhoto{'}'}"
     alt="Team description"
     loading="lazy"
-    width={"{"}{800}{"}"} height={"{"}{500}{"}"}
+    width={'{'}{800}{'}'} height={'{'}{500}{'}'}
   /&gt;
   &lt;figcaption&gt;Caption text&lt;/figcaption&gt;
-&lt;/figure&gt;</code></pre>
+&lt;/figure&gt;</code
+			></pre>
 
 		<!-- CmsImage — renders a live example with an inline SVG placeholder -->
 		<h3>Tier 2 — CMS uploads (<code>CmsImage</code>)</h3>
 		<p class="text-secondary text-sm" style="max-width: var(--content-prose)">
 			For images in <code>static/uploads/</code>. The prebuild script generates a sibling
-			<code>.webp</code>; the component serves it as a <code>&lt;picture&gt;</code> with
-			the original as fallback. <code>loading="lazy"</code> is the default.
+			<code>.webp</code>; the component serves it as a <code>&lt;picture&gt;</code> with the
+			original as fallback. <code>loading="lazy"</code> is the default.
 		</p>
 
 		<!-- Below-the-fold CmsImage -->
@@ -572,8 +551,9 @@ const greeting = 'Hello, world!';</code></pre>
 		<!-- LCP CmsImage -->
 		<h4 style="margin-block-start: var(--space-8)">Above-the-fold LCP image (eager)</h4>
 		<p class="text-secondary text-sm" style="max-width: var(--content-prose)">
-			The page's primary hero image must never use <code>loading="lazy"</code>.
-			Add <code>loading="eager"</code> and <code>fetchpriority="high"</code>.
+			The page's primary hero image must never use <code>loading="lazy"</code>. Add
+			<code>loading="eager"</code>
+			and <code>fetchpriority="high"</code>.
 		</p>
 		<figure style="max-width: 32rem">
 			<CmsImage
@@ -595,8 +575,8 @@ const greeting = 'Hello, world!';</code></pre>
 		<h2>Typography — Font Pair</h2>
 		<p class="text-secondary" style="max-width: var(--content-prose)">
 			Default pair: <strong>Plus Jakarta Sans Variable</strong> (UI/body) and
-			<strong>JetBrains Mono Variable</strong> (code). Both loaded via Fontsource.
-			Change the pair by updating <code>tokens.css</code> and the
+			<strong>JetBrains Mono Variable</strong> (code). Both loaded via Fontsource. Change the pair
+			by updating <code>tokens.css</code> and the
 			<code>@import</code> lines in <code>app.css</code>. See
 			<code>docs/design-system/typography.md</code> for the full switching checklist.
 		</p>
@@ -613,8 +593,10 @@ const greeting = 'Hello, world!';</code></pre>
 			<p style="font-family: var(--font-sans); font-weight: var(--weight-normal)">
 				Regular weight (400) — body text, descriptions
 			</p>
-			<pre><code>// Mono font — code blocks, inline code, kbd shortcuts
-const fontMono = 'JetBrains Mono Variable';</code></pre>
+			<pre><code
+					>// Mono font — code blocks, inline code, kbd shortcuts
+const fontMono = 'JetBrains Mono Variable';</code
+				></pre>
 			<p class="text-muted text-sm">
 				CSS tokens: <code>var(--font-sans)</code> · <code>var(--font-mono)</code>
 				— never hardcode font names in component CSS.
@@ -626,17 +608,53 @@ const fontMono = 'JetBrains Mono Variable';</code></pre>
 <!-- ── Token Swatches ─────────────────────────────────────────────────── -->
 <section id="tokens" style="background: var(--surface-sunken)">
 	<div class="container">
-		<h2>Surface tokens</h2>
+		<h2>Design Tokens</h2>
+		<p class="text-secondary" style="max-width: var(--content-prose)">
+			All visual decisions are expressed as CSS custom properties in
+			<code>src/lib/styles/tokens.css</code>. Swap that file (or override primitives in it) to
+			re-skin the entire site. See
+			<code>src/lib/styles/brand.example.css</code> for a fully annotated example.
+		</p>
+
+		<h3>Brand primitives</h3>
+		<p class="text-secondary text-sm" style="max-width: var(--content-prose)">
+			5–7 fixed oklch values that are the brand's DNA. Everything else derives from these via <code
+				>color-mix()</code
+			>
+			and <code>light-dark()</code>. Change only primitives when rebranding — never use them
+			directly in component CSS.
+		</p>
 		<div class="cluster">
-			{#each [
-				['--surface-ground', 'Ground'],
-				['--surface-raised', 'Raised'],
-				['--surface-sunken', 'Sunken'],
-			] as [token, label]}
+			{#each [['var(--brand-dark)', '--brand-dark', 'Dark'], ['var(--brand-light)', '--brand-light', 'Light'], ['var(--brand-accent)', '--brand-accent', 'Accent'], ['var(--brand-warning)', '--brand-warning', 'Warning'], ['var(--brand-danger)', '--brand-danger', 'Danger']] as [color, token, label] (token)}
 				<div
-					class="card"
-					style="background: var({token}); min-width: 8rem; text-align: center"
+					style="
+						background: {color};
+						padding-block: var(--space-6);
+						padding-inline: var(--space-4);
+						border-radius: var(--radius-md);
+						min-width: 8rem;
+						text-align: center;
+						border: 1px solid var(--border-structural);
+					"
 				>
+					<p class="font-semibold" style="font-size: var(--text-sm); color: var(--text-primary)">
+						{label}
+					</p>
+					<small style="color: var(--text-muted); font-size: var(--text-xs); word-break: break-all"
+						>{token}</small
+					>
+				</div>
+			{/each}
+		</div>
+
+		<h3 style="margin-block-start: var(--space-8)">Semantic surfaces</h3>
+		<p class="text-secondary text-sm" style="max-width: var(--content-prose)">
+			What components consume for backgrounds. All resolve via <code>light-dark()</code>
+			from the primitives above — they invert automatically on theme change.
+		</p>
+		<div class="cluster">
+			{#each [['--surface-ground', 'Ground'], ['--surface-raised', 'Raised'], ['--surface-sunken', 'Sunken']] as [token, label] (token)}
+				<div class="card" style="background: var({token}); min-width: 8rem; text-align: center">
 					<small class="text-muted">{token}</small>
 					<p class="font-medium">{label}</p>
 				</div>
@@ -645,12 +663,7 @@ const fontMono = 'JetBrains Mono Variable';</code></pre>
 
 		<h3 style="margin-block-start: var(--space-8)">Status colors</h3>
 		<div class="cluster">
-			{#each [
-				['var(--color-success)', 'var(--color-success-subtle)', 'Success'],
-				['var(--color-warning)', 'var(--color-warning-subtle)', 'Warning'],
-				['var(--color-danger)',  'var(--color-danger-subtle)',  'Danger'],
-				['var(--color-info)',    'var(--color-info-subtle)',    'Info'],
-			] as [fg, bg, label]}
+			{#each [['var(--color-success)', 'var(--color-success-subtle)', 'Success'], ['var(--color-warning)', 'var(--color-warning-subtle)', 'Warning'], ['var(--color-danger)', 'var(--color-danger-subtle)', 'Danger'], ['var(--color-info)', 'var(--color-info-subtle)', 'Info']] as [fg, bg, label] (label)}
 				<div
 					style="
 						background: {bg};
@@ -664,6 +677,29 @@ const fontMono = 'JetBrains Mono Variable';</code></pre>
 					"
 				>
 					{label}
+				</div>
+			{/each}
+		</div>
+
+		<h3 style="margin-block-start: var(--space-8)">Shadows</h3>
+		<p class="text-secondary text-sm" style="max-width: var(--content-prose)">
+			All shadow colors use <code>color-mix()</code> and <code>light-dark()</code> — they adapt to both
+			themes automatically.
+		</p>
+		<div class="cluster">
+			{#each [['var(--shadow-sm)', 'sm'], ['var(--shadow-md)', 'md'], ['var(--shadow-lg)', 'lg']] as [shadow, label] (label)}
+				<div
+					style="
+						box-shadow: {shadow};
+						background: var(--surface-raised);
+						padding-block: var(--space-6);
+						padding-inline: var(--space-6);
+						border-radius: var(--radius-md);
+						min-width: 8rem;
+						text-align: center;
+					"
+				>
+					<small class="text-muted">--shadow-{label}</small>
 				</div>
 			{/each}
 		</div>

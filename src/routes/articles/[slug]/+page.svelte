@@ -22,21 +22,21 @@
 			...(data.article.image ? { image: data.article.image } : {}),
 			author: {
 				'@type': 'Organization',
-				name: site.organization.name
+				name: site.organization.name,
 			},
 			publisher: {
 				'@type': 'Organization',
 				name: site.organization.name,
 				logo: {
 					'@type': 'ImageObject',
-					url: site.organization.logo
-				}
-			}
-		}
+					url: site.organization.logo,
+				},
+			},
+		},
 	});
 </script>
 
-<SEO seo={seo} />
+<SEO {seo} />
 
 <div class="article-page">
 	<article>
@@ -47,11 +47,12 @@
 				{new Date(data.article.date).toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: 'long',
-					day: 'numeric'
+					day: 'numeric',
 				})}
 			</time>
 		</header>
 		<div class="article-body prose">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by src/lib/content/markdown.ts (sanitize-html) -->
 			{@html data.html}
 		</div>
 	</article>
