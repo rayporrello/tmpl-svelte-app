@@ -9,6 +9,7 @@ import { join, relative } from 'node:path';
 import matter from 'gray-matter';
 
 const CONTENT_DIRS = ['content', 'src/content'];
+const STATIC_DIR = 'static';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)$/;
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VALID_STATUS = new Set(['draft', 'published', 'archived']);
@@ -22,10 +23,17 @@ const HIGH_RISK_FIELDS = [
 	'status',
 	'slug',
 	'canonical',
-	'featuredImage',
+	'image',
+	'image_alt',
+	'og_image',
+	'og_image_alt',
 	'seoTitle',
 	'seoDescription',
 ];
+
+// Frontmatter keys that hold image paths and should be checked for file existence
+// when set to a site-relative path. Remote URLs (http/https) are skipped.
+const IMAGE_PATH_FIELDS = ['image', 'og_image', 'photo'];
 
 // Required fields per content type (matched by directory name)
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -206,6 +214,24 @@ function validateFile(filePath: string): void {
 				'status',
 				`Invalid status value "${status}".`,
 				`Set status to one of: draft, published, archived.`
+			);
+		}
+	}
+
+	// Image path existence — only check site-relative paths.
+	// Remote URLs and empty strings are skipped (already handled above).
+	for (const field of IMAGE_PATH_FIELDS) {
+		const value = data[field];
+		if (typeof value !== 'string' || value.length === 0) continue;
+		if (value.startsWith('http://') || value.startsWith('https://')) continue;
+		const normalized = value.startsWith('/') ? value.slice(1) : value;
+		const onDisk = join(STATIC_DIR, normalized);
+		if (!existsSync(onDisk)) {
+			fail(
+				rel,
+				field,
+				`Referenced image does not exist on disk: ${onDisk}`,
+				`Upload the file to static/ or remove the "${field}" field.`
 			);
 		}
 	}

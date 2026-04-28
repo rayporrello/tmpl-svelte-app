@@ -14,6 +14,7 @@
 
 import sharp from 'sharp';
 import { existsSync, readFileSync, statSync } from 'fs';
+import { site } from '../src/lib/config/site';
 
 const MIN_BYTES = 100;
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -26,8 +27,10 @@ interface Result {
 function checkPresenceAndSize(path: string): Result | null {
 	if (!existsSync(path)) return { pass: false, message: `MISSING: ${path}` };
 	const size = statSync(path).size;
-	if (size < MIN_BYTES) return { pass: false, message: `TOO SMALL: ${path} (${size} bytes, min ${MIN_BYTES})` };
-	if (size > MAX_BYTES) return { pass: false, message: `TOO LARGE: ${path} (${size} bytes, max 5 MB)` };
+	if (size < MIN_BYTES)
+		return { pass: false, message: `TOO SMALL: ${path} (${size} bytes, min ${MIN_BYTES})` };
+	if (size > MAX_BYTES)
+		return { pass: false, message: `TOO LARGE: ${path} (${size} bytes, max 5 MB)` };
 	return null;
 }
 
@@ -38,7 +41,7 @@ async function checkPng(path: string, width: number, height: number): Promise<Re
 	if (meta.width !== width || meta.height !== height) {
 		return {
 			pass: false,
-			message: `WRONG DIMENSIONS: ${path} — expected ${width}×${height}, got ${meta.width ?? '?'}×${meta.height ?? '?'}`
+			message: `WRONG DIMENSIONS: ${path} — expected ${width}×${height}, got ${meta.width ?? '?'}×${meta.height ?? '?'}`,
 		};
 	}
 	return { pass: true, message: `OK: ${path} (${width}×${height})` };
@@ -68,12 +71,38 @@ function checkManifest(path: string): Result {
 	return { pass: true, message: `OK: ${path} (valid JSON)` };
 }
 
+/**
+ * Confirm that `site.defaultOgImage` resolves to an actual file under `static/`.
+ * The SEO component emits this path on every page that does not set its own
+ * image, so a stale path here results in a broken og:image tag site-wide.
+ * Skipped when the value is an absolute URL (CDN-hosted default).
+ */
+function checkDefaultOgImagePath(): Result {
+	const value = site.defaultOgImage;
+	if (!value) {
+		return { pass: false, message: 'site.defaultOgImage is empty in src/lib/config/site.ts' };
+	}
+	if (value.startsWith('http://') || value.startsWith('https://')) {
+		return { pass: true, message: `OK: site.defaultOgImage is a remote URL (${value})` };
+	}
+	const normalized = value.startsWith('/') ? value.slice(1) : value;
+	const onDisk = `static/${normalized}`;
+	if (!existsSync(onDisk)) {
+		return {
+			pass: false,
+			message: `MISSING: site.defaultOgImage points at "${value}" but ${onDisk} does not exist`,
+		};
+	}
+	return { pass: true, message: `OK: site.defaultOgImage resolves to ${onDisk}` };
+}
+
 const results: Result[] = await Promise.all([
 	Promise.resolve(checkSvg('static/favicon.svg')),
 	checkPng('static/favicon-32.png', 32, 32),
 	checkPng('static/apple-touch-icon.png', 180, 180),
 	checkPng('static/og-default.png', 1200, 630),
-	Promise.resolve(checkManifest('static/site.webmanifest'))
+	Promise.resolve(checkManifest('static/site.webmanifest')),
+	Promise.resolve(checkDefaultOgImagePath()),
 ]);
 
 let failed = false;

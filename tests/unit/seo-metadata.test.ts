@@ -11,8 +11,10 @@ import {
 	buildImageUrl,
 	buildTitle,
 	buildRobots,
-	resolvePageSeo
+	resolveArticleShareImage,
+	resolvePageSeo,
 } from '$lib/seo/metadata';
+import { site } from '$lib/config/site';
 
 describe('buildCanonicalUrl()', () => {
 	it('produces a full URL from a path', () => {
@@ -59,7 +61,12 @@ describe('buildTitle()', () => {
 
 describe('buildRobots()', () => {
 	it('returns input robots when explicitly set', () => {
-		const robots = buildRobots({ title: 'T', description: 'D', canonicalPath: '/', robots: 'noindex, nofollow' });
+		const robots = buildRobots({
+			title: 'T',
+			description: 'D',
+			canonicalPath: '/',
+			robots: 'noindex, nofollow',
+		});
 		expect(robots).toBe('noindex, nofollow');
 	});
 
@@ -75,7 +82,7 @@ describe('resolvePageSeo()', () => {
 		const seo = resolvePageSeo({
 			title: 'Home',
 			description: 'Welcome',
-			canonicalPath: '/'
+			canonicalPath: '/',
 		});
 		expect(seo.title).toContain('Home');
 		expect(seo.description).toBe('Welcome');
@@ -89,8 +96,83 @@ describe('resolvePageSeo()', () => {
 			title: 'Article',
 			description: 'An article',
 			canonicalPath: '/articles/foo',
-			image: '/images/article.png'
+			image: '/images/article.png',
 		});
 		expect(seo.imageUrl).toMatch(/\/images\/article\.png$/);
+	});
+
+	it('falls back to site.defaultOgImage when image is omitted', () => {
+		const seo = resolvePageSeo({
+			title: 'About',
+			description: 'About us',
+			canonicalPath: '/about',
+		});
+		expect(seo.imageUrl).toContain(site.defaultOgImage);
+	});
+});
+
+describe('resolveArticleShareImage()', () => {
+	const baseArticle = { title: 'How we ship faster' };
+
+	it('returns og_image when both og_image and image are set', () => {
+		const result = resolveArticleShareImage({
+			...baseArticle,
+			image: '/uploads/feature.png',
+			og_image: '/uploads/share.png',
+		});
+		expect(result.image).toBe('/uploads/share.png');
+	});
+
+	it('falls back to feature image when og_image is omitted', () => {
+		const result = resolveArticleShareImage({
+			...baseArticle,
+			image: '/uploads/feature.png',
+		});
+		expect(result.image).toBe('/uploads/feature.png');
+	});
+
+	it('returns undefined when both image fields are omitted (lets resolvePageSeo apply site default)', () => {
+		const result = resolveArticleShareImage(baseArticle);
+		expect(result.image).toBeUndefined();
+	});
+
+	it('treats empty strings the same as omitted (Sveltia writes "" for blank fields)', () => {
+		const result = resolveArticleShareImage({
+			...baseArticle,
+			image: '',
+			og_image: '',
+		});
+		expect(result.image).toBeUndefined();
+	});
+
+	it('prefers og_image_alt over image_alt over title for alt text', () => {
+		expect(
+			resolveArticleShareImage({
+				...baseArticle,
+				image_alt: 'feature alt',
+				og_image_alt: 'share alt',
+			}).imageAlt
+		).toBe('share alt');
+
+		expect(
+			resolveArticleShareImage({
+				...baseArticle,
+				image_alt: 'feature alt',
+			}).imageAlt
+		).toBe('feature alt');
+
+		expect(resolveArticleShareImage(baseArticle).imageAlt).toBe(baseArticle.title);
+	});
+
+	it('integrated: feeding the result into resolvePageSeo applies the site default when both are blank', () => {
+		const share = resolveArticleShareImage({ ...baseArticle, image: '', og_image: '' });
+		const seo = resolvePageSeo({
+			title: baseArticle.title,
+			description: 'd',
+			canonicalPath: '/articles/foo',
+			image: share.image,
+			imageAlt: share.imageAlt,
+		});
+		expect(seo.imageUrl).toContain(site.defaultOgImage);
 	});
 });

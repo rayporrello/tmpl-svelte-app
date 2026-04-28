@@ -41,6 +41,14 @@ test.describe('Smoke', () => {
 		expect(robots).toContain('noindex');
 	});
 
+	test('/examples and example pages are noindex', async ({ page }) => {
+		for (const path of ['/examples', '/examples/homepage', '/examples/pricing', '/examples/faq']) {
+			await page.goto(path);
+			const robots = await page.locator('meta[name="robots"]').last().getAttribute('content');
+			expect(robots, `${path} should be noindex`).toContain('noindex');
+		}
+	});
+
 	test('/articles/sample-post renders rendered HTML not raw markdown', async ({ page }) => {
 		await page.goto('/articles/sample-post');
 		const articleBody = page.locator('.article-body');
@@ -101,6 +109,12 @@ test.describe('Axe accessibility', () => {
 
 	test('/styleguide has no violations', async ({ page }) => {
 		await page.goto('/styleguide');
+		const results = await new AxeBuilder({ page }).analyze();
+		expect(results.violations).toEqual([]);
+	});
+
+	test('/examples/homepage (archetype) has no violations', async ({ page }) => {
+		await page.goto('/examples/homepage');
 		const results = await new AxeBuilder({ page }).analyze();
 		expect(results.violations).toEqual([]);
 	});

@@ -84,6 +84,9 @@
 					<li>
 						<a href="/styleguide" class="nav-link">Styleguide</a>
 					</li>
+					<li>
+						<a href="/examples" class="nav-link">Examples</a>
+					</li>
 				{/if}
 			</ul>
 		</nav>

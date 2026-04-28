@@ -14,7 +14,7 @@ import { glob } from 'glob';
 const PLACEHOLDER_URL = 'https://example.com';
 const PLACEHOLDER_NAMES = ['Your Site Name'];
 const HARDCODED_DOMAIN_PATTERNS = ['yourdomain.com', 'Your Site Name'];
-const NON_INDEXABLE_PATHS = ['/styleguide', '/admin', '/preview', '/draft'];
+const NON_INDEXABLE_PATHS = ['/styleguide', '/admin', '/preview', '/draft', '/examples'];
 
 const errors: string[] = [];
 const warnings: string[] = [];

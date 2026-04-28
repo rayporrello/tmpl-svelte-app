@@ -1,16 +1,19 @@
 <script lang="ts">
 	import SEO from '$lib/components/seo/SEO.svelte';
 	import { site } from '$lib/config/site';
+	import { resolveArticleShareImage } from '$lib/seo/metadata';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	const share = $derived(resolveArticleShareImage(data.article));
 
 	const seo = $derived({
 		title: data.article.title,
 		description: data.article.description,
 		canonicalPath: `/articles/${data.slug}`,
-		image: data.article.image || undefined,
-		imageAlt: data.article.image_alt || undefined,
+		image: share.image,
+		imageAlt: share.imageAlt,
 		type: 'article' as const,
 		publishedDate: data.article.date,
 		schema: {
@@ -19,7 +22,7 @@
 			headline: data.article.title,
 			description: data.article.description,
 			datePublished: data.article.date,
-			...(data.article.image ? { image: data.article.image } : {}),
+			...(share.image ? { image: share.image } : {}),
 			author: {
 				'@type': 'Organization',
 				name: site.organization.name,

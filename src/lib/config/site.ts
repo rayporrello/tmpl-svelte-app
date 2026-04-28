@@ -38,7 +38,7 @@ export const site: SiteConfig = {
 	defaultTitle: 'Your Site Name',
 	titleTemplate: '%s — Your Site Name',
 	defaultDescription: 'A short description of what this site is about.',
-	defaultOgImage: '/images/og-default.png',
+	defaultOgImage: '/og-default.png',
 	locale: 'en_US',
 	indexing: true,
 	organization: {
@@ -48,10 +48,10 @@ export const site: SiteConfig = {
 			// Add social profile URLs here, e.g.:
 			// 'https://twitter.com/yourhandle',
 			// 'https://linkedin.com/company/yourorg',
-		]
+		],
 	},
 	contact: {
-		email: 'support@example.com'
-	}
+		email: 'support@example.com',
+	},
 	// searchConsoleVerification: 'your-token-here',
 };

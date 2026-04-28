@@ -16,7 +16,7 @@ export interface RouteEntry {
  * indexable. Non-indexable routes are excluded from sitemap.xml.
  *
  * Rules:
- * - /styleguide, /admin, /preview, and draft-like routes must be indexable: false.
+ * - /styleguide, /admin, /preview, /examples, and draft-like routes must be indexable: false.
  * - All public marketing/content routes should be indexable: true.
  */
 export const routes: RouteEntry[] = [
@@ -38,6 +38,13 @@ export const routes: RouteEntry[] = [
 	},
 	{
 		path: '/admin',
+		indexable: false,
+	},
+	{
+		// /examples and every page under it are copyable archetypes for real
+		// site builds — never indexed. The check-seo script enforces this for
+		// any route added under /examples.
+		path: '/examples',
 		indexable: false,
 	},
 	{

@@ -4,8 +4,14 @@ slug: getting-started
 description: A quick introduction to the tmpl-svelte-app template and how to make it your own.
 date: '2026-04-27'
 draft: true
+# Feature image — appears at the top of the article and is used as the share
+# image when og_image is not set. Both blank means social shares fall back to
+# site.defaultOgImage in src/lib/config/site.ts.
 image: ''
 image_alt: ''
+# Optional: override the share image only. Leave blank to use the feature image.
+og_image: ''
+og_image_alt: ''
 ---
 
 This article is a starter placeholder. Replace it with your first real post.

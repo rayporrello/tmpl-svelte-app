@@ -21,8 +21,14 @@ export interface ArticleFrontmatter {
 	description: string;
 	date: string;
 	draft: boolean;
+	/** Feature image — appears at the top of the article. Also used as the
+	 *  share/OG image fallback when og_image is not set. */
 	image?: string;
 	image_alt?: string;
+	/** Optional override for the share/OG image only. When set, takes priority
+	 *  over `image` for og:image and twitter:image. */
+	og_image?: string;
+	og_image_alt?: string;
 }
 
 export interface Article extends ArticleFrontmatter {

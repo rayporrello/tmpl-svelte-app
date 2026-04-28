@@ -7,7 +7,7 @@
 
 backend:
   name: github
-  repo: owner/repo-name   # REPLACE with your GitHub repository (e.g., acme/my-site)
+  repo: owner/repo-name # REPLACE with your GitHub repository (e.g., acme/my-site)
   branch: main
 
 local_backend: false
@@ -86,8 +86,18 @@ collections:
         time_format: false
         picker_utc: true
       - { label: Draft, name: draft, widget: boolean, default: true }
-      - { label: Image, name: image, widget: image, required: false, allow_multiple: false }
-      - { label: Image Alt, name: image_alt, widget: string, required: false }
+      - { label: Feature Image, name: image, widget: image, required: false, allow_multiple: false }
+      - { label: Feature Image Alt, name: image_alt, widget: string, required: false }
+      # Optional override for the share/OG image only. Leave blank to share the
+      # Feature Image above; if both are blank, the site default OG image is used.
+      - {
+          label: Share Image (override),
+          name: og_image,
+          widget: image,
+          required: false,
+          allow_multiple: false,
+        }
+      - { label: Share Image Alt, name: og_image_alt, widget: string, required: false }
       - { label: Body, name: body, widget: markdown }
 
   # ── Team ───────────────────────────────────────────────────────────────────

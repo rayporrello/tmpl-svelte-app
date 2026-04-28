@@ -18,25 +18,25 @@ Both paths write the same files. Sveltia CMS and n8n are two interfaces over the
 
 ## The three interfaces
 
-| Interface | Who uses it | How it writes |
-|-----------|------------|---------------|
-| Sveltia CMS (`/admin`) | Human editors | Browser UI → GitHub commit |
-| n8n | Automated workflows | GitHub API → commit |
-| Developer Git workflow | Engineers | Direct commit |
+| Interface              | Who uses it         | How it writes              |
+| ---------------------- | ------------------- | -------------------------- |
+| Sveltia CMS (`/admin`) | Human editors       | Browser UI → GitHub commit |
+| n8n                    | Automated workflows | GitHub API → commit        |
+| Developer Git workflow | Engineers           | Direct commit              |
 
 ---
 
 ## File locations
 
-| Path | Purpose |
-|------|---------|
-| `static/admin/index.html` | Sveltia CMS admin page — loads CMS from CDN |
+| Path                      | Purpose                                              |
+| ------------------------- | ---------------------------------------------------- |
+| `static/admin/index.html` | Sveltia CMS admin page — loads CMS from CDN          |
 | `static/admin/config.yml` | CMS configuration — collections, fields, media paths |
-| `content/pages/` | Singleton YAML files for specific pages |
-| `content/articles/` | Markdown files with YAML frontmatter |
-| `content/team/` | YAML files for team members |
-| `content/testimonials/` | YAML files for testimonials |
-| `static/uploads/` | CMS editor image uploads |
+| `content/pages/`          | Singleton YAML files for specific pages              |
+| `content/articles/`       | Markdown files with YAML frontmatter                 |
+| `content/team/`           | YAML files for team members                          |
+| `content/testimonials/`   | YAML files for testimonials                          |
+| `static/uploads/`         | CMS editor image uploads                             |
 
 ---
 
@@ -113,6 +113,21 @@ See [docs/cms/content-safety.md](content-safety.md) for the full safety document
 
 ---
 
+## Article image fields
+
+The `articles` collection has four image-related fields:
+
+| Field          | Purpose                                                                                                                                      |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `image`        | The article's **feature image**. Renders at the top of the post and is also used as the share/OG image when `og_image` is blank.             |
+| `image_alt`    | Alt text for `image`. Required when `image` is set.                                                                                          |
+| `og_image`     | Optional override for the **share image only** (Facebook, LinkedIn, Twitter previews). Use when the in-page hero is not the right thumbnail. |
+| `og_image_alt` | Alt text for `og_image`.                                                                                                                     |
+
+Both `image` and `og_image` are optional. When both are blank, social shares use `site.defaultOgImage` from [src/lib/config/site.ts](../../src/lib/config/site.ts). The full priority chain and validation rules are documented in [docs/seo/README.md → Share / OG image hierarchy](../seo/README.md#share--og-image-hierarchy).
+
+---
+
 ## Further reading
 
 - [docs/cms/sveltia-guide.md](sveltia-guide.md) — frontmatter format, date fields, empty fields, field rename rules
@@ -120,4 +135,5 @@ See [docs/cms/content-safety.md](content-safety.md) for the full safety document
 - [docs/cms/sveltia-content-contract.md](sveltia-content-contract.md) — field naming, parser rules, component data interface
 - [docs/cms/collection-patterns.md](collection-patterns.md) — how to add, modify, and remove collections
 - [docs/cms/sveltia-ai-reference.md](sveltia-ai-reference.md) — how AI agents should use Sveltia's official llms.txt when editing config.yml
+- [docs/examples/](../examples/README.md) — copyable page archetypes
 - [docs/automations/README.md](../automations/README.md) — n8n automation overview

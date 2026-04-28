@@ -58,6 +58,13 @@ Every site built from this template inherits a complete SEO system:
 bun run check:seo   # fails on placeholder values; run before deploying
 ```
 
+**Share / OG images** follow a fall-through chain:
+
+- Articles: `og_image` frontmatter → `image` (feature image) frontmatter → `site.defaultOgImage`
+- Pages: `image` prop on `<SEO>` → `site.defaultOgImage`
+
+The article feature image becomes the share image automatically — no extra wiring per post. See [docs/seo/README.md → Share / OG image hierarchy](docs/seo/README.md#share--og-image-hierarchy).
+
 Full docs: [docs/seo/README.md](docs/seo/README.md)
 
 ## CMS and content
@@ -182,6 +189,12 @@ The following are **never** committed to this repo:
 ## Styleguide
 
 Visit `/styleguide` in development to see all design system primitives rendered live.
+
+## Examples
+
+`src/routes/examples/` holds copyable page archetypes — homepage, about, services + detail, pricing, blog landing, contact pattern, FAQ, testimonials, CTA, and a legal/privacy skeleton. Visit `/examples` in dev. Every example is `noindex, nofollow`; copy what you need into a real route and remove the override.
+
+Full guide (including the copy-into-real-route checklist): [docs/examples/README.md](docs/examples/README.md)
 
 ## Deployment
 

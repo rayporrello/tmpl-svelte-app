@@ -76,10 +76,53 @@ Routes that must never appear in search results:
 - `/admin` — CMS admin
 - `/preview` — draft preview
 - `/draft/*` — any draft-like path
+- `/examples` and everything under it — copyable page archetypes (see [docs/examples/](../examples/README.md))
 
 Add `indexable: false` in `routes.ts` and pass `robots: 'noindex, nofollow'` to the SEO component.
 
 `scripts/check-seo.ts` will error if any of these paths are accidentally marked indexable.
+
+## Share / OG image hierarchy
+
+Every page emits `og:image` and `twitter:image`. The image is picked from the first source that resolves:
+
+**Articles (`/articles/[slug]`):**
+
+1. `og_image` frontmatter — explicit override for social sharing only
+2. `image` frontmatter — the article's feature image (also rendered in-page)
+3. `site.defaultOgImage` — global fallback in [src/lib/config/site.ts](../../src/lib/config/site.ts)
+
+The same chain applies to alt text: `og_image_alt` → `image_alt` → article title.
+
+The chain is implemented by `resolveArticleShareImage()` in [src/lib/seo/metadata.ts](../../src/lib/seo/metadata.ts). The article route ([src/routes/articles/[slug]/+page.svelte](../../src/routes/articles/[slug]/+page.svelte)) calls it and feeds the result into the SEO component.
+
+**Pages (everything else):**
+
+1. `image` prop on the SEO component — page-specific override
+2. `site.defaultOgImage` — global fallback
+
+Pass `image` (and `imageAlt`) to the SEO component when a page has its own hero or feature image worth sharing:
+
+```svelte
+<SEO
+	seo={{
+		title: 'About',
+		description: 'Who we are and how we work.',
+		canonicalPath: '/about',
+		image: '/uploads/about-hero.png',
+		imageAlt: 'The team in our studio',
+	}}
+/>
+```
+
+Otherwise omit `image` entirely — the SEO component substitutes `site.defaultOgImage` automatically.
+
+**Validation:**
+
+- `scripts/check-assets.ts` confirms `static/og-default.png` is exactly 1200×630 and that `site.defaultOgImage` resolves to a real file under `static/`.
+- `scripts/validate-content.ts` warns when an article's `image` / `og_image` field is set but blank, and fails when the referenced path does not exist on disk. Remote URLs (http/https) are not checked.
+
+If you want generated per-article OG images down the road, prefer a provider-neutral build script that writes files to `static/og/generated/` and references them via the `og_image` field. The template intentionally does not ship runtime OG generation — that would tie you to a specific host.
 
 ## Validation
 
@@ -128,4 +171,5 @@ See [docs/analytics/client-onboarding-checklist.md](../analytics/client-onboardi
 - [page-contract.md](page-contract.md) — required metadata for every route
 - [schema-guide.md](schema-guide.md) — when and how to use JSON-LD schema
 - [launch-checklist.md](launch-checklist.md) — pre-launch SEO checklist
+- [docs/examples/](../examples/README.md) — copyable page archetypes that demonstrate the SEO contract
 - [docs/analytics/launch-checklist.md](../analytics/launch-checklist.md) — analytics launch checklist (includes Search Console)
