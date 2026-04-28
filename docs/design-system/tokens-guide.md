@@ -8,7 +8,7 @@
 
 ## Rules for using tokens
 
-1. **Components consume semantic tokens, not brand primitives.** Use `var(--surface-raised)`, not `var(--brand-white)`.
+1. **Components consume semantic tokens, not brand primitives.** Use `var(--surface-raised)` or `var(--color-accent)`, not `var(--brand-white)` or `var(--brand-accent)`.
 2. **Never use raw oklch/hex/rgb values in component CSS.** Add a token to `tokens.css` first.
 3. **Use `color-mix()` for translucency.** Never use `opacity` on surfaces — see [Opacity rule](#opacity-rule).
 4. **`light-dark()` drives the theme engine.** All surface, text, and border tokens resolve at render time based on `color-scheme`.
@@ -28,7 +28,7 @@ Fixed oklch values — the brand's DNA. 5–7 values maximum.
 
 **oklch format:** `oklch(L% C H)` — lightness (0–100%), chroma (0–0.37), hue (0–360).
 
-When to use brand primitives directly: only in `tokens.css` itself, when defining semantic tokens. Never in component CSS.
+When to use brand primitives directly: only in `tokens.css` itself, when defining semantic tokens. Never in component CSS. This includes `--brand-accent`: it is a primitive. Components use semantic aliases such as `--color-accent`, `--border-focus`, or `--state-focus-ring` depending on intent.
 
 ---
 
@@ -37,7 +37,7 @@ When to use brand primitives directly: only in `tokens.css` itself, when definin
 Tints, shades, and subtle backgrounds derived from brand primitives via `color-mix()`.
 
 ```css
---color-success: oklch(65% 0.15 145)
+--color-accent: var(--brand-accent) --color-success: oklch(65% 0.15 145)
 	--color-success-subtle: color-mix(in oklch, var(--color-success) 15%, transparent)
 	--color-warning: var(--brand-warning)
 	--color-warning-subtle: color-mix(in oklch, var(--brand-warning) 15%, transparent)
@@ -83,7 +83,7 @@ All use `color-mix()` to derive the dimmer variants — not `opacity`.
 --border-structural: light-dark(dark 15%, white 10%) /* card edges, dividers */
 	--border-subtle: light-dark(dark 6%, white 4%) /* very light separators */
 	--border-default: var(--border-structural) /* alias for convenience */
-	--border-focus: var(--brand-accent) /* focus rings */;
+	--border-focus: var(--color-accent) /* focus rings */;
 ```
 
 ---

@@ -49,9 +49,10 @@ This order is declared in `app.css` and must not change. Component `<style>` blo
 ## Token rules
 
 - **Always use semantic tokens**: `var(--surface-raised)`, `var(--text-primary)`, `var(--space-4)`
-- **Never use brand primitives in component CSS**: no `var(--brand-dark)` outside `tokens.css`
+- **Never use brand primitives in component CSS**: no `var(--brand-dark)` or `var(--brand-accent)` outside `tokens.css`
 - **Never hardcode oklch/hex/rgb/hsl** in component CSS
 - **Add missing tokens to `tokens.css`** before using an un-tokenized value
+- Use semantic aliases for intent: `var(--color-accent)`, `var(--border-focus)`, and `var(--state-focus-ring)` instead of `var(--brand-accent)`
 
 ---
 
@@ -68,12 +69,12 @@ This order is declared in `app.css` and must not change. Component `<style>` blo
 
 Always use logical properties, not physical directional properties:
 
-| Physical | Use instead |
-|----------|-------------|
+| Physical                       | Use instead                                 |
+| ------------------------------ | ------------------------------------------- |
 | `margin-left` / `margin-right` | `margin-inline-start` / `margin-inline-end` |
-| `margin-top` / `margin-bottom` | `margin-block-start` / `margin-block-end` |
-| `padding: X Y` | `padding-block: X; padding-inline: Y` |
-| `border-top` | `border-block-start` |
+| `margin-top` / `margin-bottom` | `margin-block-start` / `margin-block-end`   |
+| `padding: X Y`                 | `padding-block: X; padding-inline: Y`       |
+| `border-top`                   | `border-block-start`                        |
 
 ---
 
@@ -85,13 +86,14 @@ Use `color-mix(in oklch, <color> <percent>%, transparent)` instead.
 ```css
 /* Wrong */
 background: var(--brand-accent);
-opacity: 0.15;  /* children inherit this — unintended */
+opacity: 0.15; /* children inherit this — unintended */
 
 /* Right */
 background: color-mix(in oklch, var(--brand-accent) 15%, transparent);
 ```
 
 **Opacity IS allowed for:**
+
 - Whole-element fade transitions: `opacity: 0` → `opacity: 1` (modals, backdrops, dropdowns, tooltips)
 - Skeleton/pulse effects: the whole element dims intentionally
 - Disabled controls: `opacity: 0.5` on `:disabled` dims the whole control (placeholder + icons + surface) — this is correct
@@ -105,11 +107,13 @@ Use container queries for component-level responsive layout. Use media queries o
 ```css
 /* Component responds to its container width, not the viewport */
 .card-grid {
-  container-type: inline-size;  /* or use .container-inline utility */
+	container-type: inline-size; /* or use .container-inline utility */
 }
 
 @container (inline-size >= 40rem) {
-  .card-grid { grid-template-columns: repeat(2, 1fr); }
+	.card-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
 }
 ```
 
@@ -126,6 +130,7 @@ Use container queries for component-level responsive layout. Use media queries o
 ## Forms
 
 **Responsibility split:**
+
 - `forms.css` — visual only: field layout, control appearance, error/help text, disabled states, focus rings, form messages
 - **Superforms** — behavior: validation, data binding, submission, server errors, progressive enhancement
 
@@ -157,13 +162,18 @@ bun add sveltekit-superforms valibot
 ```
 
 **Invalid state — three supported patterns:**
+
 ```html
-<input aria-invalid="true" />               <!-- ARIA — Superforms sets this automatically -->
-<input data-invalid="true" />               <!-- data attribute -->
-<div class="field" data-invalid="true">…</div>  <!-- parent scope -->
+<input aria-invalid="true" />
+<!-- ARIA — Superforms sets this automatically -->
+<input data-invalid="true" />
+<!-- data attribute -->
+<div class="field" data-invalid="true">…</div>
+<!-- parent scope -->
 ```
 
 **Do not:**
+
 - Duplicate form behavior in CSS
 - Build custom form submission — use Superforms server actions
 - Add Formsnap (Superforms direct is the standard)
@@ -182,24 +192,24 @@ bun add sveltekit-superforms valibot
 
 ## What agents may edit
 
-| Target | What to do |
-|--------|-----------|
-| `tokens.css` | Edit freely for brand customization |
-| Component `<style>` blocks | Write component-specific styles here |
+| Target                               | What to do                                            |
+| ------------------------------------ | ----------------------------------------------------- |
+| `tokens.css`                         | Edit freely for brand customization                   |
+| Component `<style>` blocks           | Write component-specific styles here                  |
 | Brand sections in architecture files | Add brand-specific additions after the marked section |
-| `+layout.svelte` | Add global layout wrapper, header, footer |
-| `app.html` | Update title, theme-color hex, favicon path |
+| `+layout.svelte`                     | Add global layout wrapper, header, footer             |
+| `app.html`                           | Update title, theme-color hex, favicon path           |
 
 ## What agents must NOT edit
 
-| Target | Reason |
-|--------|--------|
-| `reset.css` | Universal browser normalization — never project-specific |
-| `base.css` | Element defaults — extend via component styles, not edits |
-| `utilities.css` architecture section | Shared utility classes — edit breaks all projects |
-| `animations.css` architecture section | Shared motion system — edit breaks all projects |
-| `forms.css` architecture section | Shared form primitives — edit breaks all projects |
-| Layer order in `app.css` | Must stay `reset, tokens, base, utilities, components` |
+| Target                                | Reason                                                    |
+| ------------------------------------- | --------------------------------------------------------- |
+| `reset.css`                           | Universal browser normalization — never project-specific  |
+| `base.css`                            | Element defaults — extend via component styles, not edits |
+| `utilities.css` architecture section  | Shared utility classes — edit breaks all projects         |
+| `animations.css` architecture section | Shared motion system — edit breaks all projects           |
+| `forms.css` architecture section      | Shared form primitives — edit breaks all projects         |
+| Layer order in `app.css`              | Must stay `reset, tokens, base, utilities, components`    |
 
 ---
 
@@ -209,10 +219,10 @@ Full rules: [images.md](images.md)
 
 ### Which component to use
 
-| Image source | Location | Component |
-|-------------|----------|-----------|
+| Image source                           | Location          | Component        |
+| -------------------------------------- | ----------------- | ---------------- |
 | Developer-owned (brand, UI, marketing) | `src/lib/assets/` | `<enhanced:img>` |
-| CMS / editor upload | `static/uploads/` | `<CmsImage>` |
+| CMS / editor upload                    | `static/uploads/` | `<CmsImage>`     |
 
 ### Always
 
