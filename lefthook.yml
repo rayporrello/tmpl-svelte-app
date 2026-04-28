@@ -8,3 +8,6 @@ pre-commit:
       glob: '*.{js,ts,svelte}'
       run: bunx eslint --fix {staged_files}
       stage_fixed: true
+    design-system:
+      glob: '*.{ts,svelte,css,html}'
+      run: bun run scripts/check-design-system.ts --changed {staged_files}
