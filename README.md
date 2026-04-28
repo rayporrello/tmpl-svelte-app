@@ -212,17 +212,28 @@ The template ships a complete container + reverse-proxy deployment path:
 
 Step-by-step bootstrap, rolling deploy, and rollback-by-SHA: [docs/deployment/runbook.md](docs/deployment/runbook.md). Production runtime contract: [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
 
-## Dormant modules
+## Optional modules
 
-Active patterns that ship configured but inert. Activate per-project:
+The full optional module registry lives at **[docs/modules/README.md](docs/modules/README.md)**. Every module is dormant by default — no runtime cost unless activated.
 
-| Module             | Activation                                                                                                                                                                                               |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contact form       | Rename `src/routes/contact-example/` → `src/routes/contact/` and copy a provider (e.g. `postmark.example.ts → postmark.ts`). See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md). |
-| Postgres + Drizzle | Add `DATABASE_URL`, create schema, run `drizzle-kit push` (Phase 5)                                                                                                                                      |
-| n8n webhooks       | Add `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET`; implement event emitter (Phase 5)                                                                                                                        |
-| Postmark email     | Copy `src/lib/server/forms/providers/postmark.example.ts → postmark.ts`; add `POSTMARK_SERVER_TOKEN` (per `.env.example`)                                                                                |
-| Better Auth        | Follow the auth module docs (per-project only — not in base template)                                                                                                                                    |
+### Active seams (configured but inert until env vars are set)
+
+| Module          | Activation                                                                                                                                                                                               |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contact form    | Rename `src/routes/contact-example/` → `src/routes/contact/` and copy a provider (e.g. `postmark.example.ts → postmark.ts`). See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md). |
+| Postmark email  | Copy `src/lib/server/forms/providers/postmark.example.ts → postmark.ts`; add `POSTMARK_SERVER_TOKEN` (per `.env.example`)                                                                                |
+| n8n webhooks    | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. See [docs/automations/README.md](docs/automations/README.md).                                                                                              |
+| Analytics + GTM | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                                              |
+| Cookie consent  | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md).                            |
+
+### Not installed — add per project
+
+| Module               | When to use                                            | Docs                                                       |
+| -------------------- | ------------------------------------------------------ | ---------------------------------------------------------- |
+| Better Auth          | User accounts, member areas, gated pages, admin portal | [docs/modules/better-auth.md](docs/modules/better-auth.md) |
+| Search (Pagefind)    | 10+ pages/articles; users need to find content         | [docs/modules/pagefind.md](docs/modules/pagefind.md)       |
+| R2 image storage     | Large media library, CDN delivery, or multi-instance   | [docs/modules/r2-images.md](docs/modules/r2-images.md)     |
+| PWA / service worker | App-like offline experience explicitly required        | [ADR-020](docs/planning/adrs/ADR-020-pwa-no-by-default.md) |
 
 ## Observability
 

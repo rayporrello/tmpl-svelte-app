@@ -176,17 +176,20 @@ See [docs/database/README.md](database/README.md) for the full setup guide, scri
 
 ## Step 11 — Configure optional modules
 
-The contact form works by default — it saves to Postgres, logs emails to stdout, and
-skips n8n gracefully. Configure the modules below to extend it.
+The full optional module registry is at **[docs/modules/README.md](modules/README.md)**. Every module is dormant by default — no runtime cost unless activated.
 
-| Module                    | How to activate                                                                                                                                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md).                                                 |
-| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                        |
-| **n8n webhooks**          | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. The contact form emits signed `lead.created` events. Failed deliveries are dead-lettered. See [docs/automations/README.md](automations/README.md). |
-| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true`. In-process only; replace with Redis-backed limiter for multi-instance deployments.                                                                                |
-| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                         |
-| **Better Auth**           | Follow the auth module docs.                                                                                                                                                                     |
+The contact form works immediately — it saves to Postgres, logs emails to stdout, and skips n8n gracefully. Configure the modules below to extend it.
+
+| Module                    | How to activate                                                                                                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md).                                                                 |
+| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                                        |
+| **n8n webhooks**          | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. The contact form emits signed `lead.created` events. Failed deliveries are dead-lettered. See [docs/automations/README.md](automations/README.md).                 |
+| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true`. In-process only; replace with Redis-backed limiter for multi-instance deployments.                                                                                                |
+| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                                         |
+| **Cookie consent**        | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Required when using GTM/GA4/ad tags with EU or CCPA-jurisdiction users. See [docs/modules/cookie-consent.md](modules/cookie-consent.md). |
+| **Better Auth**           | Per-project only — not in base template. See [docs/modules/better-auth.md](modules/better-auth.md).                                                                                                              |
+| **Search (Pagefind)**     | Install `pagefind`, pre-render content routes, add `/search` route. See [docs/modules/pagefind.md](modules/pagefind.md).                                                                                         |
 
 ---
 

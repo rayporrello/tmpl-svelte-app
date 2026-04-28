@@ -21,7 +21,7 @@ The template is feature-complete for the **database-backed website baseline**. A
 | 1   | Lighthouse CI gate                            | not started | Wire `treosh/lighthouse-ci-action` into `.github/workflows/ci.yml` with perf/a11y/SEO/best-practices budgets. Replaces the honor-system perf gates in `08-quality-gates.md`.                                                                                                                              |
 | 2   | Backup automation                             | not started | Nightly `static/uploads/` snapshot to off-host storage (R2/S3) on a systemd timer with monitor ping (Healthchecks.io / n8n) so silent failures get noticed. Extend to `pg_dump` — Postgres is now active. Dedicated thread.                                                                               |
 | 3   | Automation event emitter                      | not started | Typed automation event emitter (`src/lib/automation/events.ts`) + HMAC signing (`src/lib/automation/signing.ts`). Wire `contact.submitted` from contact form server action into `automation_events` table. Document first n8n workflow (contact form → email notification). See ADR-015 for the contract. |
-| 4   | Decisions on "beyond website baseline" topics | not started | i18n, analytics, cookie consent, newsletter dormant module, search, OG generation, visual regression, page archetypes, Better Auth, edge images. Each gets its own thread + ADR (defer or scope). See `docs/planning/12-post-v1-roadmap.md`.                                                              |
+| 4   | Decisions on "beyond website baseline" topics | **done**    | Module registry at `docs/modules/README.md`. Pagefind, cookie consent, R2, Better Auth, PWA documented. ADR-020 (PWA no-default) accepted. Consent banner UI added dormant. See Batch H in decision ledger.                                                                                               |
 | 5   | Final docs-vs-implementation audit            | continuous  | Re-run before tagging v1.0.0 to confirm planning docs match reality.                                                                                                                                                                                                                                      |
 
 Per-project activation (Sveltia OAuth, brand swap, route registration) is **not** v1 work — those are deliberately left for the consumer of the template.
@@ -234,6 +234,22 @@ Per-project activation (Sveltia OAuth, brand swap, route registration) is **not*
 - [x] Add .nav-link and .nav-link[aria-current='page'] scoped styles to +layout.svelte — F
 - [x] Add footer nav with same two links + /styleguide in DEV-only block — F
 - [x] Fix active nav link contrast: use var(--text-primary) + brand-accent text-decoration-color instead of brand-accent fg (brand-accent on brand-light = 1.45:1, fails WCAG AA) — F
+
+## Batch H — Optional module docs and guardrails
+
+- [x] Create `docs/modules/README.md` — central module registry with status, activation summary, env vars, and doc links
+- [x] Create `docs/modules/pagefind.md` — Pagefind activation: install, pre-render, search:index script, search route, data attributes, validate independence
+- [x] Create `docs/modules/cookie-consent.md` — consent banner activation, Google Consent Mode v2, categories, persistence, third-party CMPs
+- [x] Create `docs/modules/r2-images.md` — R2 positioning vs. default server uploads, env vars, S3 compat, custom domain, image optimization with R2
+- [x] Create `docs/modules/better-auth.md` — Better Auth recipe: when to use, files it adds, install steps, session wiring, route protection
+- [x] Create `docs/planning/adrs/ADR-020-pwa-no-by-default.md` — PWA no-default: cache complexity, stale content risk, update UX burden; manifest + icons kept
+- [x] Create `src/lib/privacy/ConsentBanner.svelte` — dormant first-visit consent banner; pushes denied defaults on mount; reads/writes localStorage; not imported by default
+- [x] Create `src/lib/privacy/ManageConsent.svelte` — dormant consent preferences panel; reads/writes localStorage; not imported by default
+- [x] Update `README.md` — expand "Dormant modules" → "Optional modules" with two-tier table (active seams vs. not-installed)
+- [x] Update `docs/getting-started.md` — Step 11: add module registry link, add cookie consent and Pagefind rows
+- [x] Update `docs/planning/03-stack-decisions.md` — add Search, Cookie consent, Auth, PWA sections
+- [x] Update `docs/planning/10-build-decision-ledger.md` — add Batch H row
+- [x] Update `docs/planning/11-template-build-backlog.md` — mark item #4 done, add this phase
 
 ## Deferred / Phase 5+
 
