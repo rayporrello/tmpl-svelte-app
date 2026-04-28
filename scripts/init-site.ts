@@ -4,8 +4,9 @@
  *
  * Prompts for project-specific values and rewrites all placeholder strings in:
  *   package.json, src/lib/config/site.ts, static/admin/config.yml,
- *   static/site.webmanifest, src/app.html, README.md, .env.example,
- *   deploy/env.example, deploy/Caddyfile.example, deploy/quadlets/web.container
+ *   static/site.webmanifest, README.md, .env.example, deploy/env.example,
+ *   deploy/Caddyfile.example, deploy/quadlets/web.container,
+ *   deploy/quadlets/web.network
  *
  * Idempotent — re-running with the same answers produces identical files.
  * Re-running with different answers applies the new values atomically.
@@ -29,6 +30,37 @@ function readFile(rel: string): string {
 
 function writeFile(rel: string, content: string): void {
 	writeFileSync(resolve(ROOT, rel), content, 'utf-8');
+}
+
+const PLACEHOLDER_VALUES = new Set([
+	'tmpl-svelte-app',
+	'Your Site Name',
+	'https://example.com',
+	'example.com',
+	'owner',
+	'repo-name',
+	'owner/repo-name',
+	'project',
+	'<owner>',
+	'<name>',
+	'<project>',
+	'REPLACE PER PROJECT',
+	'[Site Title]',
+	'[Site Name]',
+	'[Year]',
+	'support@example.com',
+	'A short description of what this site is about.',
+]);
+
+function isPlaceholder(value: string | null | undefined): boolean {
+	const normalized = value?.trim();
+	if (!normalized) return true;
+	if (/^<[^>]+>$/.test(normalized) || /^\[[^\]]+\]$/.test(normalized)) return true;
+	return PLACEHOLDER_VALUES.has(normalized);
+}
+
+function defaultFromCurrent(currentValue: string, fallback: string): string {
+	return isPlaceholder(currentValue) ? fallback : currentValue;
 }
 
 // ── Input handling ─────────────────────────────────────────────────────────────
@@ -162,10 +194,6 @@ function rewriteWebmanifest(content: string, name: string, shortName: string): s
 	}
 }
 
-function rewriteAppHtml(content: string, name: string): string {
-	return content.replace(/<title>.*<\/title>/, `<title>${name}</title>`);
-}
-
 function rewriteReadme(content: string, name: string): string {
 	// Replace only the H1 title line
 	return content.replace(/^# .+$/m, `# ${name}`);
@@ -178,10 +206,11 @@ function rewriteEnvExample(content: string, url: string): string {
 	return out;
 }
 
-function rewriteDeployEnvExample(content: string, url: string): string {
+function rewriteDeployEnvExample(content: string, url: string, project: string): string {
 	let out = content;
 	out = out.replace(/^ORIGIN=.*/m, `ORIGIN=${url}`);
 	out = out.replace(/^PUBLIC_SITE_URL=.*/m, `PUBLIC_SITE_URL=${url}`);
+	out = out.replace(/<project>/g, project);
 	return out;
 }
 
@@ -189,10 +218,14 @@ function rewriteCaddyfile(content: string, domain: string): string {
 	// Replace the apex domain block name and the www redirect target
 	const apex = domain.replace(/^www\./, '');
 	let out = content;
-	// Replace domain block headers (lines that are exactly "<domain> {")
-	out = out.replace(/^([a-z0-9][a-z0-9.-]+\.[a-z]{2,})\s*\{/gm, `${apex} {`);
+	out = out.replace(
+		'Replace example.com with the real domain before use.',
+		`Configured for ${apex}.`
+	);
 	// Replace www redirect block
 	out = out.replace(/^www\.[a-z0-9][a-z0-9.-]+\.[a-z]{2,}\s*\{/gm, `www.${apex} {`);
+	// Replace domain block headers (lines that are exactly "<domain> {")
+	out = out.replace(/^(?!www\.)([a-z0-9][a-z0-9.-]+\.[a-z]{2,})\s*\{/gm, `${apex} {`);
 	// Replace redir target inside www block
 	out = out.replace(
 		/(redir https:\/\/)[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(\{uri\} permanent)/,
@@ -206,6 +239,10 @@ function rewriteQuadlet(
 	{ owner, repo, project }: { owner: string; repo: string; project: string }
 ): string {
 	let out = content;
+	out = out.replace(/<unit-name>/g, `${project}-web`);
+	out = out.replace(/<owner>/g, owner);
+	out = out.replace(/<name>/g, repo);
+	out = out.replace(/<project>/g, project);
 	// Image line: Image=ghcr.io/<owner>/<name>:<sha>
 	out = out.replace(
 		/^(Image=ghcr\.io\/)([^/]+)\/([^:]+)(:.*)$/m,
@@ -234,6 +271,16 @@ function rewriteQuadlet(
 	return out;
 }
 
+function rewriteQuadletNetwork(content: string, project: string): string {
+	let out = content;
+	out = out.replace(/<project>/g, project);
+	out = out.replace(
+		/^(Description=Project network — )(.+)$/m,
+		(_, prefix) => `${prefix}${project}`
+	);
+	return out;
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -246,12 +293,12 @@ async function main() {
 	const siteTs = readFile('src/lib/config/site.ts');
 	const configYml = readFile('static/admin/config.yml');
 	const webmanifest = readFile('static/site.webmanifest');
-	const appHtml = readFile('src/app.html');
 	const readme = readFile('README.md');
 	const envExample = readFile('.env.example');
 	const deployEnv = readFile('deploy/env.example');
 	const caddyfile = readFile('deploy/Caddyfile.example');
 	const quadlet = readFile('deploy/quadlets/web.container');
+	const quadletNetwork = readFile('deploy/quadlets/web.network');
 
 	// Extract current values as defaults
 	const currentPackageName = extractJsonField(pkgJson, 'name');
@@ -269,41 +316,36 @@ async function main() {
 	// ── Prompts ────────────────────────────────────────────────────────────────
 	const packageName = await ask(
 		'Package name (package.json "name")',
-		currentPackageName || 'my-site'
+		defaultFromCurrent(currentPackageName, 'my-site')
 	);
 	const siteName = await ask(
 		'Site name (shown in titles and OG tags)',
-		currentSiteName || 'My Site'
+		defaultFromCurrent(currentSiteName, 'My Site')
 	);
 	const siteUrl = await ask(
 		'Production URL (HTTPS, no trailing slash)',
-		currentSiteUrl !== 'https://example.com' ? currentSiteUrl : `https://${packageName}.com`
+		defaultFromCurrent(currentSiteUrl, `https://${packageName}.com`)
 	);
 	const description = await ask(
 		'Default meta description (≤155 chars)',
-		currentDescription || 'A short description of this site.'
+		defaultFromCurrent(currentDescription, 'A concise description of this site.')
 	);
 	const ghOwner = await ask(
 		'GitHub owner (username or org)',
-		currentOwner !== 'owner' ? currentOwner : ''
+		defaultFromCurrent(currentOwner, 'my-org')
 	);
-	const ghRepo = await ask(
-		'GitHub repository name',
-		currentRepo !== 'repo-name' ? currentRepo : packageName
-	);
+	const ghRepo = await ask('GitHub repository name', defaultFromCurrent(currentRepo, packageName));
 	const contactEmail = await ask(
 		'Support contact email (shown on error pages)',
-		currentContactEmail !== 'support@example.com'
-			? currentContactEmail
-			: `hello@${new URL(siteUrl).hostname}`
+		defaultFromCurrent(currentContactEmail, `hello@${new URL(siteUrl).hostname}`)
 	);
 	const project = await ask(
 		'Project slug (used for container/Quadlet names)',
-		currentProject !== 'project' ? currentProject : packageName.replace(/[^a-z0-9-]/g, '-')
+		defaultFromCurrent(currentProject, packageName.replace(/[^a-z0-9-]/g, '-'))
 	);
 	const domain = await ask(
 		'Production domain (for Caddyfile)',
-		currentDomain !== 'example.com' ? currentDomain : new URL(siteUrl).hostname
+		defaultFromCurrent(currentDomain, new URL(siteUrl).hostname)
 	);
 	const shortName = await ask(
 		'PWA short name (≤12 chars, for site.webmanifest)',
@@ -338,11 +380,6 @@ async function main() {
 		if (updated !== webmanifest) writeFile('static/site.webmanifest', updated);
 	}
 
-	if (appHtml) {
-		const updated = rewriteAppHtml(appHtml, siteName);
-		if (updated !== appHtml) writeFile('src/app.html', updated);
-	}
-
 	if (readme) {
 		const updated = rewriteReadme(readme, siteName);
 		if (updated !== readme) writeFile('README.md', updated);
@@ -354,7 +391,7 @@ async function main() {
 	}
 
 	if (deployEnv) {
-		const updated = rewriteDeployEnvExample(deployEnv, siteUrl);
+		const updated = rewriteDeployEnvExample(deployEnv, siteUrl, project);
 		if (updated !== deployEnv) writeFile('deploy/env.example', updated);
 	}
 
@@ -368,10 +405,16 @@ async function main() {
 		if (updated !== quadlet) writeFile('deploy/quadlets/web.container', updated);
 	}
 
+	if (quadletNetwork) {
+		const updated = rewriteQuadletNetwork(quadletNetwork, project);
+		if (updated !== quadletNetwork) writeFile('deploy/quadlets/web.network', updated);
+	}
+
 	console.log('\n✓  init:site complete. Files updated:');
 	console.log('   package.json, src/lib/config/site.ts, static/admin/config.yml');
-	console.log('   static/site.webmanifest, src/app.html, README.md, .env.example');
-	console.log('   deploy/env.example, deploy/Caddyfile.example, deploy/quadlets/web.container');
+	console.log('   static/site.webmanifest, README.md, .env.example, deploy/env.example');
+	console.log('   deploy/Caddyfile.example, deploy/quadlets/web.container');
+	console.log('   deploy/quadlets/web.network');
 	console.log('\nNext steps:');
 	console.log('  1. Replace static/og-default.png with a real 1200×630 OG image');
 	console.log('  2. Run: bun run validate');

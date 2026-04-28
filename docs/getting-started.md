@@ -44,24 +44,56 @@ agents behave in the project — fill it in before inviting any AI assistant.
 
 ## Step 3 — Run init:site
 
-`init:site` is an interactive script that rewrites placeholder values across
-ten files at once. Run it once per project and commit the result.
+`init:site` rewrites project placeholders across ten files at once. Run it once
+per project and commit the result.
 
 ```bash
 bun run init:site
 ```
 
-It prompts for:
+It prompts in this order:
 
-- **Project name** — used in `package.json`, `README.md`, and `site.webmanifest`
-- **Site domain** — the production `https://` URL (used in CSP, sitemap, robots)
-- **Site title** and **description** — the default SEO metadata
-- **Organisation name** — used in JSON-LD schemas
-- **GitHub repo** — `owner/repo` format (used by Sveltia CMS backend)
-- **Contact email** — shown on error pages
-- **Deployment hostname** — your server's hostname (used in Caddyfile and Quadlets)
+1. Package name (`package.json` `"name"`)
+2. Site name (shown in titles and OG tags)
+3. Production URL (HTTPS, no trailing slash)
+4. Default meta description (≤155 chars)
+5. GitHub owner (username or org)
+6. GitHub repository name
+7. Support contact email (shown on error pages)
+8. Project slug (used for container/Quadlet names)
+9. Production domain (for Caddyfile)
+10. PWA short name (≤12 chars, for `site.webmanifest`)
 
-Re-running `init:site` with the same answers is safe — it converges without duplicating content.
+For non-interactive setup, feed the same answers through stdin:
+
+```ts
+const answers = `my-cool-site
+Acme Studio
+https://acme-studio.dev
+Portrait and brand photography for independent makers.
+acme-org
+my-cool-site
+hello@acme-studio.dev
+my-cool-site
+acme-studio.dev
+Acme
+`;
+
+const proc = Bun.spawn(['bun', 'run', 'init:site'], {
+	stdin: 'pipe',
+	stdout: 'inherit',
+	stderr: 'inherit',
+});
+
+proc.stdin.write(answers);
+proc.stdin.end();
+process.exit(await proc.exited);
+```
+
+Re-running `init:site` with the same answers is a no-op: the files converge to
+the same bytes. After init, `bun run validate:launch` will still fail until you
+replace `static/og-default.png` with a real 1200×630 OG image. That failure is
+intentional because the share image is a manual brand asset.
 
 ---
 

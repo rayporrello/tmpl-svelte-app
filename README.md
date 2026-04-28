@@ -21,7 +21,7 @@ Database-backed SvelteKit website template. Targets websites, landing pages, con
 - **Production runtime contract** — Containerfile (multi-stage, non-root, HEALTHCHECK), Podman Quadlet templates, Caddyfile example
 - **CI** — GitHub Actions workflow with validate / image / launch jobs, Trivy CRITICAL gating, smoke tests, GHCR push
 - **Tests** — Vitest unit tests + Playwright e2e smoke (with axe accessibility checks) wired into `bun run validate`
-- **Ergonomics** — Lefthook pre-commit (prettier + eslint --fix on staged files), interactive `bun run init:site`
+- **Ergonomics** — Lefthook pre-commit (prettier + eslint --fix on staged files), interactive or stdin-driven `bun run init:site`
 - Agent-readable operating rules (`AGENTS.md`, `CLAUDE.md.template`)
 
 ## Design system
@@ -123,6 +123,42 @@ See **[docs/getting-started.md](docs/getting-started.md)** for the full step-by-
 - Registering routes, updating CMS config, and activating dormant modules
 - Deploying via container and running `bun run validate:launch` before go-live
 
+`init:site` asks these ten prompts in order: package name, site name,
+production URL, default meta description, GitHub owner, GitHub repository name,
+support contact email, project slug, production domain, and PWA short name.
+It is idempotent; running it twice with the same answers is a no-op. It does
+not update `src/app.html`.
+
+For deterministic non-interactive setup, feed answers through stdin:
+
+```ts
+const answers = `my-cool-site
+Acme Studio
+https://acme-studio.dev
+Portrait and brand photography for independent makers.
+acme-org
+my-cool-site
+hello@acme-studio.dev
+my-cool-site
+acme-studio.dev
+Acme
+`;
+
+const proc = Bun.spawn(['bun', 'run', 'init:site'], {
+	stdin: 'pipe',
+	stdout: 'inherit',
+	stderr: 'inherit',
+});
+
+proc.stdin.write(answers);
+proc.stdin.end();
+process.exit(await proc.exited);
+```
+
+After init, `bun run validate:launch` still fails until `static/og-default.png`
+is replaced with a real 1200×630 OG image. That is intentional: the default OG
+image is a manual launch asset.
+
 ## Bun-first workflow
 
 This template uses **Bun** for all package management and script execution. A `preinstall` guard (`npx only-allow bun`) and `engines.bun` enforce this. Never use `npm`, `npx`, `pnpm`, or `yarn`. Commit `bun.lock`.
@@ -142,7 +178,7 @@ bun run check:seo            # validate SEO config
 bun run check:cms            # validate static/admin/config.yml
 bun run check:content        # validate content/ files
 bun run check:assets         # verify favicon / og-default / manifest defaults exist
-bun run init:site            # interactive site initializer (rewrites 10 files)
+bun run init:site            # interactive/stdin site initializer (rewrites 10 files)
 bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)

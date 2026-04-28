@@ -29,12 +29,59 @@ bun run check:content            # validate Markdown / YAML files under content/
 bun run check:content-diff       # detect destructive content changes (release-grade)
 bun run check:assets             # verify favicon / og-default / manifest defaults exist
 bun run check:launch             # verify production env (ORIGIN/PUBLIC_SITE_URL look like real HTTPS)
-bun run init:site                # interactive site initializer (rewrites 10 files)
+bun run init:site                # interactive/stdin site initializer (rewrites 10 files)
 bun run secrets:render           # decrypt secrets.yaml → .env (requires SOPS + age)
 bun run secrets:check            # verify no plaintext secrets are tracked
 bun run validate                 # PR-grade: check → seo → cms → content → assets → images → build → unit → e2e
 bun run validate:launch          # release-grade: validate + check:launch + check:content-diff
 ```
+
+### init:site prompt order
+
+`bun run init:site` prompts in this order:
+
+1. Package name (`package.json` `"name"`)
+2. Site name (shown in titles and OG tags)
+3. Production URL (HTTPS, no trailing slash)
+4. Default meta description (≤155 chars)
+5. GitHub owner (username or org)
+6. GitHub repository name
+7. Support contact email (shown on error pages)
+8. Project slug (used for container/Quadlet names)
+9. Production domain (for Caddyfile)
+10. PWA short name (≤12 chars, for `site.webmanifest`)
+
+For deterministic non-interactive runs, feed the same answers through stdin:
+
+```ts
+const answers = `my-cool-site
+Acme Studio
+https://acme-studio.dev
+Portrait and brand photography for independent makers.
+acme-org
+my-cool-site
+hello@acme-studio.dev
+my-cool-site
+acme-studio.dev
+Acme
+`;
+
+const proc = Bun.spawn(['bun', 'run', 'init:site'], {
+	stdin: 'pipe',
+	stdout: 'inherit',
+	stderr: 'inherit',
+});
+
+proc.stdin.write(answers);
+proc.stdin.end();
+process.exit(await proc.exited);
+```
+
+`init:site` is idempotent: running it twice with the same answers produces no
+file changes. It does not update `src/app.html`. `validate:launch` still fails
+after init until `static/og-default.png` is replaced with a real 1200×630 OG
+image; that is intentional because the default OG image is a manual launch
+asset.
 
 ### Updating dependencies
 
