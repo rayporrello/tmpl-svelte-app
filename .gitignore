@@ -39,6 +39,8 @@ desktop.ini
 # ── Test / coverage output ────────────────────────────────────────────────────
 coverage/
 .nyc_output/
+playwright-report/
+test-results/
 
 # ── Cache / temp ──────────────────────────────────────────────────────────────
 .cache/

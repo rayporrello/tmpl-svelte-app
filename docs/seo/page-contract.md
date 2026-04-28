@@ -2,6 +2,8 @@
 
 Every route created in this template must satisfy this contract. No exceptions for public pages.
 
+`src/app.html` intentionally does not include a fallback `<title>`. Every page that should render a document title must provide one through the SEO component.
+
 ## Required for every public page
 
 | Field                | Where it goes           | Notes                                                                 |
@@ -98,7 +100,7 @@ For internal, admin, or dev-only pages, set both:
 
 ## What breaks if you skip this
 
-- Missing `title`: browser tab shows the fallback from `app.html`; Google may generate its own title
+- Missing `title`: the page can ship without a document title; Google may generate its own title
 - Missing `description`: Google may use page body text; often a bad excerpt
 - Missing `canonicalPath`: canonicals default to `/`; duplicate content issues across URL variants
 - Missing route registry: route excluded from sitemap even if it should be indexed

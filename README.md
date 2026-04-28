@@ -136,6 +136,7 @@ bun run lint                 # ESLint
 bun run format               # Prettier
 bun run test                 # Vitest unit tests
 bun run test:e2e             # Playwright + axe smoke tests
+bun run test:e2e:built       # Playwright against existing build/ output (used by validate)
 bun run images:optimize      # run image optimizer manually (idempotent)
 bun run check:seo            # validate SEO config
 bun run check:cms            # validate static/admin/config.yml
@@ -151,6 +152,20 @@ bun run validate:launch      # release-grade: validate + check:launch + check:co
 ```
 
 The validation lifecycle has two tiers: `validate` runs on every PR/push; `validate:launch` runs before tagging or shipping a release. See [docs/template-maintenance.md](docs/template-maintenance.md) and [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
+
+## E2E environment variables
+
+`bun run test:e2e` starts the built Bun server on `127.0.0.1:45139` by default, then runs Playwright against `/healthz` before executing tests. The defaults are safe on a fresh clone with no local `.env`.
+
+| Variable                  | Purpose                                                                 |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `PLAYWRIGHT_PORT`         | Override the managed test server port. Defaults to `45139`.             |
+| `PLAYWRIGHT_BASE_URL`     | Run against an already-running or deployed site; skips local webServer. |
+| `PLAYWRIGHT_REUSE_SERVER` | Set to `1` to reuse an existing local server on the configured URL.     |
+| `PLAYWRIGHT_DATABASE_URL` | Optional DB URL for E2E. Defaults to an inert stub value.               |
+| `PLAYWRIGHT_SKIP_BUILD`   | Set to `1` only when `build/` already exists; used by `validate`.       |
+
+`/readyz` is intentionally not part of default E2E because it verifies live Postgres connectivity. The DB health probe is covered by unit tests; add a separate integration job before testing `/readyz` end to end.
 
 ## Secrets management
 

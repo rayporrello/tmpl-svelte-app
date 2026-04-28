@@ -27,6 +27,8 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_PORT: 45139
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -62,6 +64,17 @@ jobs:
           ORIGIN: https://example.com
           PUBLIC_SITE_URL: https://example.com
           DATABASE_URL: postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub
+
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-failure-${{ github.sha }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload build artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -136,16 +149,16 @@ jobs:
       - name: Smoke test — /healthz returns 200
         run: |
           docker run --rm -d \
-            -p 127.0.0.1:3000:3000 \
-            -e ORIGIN=http://127.0.0.1:3000 \
-            -e PUBLIC_SITE_URL=http://127.0.0.1:3000 \
+            -p 127.0.0.1:45139:3000 \
+            -e ORIGIN=http://127.0.0.1:45139 \
+            -e PUBLIC_SITE_URL=http://127.0.0.1:45139 \
             -e DATABASE_URL=postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub \
             --name smoke \
             "${{ env.IMAGE_NAME }}:${{ github.sha }}"
 
           echo "Polling /healthz..."
           for i in $(seq 30); do
-            if curl -fsS http://127.0.0.1:3000/healthz; then
+            if curl -fsS http://127.0.0.1:45139/healthz; then
               echo ""
               echo "✓ Smoke passed (attempt $i)"
               docker stop smoke
