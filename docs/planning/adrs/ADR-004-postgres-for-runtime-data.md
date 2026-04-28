@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted and Implemented
 
 ## Context
 
@@ -12,26 +12,34 @@ Editorial content (blog posts, landing page copy, static assets) is separately a
 
 ## Decision
 
-Postgres is the prepared/default runtime data path for this template. SQLite is not offered as an alternative or fallback.
+Postgres is the default runtime data path for this template. SQLite is not offered as an alternative or fallback.
 
-- The runtime data dormant module ships with a Postgres container (Podman Quadlet), Drizzle ORM configuration, and a starter migration.
+- The template ships with `drizzle-orm`, `postgres` (postgres.js), and `drizzle-kit` installed.
 - Drizzle is the schema definition and query layer — not Prisma, not raw SQL string construction.
-- The Postgres container is dormant by default; it is activated when a project needs runtime data.
+- `DATABASE_URL` is a required environment variable. The app will not start without it.
 - No managed cloud database (RDS, Supabase, PlanetScale, Vercel Postgres) is the default — runtime data is self-hosted.
+- A starter schema ships with `contact_submissions`, `automation_events`, and `automation_dead_letters` tables.
 
 ## Consequences
 
-- Projects that only need editorial content run with no database container at all.
-- Projects that activate runtime data get a production-grade database from day one, without a later migration away from SQLite.
-- The Postgres container must be configured with correct credentials (via sops + age encrypted env vars) before activation.
-- Backup automation (pg_dump to Cloudflare R2) is available as a companion dormant module.
+- All projects built from this template require a Postgres database. Editorial-only sites are not a special case.
+- Projects get a production-grade database from day one, without a later migration away from SQLite.
+- `DATABASE_URL` must be set before the app can serve any request. CI uses a stub value; no live DB is required for the validate pipeline.
+- Backup automation (pg_dump schedule) is a logical next step — document per project once Postgres is running.
 
 ## Implementation Notes
 
-- Postgres connection string is provided via environment variable; Drizzle config reads it at startup.
-- The starter schema stub lives in `src/db/schema.ts` (or equivalent).
-- Migration workflow: `bun run db:migrate` applies pending Drizzle migrations.
+- `DATABASE_URL` is validated by `initEnv()` on first request; missing or empty value throws immediately.
+- Driver: `postgres` (postgres.js v3) — lazy connection pool, no TCP connection until first query.
+- ORM: `drizzle-orm` with `drizzle-orm/postgres-js` adapter.
+- Schema: `src/lib/server/db/schema.ts` — three starter tables.
+- DB singleton: `src/lib/server/db/index.ts` — imported lazily by routes that need the DB.
+- Health: `src/lib/server/db/health.ts` — `checkDbHealth(db)` issues `SELECT 1`; accepts injected executor for unit testing.
+- `/readyz` endpoint checks DB health and returns 503 if unreachable.
+- Migration workflow: `bun run db:generate` creates SQL files; `bun run db:migrate` applies them.
+- Config: `drizzle.config.ts` at project root reads `DATABASE_URL` from environment.
 - The `postgres` superuser does not exist in this setup; the application uses a dedicated database user.
+- See [docs/database/README.md](../../docs/database/README.md) for the full setup guide.
 
 ## Revisit Triggers
 

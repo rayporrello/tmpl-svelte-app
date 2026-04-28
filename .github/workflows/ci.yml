@@ -14,7 +14,7 @@ on:
 
 permissions:
   contents: read
-  packages: write   # required for GHCR push in the image job
+  packages: write # required for GHCR push in the image job
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
@@ -54,10 +54,12 @@ jobs:
       - name: Run validate
         run: bun run validate
         env:
-          # Stub values so prerendering (sitemap.xml, robots.txt, llms.txt) can
-          # run without real secrets. check:launch is the gate for placeholder URLs.
+          # Stub values so prerendering and env validation pass without real secrets.
+          # check:launch is the gate for placeholder URLs.
+          # DATABASE_URL stub: lets initEnv() pass; no DB queries run during validate.
           ORIGIN: https://example.com
           PUBLIC_SITE_URL: https://example.com
+          DATABASE_URL: postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub
 
       - name: Upload build artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -66,9 +68,9 @@ jobs:
           path: build/
           retention-days: 7
 
-# ── image ─────────────────────────────────────────────────────────────────────
-# Runs on push to main and tag pushes. Requires validate to pass.
-# Build → Trivy CRITICAL scan → Trivy HIGH report → smoke /healthz → push to GHCR.
+  # ── image ─────────────────────────────────────────────────────────────────────
+  # Runs on push to main and tag pushes. Requires validate to pass.
+  # Build → Trivy CRITICAL scan → Trivy HIGH report → smoke /healthz → push to GHCR.
 
   image:
     name: Build + Scan + Smoke + Push
@@ -132,6 +134,8 @@ jobs:
           docker run --rm -d \
             -p 127.0.0.1:3000:3000 \
             -e ORIGIN=http://127.0.0.1:3000 \
+            -e PUBLIC_SITE_URL=http://127.0.0.1:3000 \
+            -e DATABASE_URL=postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub \
             --name smoke \
             "${{ env.IMAGE_NAME }}:${{ github.sha }}"
 
@@ -156,9 +160,9 @@ jobs:
           docker push "${{ env.IMAGE_NAME }}:${{ github.sha }}"
           docker push "${{ env.IMAGE_NAME }}:${{ steps.short.outputs.sha }}"
 
-# ── launch ────────────────────────────────────────────────────────────────────
-# Runs only on tag pushes. Verifies no placeholder values remain.
-# Expected to fail on a fresh template clone until bun run init:site is run (Batch B).
+  # ── launch ────────────────────────────────────────────────────────────────────
+  # Runs only on tag pushes. Verifies no placeholder values remain.
+  # Expected to fail on a fresh template clone until bun run init:site is run (Batch B).
 
   launch:
     name: Launch validation
@@ -188,7 +192,7 @@ jobs:
       - name: Run validate:launch
         run: bun run validate:launch
         env:
-          # Provide env var stubs so check:launch reports the real structural errors
-          # (placeholder strings, og-default hash) rather than just "env var not set".
+          # Stubs so env validation passes; check:launch reports structural errors.
           ORIGIN: ${{ vars.PRODUCTION_ORIGIN || 'https://example.com' }}
           PUBLIC_SITE_URL: ${{ vars.PRODUCTION_ORIGIN || 'https://example.com' }}
+          DATABASE_URL: postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub

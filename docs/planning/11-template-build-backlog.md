@@ -2,26 +2,27 @@
 
 ## v1 readiness summary (as of April 2026)
 
-The template is feature-complete for the **website-only baseline** (landing pages, content sites, marketing sites). All of Phases 0–4b, 6, E, F are done. Phase 5 (forms / runtime data) is partially complete: forms scaffolding ships dormant, but Postgres + automation event wiring is intentionally deferred until a real project needs it.
+The template is feature-complete for the **database-backed website baseline**. All of Phases 0–4b, 5 (database core), 6, E, F are done. The template ships Postgres + Drizzle as a first-class default — not an optional add-on.
 
 **Ready to use today:**
 
-- Spin up a new project, run `bun run init:site`, edit `tokens.css`, register routes in `src/lib/seo/routes.ts`, and ship.
-- `bun run validate` and `bun run validate:launch` enforce all template invariants (SEO, CMS, content, assets, build, unit, e2e + axe).
+- Spin up a new project, run `bun run init:site`, provision a Postgres DB, set `DATABASE_URL`, run `bun run db:migrate`, edit `tokens.css`, register routes in `src/lib/seo/routes.ts`, and ship.
+- `bun run validate` and `bun run validate:launch` enforce all template invariants (SEO, CMS, content, assets, build, unit, e2e + axe). The validate pipeline uses a stub `DATABASE_URL` — no live DB required for CI.
 - CI (.github/workflows/ci.yml) runs validate, builds the container image, runs Trivy with CRITICAL gating, smoke-tests the live container, and pushes to GHCR.
 - Container + reverse proxy: Containerfile, Quadlets, Caddyfile.example, deployment runbook.
 - Sveltia CMS at `/admin` is wired; content safety scripts gate writes; Markdown rendering ships with sanitisation.
 - Observability spine + security baseline (per-route CSP, Valibot env, request ID + safe error normalization).
+- `/healthz` (process check) and `/readyz` (Postgres connectivity probe) are both live.
 
 **Outstanding before tagging v1.0.0** (in priority order):
 
-| #   | Area                                          | Status      | Notes                                                                                                                                                                                                                                                                  |
-| --- | --------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Lighthouse CI gate                            | not started | Wire `treosh/lighthouse-ci-action` into `.github/workflows/ci.yml` with perf/a11y/SEO/best-practices budgets. Replaces the honor-system perf gates in `08-quality-gates.md`.                                                                                           |
-| 2   | Backup automation                             | not started | Nightly `static/uploads/` snapshot to off-host storage (R2/S3) on a systemd timer with monitor ping (Healthchecks.io / n8n) so silent failures get noticed. Extends to `pg_dump` once Phase 5 lands. Dedicated thread.                                                 |
-| 3   | Phase 5 runtime data bundle                   | not started | Postgres + Drizzle, `/readyz` with DB probe, automation event emitter (`src/lib/automation/events.ts`), HMAC signing (`src/lib/automation/signing.ts`), dead-letter table. Single coordinated batch. See `docs/planning/runtime-event-contract.md` for the event spec. |
-| 4   | Decisions on "beyond website baseline" topics | not started | i18n, analytics, cookie consent, newsletter dormant module, search, OG generation, visual regression, page archetypes, Better Auth, edge images. Each gets its own thread + ADR (defer or scope). See `docs/planning/12-post-v1-roadmap.md`.                           |
-| 5   | Final docs-vs-implementation audit            | continuous  | Re-run before tagging v1.0.0 to confirm planning docs match reality after items 1–4 land.                                                                                                                                                                              |
+| #   | Area                                          | Status      | Notes                                                                                                                                                                                                                                                                                                     |
+| --- | --------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Lighthouse CI gate                            | not started | Wire `treosh/lighthouse-ci-action` into `.github/workflows/ci.yml` with perf/a11y/SEO/best-practices budgets. Replaces the honor-system perf gates in `08-quality-gates.md`.                                                                                                                              |
+| 2   | Backup automation                             | not started | Nightly `static/uploads/` snapshot to off-host storage (R2/S3) on a systemd timer with monitor ping (Healthchecks.io / n8n) so silent failures get noticed. Extend to `pg_dump` — Postgres is now active. Dedicated thread.                                                                               |
+| 3   | Automation event emitter                      | not started | Typed automation event emitter (`src/lib/automation/events.ts`) + HMAC signing (`src/lib/automation/signing.ts`). Wire `contact.submitted` from contact form server action into `automation_events` table. Document first n8n workflow (contact form → email notification). See ADR-015 for the contract. |
+| 4   | Decisions on "beyond website baseline" topics | not started | i18n, analytics, cookie consent, newsletter dormant module, search, OG generation, visual regression, page archetypes, Better Auth, edge images. Each gets its own thread + ADR (defer or scope). See `docs/planning/12-post-v1-roadmap.md`.                                                              |
+| 5   | Final docs-vs-implementation audit            | continuous  | Re-run before tagging v1.0.0 to confirm planning docs match reality.                                                                                                                                                                                                                                      |
 
 Per-project activation (Sveltia OAuth, brand swap, route registration) is **not** v1 work — those are deliberately left for the consumer of the template.
 
@@ -105,14 +106,20 @@ Per-project activation (Sveltia OAuth, brand swap, route registration) is **not*
 - [x] Update CLAUDE.md.template with observability and CMS safety sections
 - [x] Update quality gates (08-quality-gates.md) with observability and CMS/content safety gates
 - [x] Update maintenance loop (09-maintenance-loop.md) with recurring observability and CMS checks
-- [ ] Add `/readyz` with Postgres connectivity check — Phase 5, after `DATABASE_URL` is active
+- [x] Add `/readyz` with Postgres connectivity check — implemented in Phase 5
 - [ ] Optional Sentry integration — Tier 2+, per-project only; do not add to base template
 - [ ] Optional OpenTelemetry adoption path — Tier 3+; seam is in place via `event.locals.requestId`
-- [ ] Dead-letter / failed-event table for n8n webhook events — Phase 5, after Postgres is active
+- [x] Dead-letter / failed-event table for n8n webhook events — `automation_dead_letters` table implemented in Phase 5
 
 ## Phase 5 — Runtime data/forms
 
-- [ ] Add Postgres/Drizzle foundation (dormant by default)
+- [x] Add Postgres/Drizzle foundation (`drizzle-orm`, `postgres`, `drizzle-kit`; `drizzle.config.ts`; `src/lib/server/db/` — schema, index, health; `drizzle/` migration dir; `db:*` scripts in package.json)
+- [x] Add starter schema (`contact_submissions`, `automation_events`, `automation_dead_letters` in `src/lib/server/db/schema.ts`)
+- [x] Make `DATABASE_URL` required in env.ts; add to `REQUIRED_PRIVATE_ENV_VARS`; update CI + Playwright with stubs
+- [x] Add `/readyz` with Postgres connectivity probe (`src/routes/readyz/+server.ts`; returns 503 if DB unreachable)
+- [x] Add db-health unit tests (`tests/unit/db-health.test.ts`; injection-based, no live DB required)
+- [x] Update `.env.example`, `secrets.example.yaml`, CI stubs for `DATABASE_URL`
+- [x] Add `docs/database/README.md` (setup guide, scripts reference, health endpoints, production checklist)
 - [x] Add env validation (Valibot — src/lib/server/env.ts; moved to Batch B / Phase 6 timeline)
 - [x] Add Superforms (`bun add --dev sveltekit-superforms`) — D; valibot already present from B
 - [x] Add contact form pattern (forms.css + Superforms + console/Postmark provider seam) — D
@@ -240,6 +247,5 @@ Per-project activation (Sveltia OAuth, brand swap, route registration) is **not*
 - OpenTelemetry — Tier 3; seam in place (`event.locals.requestId`); full implementation deferred
 - Architecture docs (content system overview) — Phase 5+ deferral
 - Operations docs (secrets, deployment, backups) — Phase 5+ deferral
-- Typed automation event emitter (`src/lib/automation/events.ts`) — Phase 5, after Postgres is active
-- `/readyz` with Postgres connectivity check — Phase 5, after `DATABASE_URL` is active
+- Typed automation event emitter (`src/lib/automation/events.ts`) — next step after Phase 5 DB; wire into `automation_events` table
 - Template update strategy: @<owner>/web-template-utils extraction — deferred until 3+ projects use the template (see docs/template-update-strategy.md)

@@ -19,7 +19,7 @@ const publicSchema = v.object({
 });
 
 const privateSchema = v.object({
-	DATABASE_URL: v.optional(v.string()),
+	DATABASE_URL: v.pipe(v.string(), v.minLength(1, 'DATABASE_URL must not be empty')),
 	SESSION_SECRET: v.optional(v.string()),
 	POSTMARK_SERVER_TOKEN: v.optional(v.string()),
 	CONTACT_TO_EMAIL: v.optional(v.string()),
@@ -45,8 +45,7 @@ export type PrivateEnv = v.InferOutput<typeof privateSchema>;
 
 export const REQUIRED_PUBLIC_ENV_VARS: ReadonlyArray<string> = ['ORIGIN', 'PUBLIC_SITE_URL'];
 
-/** No private vars are required by the base template; extend per project. */
-export const REQUIRED_PRIVATE_ENV_VARS: ReadonlyArray<string> = [];
+export const REQUIRED_PRIVATE_ENV_VARS: ReadonlyArray<string> = ['DATABASE_URL'];
 
 // ── Validation ────────────────────────────────────────────────────────────────
 

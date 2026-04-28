@@ -8,6 +8,7 @@ Step-by-step guide for turning `tmpl-svelte-app` into a production site.
 
 - **Bun** ≥ 1.1 installed (`bun --version`)
 - **Git** and a GitHub account (the CMS uses GitHub as its backend)
+- **Postgres** — a running instance for local development (local install, Docker, or Podman)
 - A Linux host running Podman + Caddy for deployment (see [docs/deployment/README.md](deployment/README.md))
 
 ---
@@ -138,20 +139,54 @@ with real copy. The home route loads this file at build time — no database nee
 
 ---
 
-## Step 10 — Activate dormant modules (only when needed)
+## Step 10 — Set up the database
 
-| Module             | How to activate                                                                                                                                                                                            |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contact form       | Rename `src/routes/contact-example/` → `src/routes/contact/`; install an email provider (see [docs/design-system/forms-guide.md](design-system/forms-guide.md))                                            |
-| Analytics          | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md) and [docs/analytics/gtm-ga4-setup.md](analytics/gtm-ga4-setup.md). |
-| Postgres + Drizzle | Add `DATABASE_URL` to `.env`; create a schema file                                                                                                                                                         |
-| n8n webhooks       | Add `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` env vars                                                                                                                                                      |
-| Postmark email     | Copy `src/lib/server/forms/providers/postmark.example.ts` → `postmark.ts`; add `POSTMARK_SERVER_TOKEN` (matches `.env.example`)                                                                            |
-| Better Auth        | Follow the auth module docs                                                                                                                                                                                |
+`DATABASE_URL` is required. The app will not start without it.
+
+1. **Create a local Postgres database:**
+
+   ```bash
+   createdb site_db
+   createuser site_user --pwprompt
+   psql site_db -c "GRANT ALL ON DATABASE site_db TO site_user;"
+   psql site_db -c "GRANT ALL ON SCHEMA public TO site_user;"
+   ```
+
+2. **Set `DATABASE_URL` in your environment:**
+   - SOPS workflow (recommended): add to `secrets.yaml`, then `bun run secrets:render`
+   - Direct `.env` workflow: copy `.env.example` to `.env` and fill in `DATABASE_URL`
+
+3. **Run migrations:**
+
+   ```bash
+   bun run db:migrate
+   ```
+
+   This applies the starter schema (`contact_submissions`, `automation_events`, `automation_dead_letters`).
+
+4. **Verify:**
+   ```bash
+   curl http://127.0.0.1:3000/readyz   # after starting the dev server
+   ```
+   Should return `{"ok": true, "checks": {"database": {"ok": true}}, ...}`.
+
+See [docs/database/README.md](database/README.md) for the full setup guide, scripts reference, and production checklist.
 
 ---
 
-## Step 11 — Deploy
+## Step 11 — Activate dormant modules (only when needed)
+
+| Module         | How to activate                                                                                                                                                                                                  |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contact form   | Rename `src/routes/contact-example/` → `src/routes/contact/`; wire submissions to `contact_submissions` table; install an email provider (see [docs/design-system/forms-guide.md](design-system/forms-guide.md)) |
+| Analytics      | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md) and [docs/analytics/gtm-ga4-setup.md](analytics/gtm-ga4-setup.md).       |
+| n8n webhooks   | Add `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` env vars; write automation events to the `automation_events` table                                                                                                  |
+| Postmark email | Copy `src/lib/server/forms/providers/postmark.example.ts` → `postmark.ts`; add `POSTMARK_SERVER_TOKEN` (matches `.env.example`)                                                                                  |
+| Better Auth    | Follow the auth module docs                                                                                                                                                                                      |
+
+---
+
+## Step 12 — Deploy
 
 1. Build and verify locally:
    ```bash
@@ -164,8 +199,11 @@ with real copy. The home route loads this file at build time — no database nee
    podman run --rm -p 3000:3000 \
      -e PORT=3000 -e HOST=0.0.0.0 \
      -e ORIGIN=http://127.0.0.1:3000 \
+     -e PUBLIC_SITE_URL=http://127.0.0.1:3000 \
+     -e DATABASE_URL=postgres://site_user:yourpassword@host.containers.internal:5432/site_db \
      <your-project>:local
-   # visit http://127.0.0.1:3000/healthz — should return 200
+   # visit http://127.0.0.1:3000/healthz — process check, should return 200
+   # visit http://127.0.0.1:3000/readyz  — DB connectivity check, should return 200
    ```
 3. Follow the full deployment runbook: [docs/deployment/runbook.md](deployment/runbook.md)
 4. CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) runs `validate` on every push, builds the image, runs Trivy with CRITICAL gating, smoke-tests the running container, and pushes to GHCR on `main`. `validate:launch` is gated on tags.

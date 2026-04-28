@@ -15,13 +15,13 @@ export default defineConfig({
 	reporter: process.env.CI ? 'github' : 'list',
 	use: {
 		baseURL: 'http://127.0.0.1:3000',
-		trace: 'on-first-retry'
+		trace: 'on-first-retry',
 	},
 	projects: [
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] }
-		}
+			use: { ...devices['Desktop Chrome'] },
+		},
 	],
 	webServer: {
 		command: 'bun build/index.js',
@@ -32,7 +32,9 @@ export default defineConfig({
 			PORT: '3000',
 			HOST: '127.0.0.1',
 			ORIGIN: 'http://127.0.0.1:3000',
-			PUBLIC_SITE_URL: 'http://127.0.0.1:3000'
-		}
-	}
+			PUBLIC_SITE_URL: 'http://127.0.0.1:3000',
+			// Stub: lets initEnv() pass without a live DB. No queries run in e2e tests.
+			DATABASE_URL: process.env.DATABASE_URL ?? 'postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub',
+		},
+	},
 });

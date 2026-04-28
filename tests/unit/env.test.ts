@@ -10,10 +10,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // Snapshot original env so each test starts clean
 const originalEnv = { ...process.env };
 
+const VALID_PRIVATE = { DATABASE_URL: 'postgres://user:pass@127.0.0.1:5432/db' };
+
 function setEnv(vars: Record<string, string | undefined>) {
 	// Clear relevant keys first
 	delete process.env.ORIGIN;
 	delete process.env.PUBLIC_SITE_URL;
+	delete process.env.DATABASE_URL;
 	// Apply new values
 	for (const [k, v] of Object.entries(vars)) {
 		if (v === undefined) delete process.env[k];
@@ -39,9 +42,10 @@ describe('env module constants', () => {
 		expect(REQUIRED_PUBLIC_ENV_VARS).toContain('PUBLIC_SITE_URL');
 	});
 
-	it('exports REQUIRED_PRIVATE_ENV_VARS as an array', async () => {
+	it('exports REQUIRED_PRIVATE_ENV_VARS including DATABASE_URL', async () => {
 		const { REQUIRED_PRIVATE_ENV_VARS } = await import('$lib/server/env');
 		expect(Array.isArray(REQUIRED_PRIVATE_ENV_VARS)).toBe(true);
+		expect(REQUIRED_PRIVATE_ENV_VARS).toContain('DATABASE_URL');
 	});
 });
 
@@ -51,28 +55,38 @@ describe('initEnv()', () => {
 		restoreEnv();
 	});
 
-	it('passes when all required public vars are set', async () => {
-		setEnv({ ORIGIN: 'https://mysite.com', PUBLIC_SITE_URL: 'https://mysite.com' });
+	it('passes when all required vars are set', async () => {
+		setEnv({
+			ORIGIN: 'https://mysite.com',
+			PUBLIC_SITE_URL: 'https://mysite.com',
+			...VALID_PRIVATE,
+		});
 		const { initEnv } = await import('$lib/server/env');
 		expect(() => initEnv()).not.toThrow();
 	});
 
 	it('throws when ORIGIN is missing', async () => {
-		setEnv({ PUBLIC_SITE_URL: 'https://mysite.com' });
+		setEnv({ PUBLIC_SITE_URL: 'https://mysite.com', ...VALID_PRIVATE });
 		const { initEnv } = await import('$lib/server/env');
 		expect(() => initEnv()).toThrow(/ORIGIN/);
 	});
 
 	it('throws when PUBLIC_SITE_URL is missing', async () => {
-		setEnv({ ORIGIN: 'https://mysite.com' });
+		setEnv({ ORIGIN: 'https://mysite.com', ...VALID_PRIVATE });
 		const { initEnv } = await import('$lib/server/env');
 		expect(() => initEnv()).toThrow(/PUBLIC_SITE_URL/);
 	});
 
 	it('throws when ORIGIN is empty string', async () => {
-		setEnv({ ORIGIN: '', PUBLIC_SITE_URL: 'https://mysite.com' });
+		setEnv({ ORIGIN: '', PUBLIC_SITE_URL: 'https://mysite.com', ...VALID_PRIVATE });
 		const { initEnv } = await import('$lib/server/env');
 		expect(() => initEnv()).toThrow(/ORIGIN/);
+	});
+
+	it('throws when DATABASE_URL is missing', async () => {
+		setEnv({ ORIGIN: 'https://mysite.com', PUBLIC_SITE_URL: 'https://mysite.com' });
+		const { initEnv } = await import('$lib/server/env');
+		expect(() => initEnv()).toThrow(/DATABASE_URL/);
 	});
 
 	it('error message references deploy/env.example', async () => {
@@ -82,7 +96,11 @@ describe('initEnv()', () => {
 	});
 
 	it('is a no-op on subsequent calls after success', async () => {
-		setEnv({ ORIGIN: 'https://mysite.com', PUBLIC_SITE_URL: 'https://mysite.com' });
+		setEnv({
+			ORIGIN: 'https://mysite.com',
+			PUBLIC_SITE_URL: 'https://mysite.com',
+			...VALID_PRIVATE,
+		});
 		const { initEnv } = await import('$lib/server/env');
 		initEnv(); // first call validates
 		// remove vars — second call should use cached result, not re-validate

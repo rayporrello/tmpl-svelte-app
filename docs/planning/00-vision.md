@@ -2,9 +2,11 @@
 
 ## What This Is
 
-`tmpl-svelte-app` is a reusable, high-quality base website template for SvelteKit projects. It is designed to serve landing pages, content sites, product sites, founder projects, and advanced marketing sites — with app-capable seams for when a project grows into forms, runtime data, automations, auth, or admin areas.
+`tmpl-svelte-app` is a reusable, high-quality base website template for SvelteKit projects. It is designed to serve landing pages, content sites, product sites, founder projects, and advanced marketing sites — database-backed from day one, with seams for forms, automations, auth, and admin areas.
 
-It is **not** a full SaaS platform scaffold by default. It is a website template that can become one.
+It ships with Postgres + Drizzle as a first-class default, not an optional add-on. Most real sites need contact form submissions, automation event tracking, and a migration workflow. This template provides that without extra setup.
+
+It is **not** a full SaaS platform scaffold. It is a database-backed website template that can grow into one.
 
 ## The Core Problem It Solves
 
@@ -21,7 +23,9 @@ Starting a new web project from scratch means re-solving the same problems every
 - Image pipeline (Sharp prebuild for `static/uploads/`, `<enhanced:img>` for `src/lib/assets/`)
 - Typography baseline (Fontsource variable fonts; tokens in `tokens.css`)
 - Semantic HTML contract (`Section.svelte`, accessible site shell with skip link, real header/footer nav, `/articles` index)
-- Observability spine (friendly error page with request ID, `/healthz`, structured logging, safe error normalization)
+- **Postgres + Drizzle** — default data layer; `contact_submissions`, `automation_events`, `automation_dead_letters` tables; Drizzle Kit migration workflow (`db:generate`, `db:migrate`, `db:push`, `db:studio`, `db:check`)
+- **`/readyz`** — Postgres connectivity probe (returns 503 if DB unreachable); `/healthz` remains lightweight process-only check
+- Observability spine (friendly error page with request ID, `/healthz`, `/readyz`, structured logging, safe error normalization)
 - Security baseline (Valibot env schemas, per-route CSP, minimal HTTP security headers)
 - CMS content safety (`check:cms`, `check:content`, `check:content-diff`)
 - Production runtime contract (Containerfile, Quadlet templates, Caddyfile example, deploy runbook)
@@ -33,22 +37,14 @@ Starting a new web project from scratch means re-solving the same problems every
 
 **Scaffolded but dormant (activate per project):**
 
-- Contact form pattern (Superforms + Valibot + EmailProvider seam + rate limiter at `src/routes/contact-example/`)
+- Contact form pattern (Superforms + Valibot + EmailProvider seam + rate limiter at `src/routes/contact-example/`) — write submissions to `contact_submissions` table when activated
 - Postmark transactional email provider (`src/lib/server/forms/providers/postmark.example.ts`)
-- n8n integration env contract (`N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`)
+- n8n integration env contract (`N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`) — use `automation_events` table for outbound event tracking
 - Analytics spine: GTM + GA4 + Cloudflare Web Analytics + server conversion events (set `PUBLIC_ANALYTICS_ENABLED=true` in production — see `docs/analytics/README.md`)
 
 **Planned, not yet implemented:**
 
-Phase 5 — runtime data bundle (single coordinated batch; needs Postgres to land first):
-
-- Postgres + Drizzle for runtime data
-- Typed automation event emitter + HMAC signing (`src/lib/automation/events.ts`, `signing.ts`)
-- `lead.created` / `newsletter.subscribed` event wiring
-- `/readyz` with Postgres connectivity probe (today it would be identical to `/healthz`; only meaningful once a backing service exists)
-- Dead-letter table for failed n8n events
-
-Independent of Phase 5 — small wins, can be picked up anytime:
+Independent of the database layer — small wins, can be picked up anytime:
 
 - Lighthouse CI gate (perf budget enforcement on PRs; today the perf gates in `08-quality-gates.md` are honor-system)
 - Backup automation (uploads → off-host storage on a schedule; extends to `pg_dump` once Postgres lands)
