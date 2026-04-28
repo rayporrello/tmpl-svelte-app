@@ -1,0 +1,4 @@
+.card {
+	/* ds-allow ds/missing-token: fixture verifies orphan warning */
+	color: var(--text-primary);
+}

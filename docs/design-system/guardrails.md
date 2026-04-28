@@ -35,7 +35,11 @@ Use suppressions sparingly. The checker recognizes this exact escape hatch:
 ```
 
 The suppression applies to the same line or the next line. The reason is
-required so exceptions stay reviewable.
+required so exceptions stay reviewable. The reason must contain at least 10
+characters after trimming surrounding whitespace. Too-short reasons are
+reported as `ds/suppression-reason`, and the suppression does not take effect.
+Valid suppressions that do not suppress a violation are reported as
+`ds/suppression-orphan` warnings during full-file checks.
 
 Pass:
 
@@ -47,6 +51,54 @@ Fail:
 
 ```css
 /* ds-allow ds/theme-color: ok */
+```
+
+## Suppression Hygiene Rules
+
+### ds/suppression-reason
+
+Severity: `error`
+
+Profiles: all files. A `ds-allow` comment with a reason shorter than 10
+characters is invalid and does not suppress the target rule.
+
+Pass:
+
+```css
+/* ds-allow ds/missing-token: token injected by project */
+```
+
+Fail:
+
+```css
+/* ds-allow ds/missing-token: ok */
+```
+
+### ds/suppression-orphan
+
+Severity: `warn`
+
+Profiles: all files during full checks. A valid `ds-allow` comment is an orphan
+when its target rule does not fire on the same line or the next line. Orphan
+detection is skipped during incremental `--changed` runs because those runs may
+not have enough whole-file context.
+
+Pass:
+
+```css
+.card {
+	/* ds-allow ds/missing-token: token injected by project */
+	color: var(--project-token);
+}
+```
+
+Fail:
+
+```css
+.card {
+	/* ds-allow ds/missing-token: token injected by project */
+	color: var(--text-primary);
+}
 ```
 
 ## Wave 1 Rules

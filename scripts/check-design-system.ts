@@ -26,7 +26,9 @@ export type DesignSystemRuleId =
 	| 'ds/nav-aria-label'
 	| 'ds/image-attrs'
 	| 'ds/layer-order'
-	| 'ds/theme-color';
+	| 'ds/theme-color'
+	| 'ds/suppression-reason'
+	| 'ds/suppression-orphan';
 
 export type DesignSystemSeverity = 'error' | 'warn';
 
@@ -59,6 +61,7 @@ export interface DesignSystemReport {
 export interface CheckDesignSystemOptions {
 	rootDir?: string;
 	files?: string[];
+	incremental?: boolean;
 }
 
 interface RuleDefinition {
@@ -75,6 +78,20 @@ interface LineIndex {
 interface Suppression {
 	ruleId: DesignSystemRuleId;
 	line: number;
+	column: number;
+	targetLines: number[];
+	used: boolean;
+}
+
+interface InvalidSuppressionReason {
+	ruleId: DesignSystemRuleId;
+	line: number;
+	column: number;
+}
+
+interface CollectedSuppressions {
+	suppressions: Suppression[];
+	invalidReasons: InvalidSuppressionReason[];
 }
 
 interface FileContext {
@@ -85,6 +102,8 @@ interface FileContext {
 	lineIndex: LineIndex;
 	profiles: Set<DesignSystemProfile>;
 	suppressions: Suppression[];
+	invalidSuppressions: InvalidSuppressionReason[];
+	skipOrphanedSuppressions: boolean;
 	tokens: Set<string>;
 	violations: DesignSystemViolation[];
 }
@@ -159,6 +178,14 @@ const RULES: Record<DesignSystemRuleId, RuleDefinition> = {
 		severity: 'error',
 		message: 'Raw hex colors are only allowed for app.html theme-color metadata.',
 	},
+	'ds/suppression-reason': {
+		severity: 'error',
+		message: 'Design-system suppression reasons must be at least 10 characters.',
+	},
+	'ds/suppression-orphan': {
+		severity: 'warn',
+		message: 'Design-system suppression did not suppress a violation.',
+	},
 };
 
 const PROFILE_GLOBS: Record<string, readonly DesignSystemProfile[]> = {
@@ -199,6 +226,7 @@ const IGNORED_GLOBS = ['node_modules/**', '.svelte-kit/**', 'build/**', 'dist/**
 const ALLOWED_LAYERS = ['reset', 'tokens', 'base', 'utilities', 'components'];
 const SUPPORTED_EXTENSIONS = new Set(['.svelte', '.css', '.html', '.ts', '.js', '.json']);
 const TAILWIND_DIRECTIVE = '@' + 'tailwind';
+const MIN_SUPPRESSION_REASON_LENGTH = 10;
 
 export function checkDesignSystem(options: CheckDesignSystemOptions = {}): DesignSystemReport {
 	const rootDir = resolve(options.rootDir ?? process.cwd());
@@ -211,6 +239,7 @@ export function checkDesignSystem(options: CheckDesignSystemOptions = {}): Desig
 
 		const source = readFileSync(filePath, 'utf8');
 		const projectPath = toProjectPath(rootDir, filePath);
+		const collectedSuppressions = collectSuppressions(source);
 		const context: FileContext = {
 			rootDir,
 			filePath,
@@ -218,11 +247,14 @@ export function checkDesignSystem(options: CheckDesignSystemOptions = {}): Desig
 			source,
 			lineIndex: createLineIndex(source),
 			profiles: getProfiles(projectPath),
-			suppressions: collectSuppressions(source),
+			suppressions: collectedSuppressions.suppressions,
+			invalidSuppressions: collectedSuppressions.invalidReasons,
+			skipOrphanedSuppressions: options.incremental ?? false,
 			tokens,
 			violations,
 		};
 
+		addSuppressionReasonViolations(context);
 		checkTextPolicies(context);
 
 		const extension = extname(filePath);
@@ -235,6 +267,8 @@ export function checkDesignSystem(options: CheckDesignSystemOptions = {}): Desig
 		} else {
 			checkCodeImports(context);
 		}
+
+		if (!context.skipOrphanedSuppressions) checkOrphanedSuppressions(context);
 	}
 
 	const errors = violations.filter((violation) => violation.severity === 'error').length;
@@ -645,6 +679,15 @@ function addViolation(
 	const position = context.lineIndex.positionAt(Math.max(0, offset));
 	if (isSuppressed(context, ruleId, position.line)) return;
 
+	pushViolation(context, ruleId, position, message);
+}
+
+function pushViolation(
+	context: FileContext,
+	ruleId: DesignSystemRuleId,
+	position: { line: number; column: number },
+	message: string
+): void {
 	context.violations.push({
 		ruleId,
 		severity: RULES[ruleId].severity,
@@ -655,28 +698,68 @@ function addViolation(
 	});
 }
 
-function collectSuppressions(source: string): Suppression[] {
+function addSuppressionReasonViolations(context: FileContext): void {
+	for (const suppression of context.invalidSuppressions) {
+		pushViolation(
+			context,
+			'ds/suppression-reason',
+			{ line: suppression.line, column: suppression.column },
+			`Suppression for ${suppression.ruleId} needs a reason with at least ${MIN_SUPPRESSION_REASON_LENGTH} characters.`
+		);
+	}
+}
+
+function checkOrphanedSuppressions(context: FileContext): void {
+	for (const suppression of context.suppressions) {
+		if (suppression.used) continue;
+
+		pushViolation(
+			context,
+			'ds/suppression-orphan',
+			{ line: suppression.line, column: suppression.column },
+			`Suppression for ${suppression.ruleId} did not match a violation on the same or next line.`
+		);
+	}
+}
+
+function collectSuppressions(source: string): CollectedSuppressions {
 	const lineIndex = createLineIndex(source);
 	const suppressions: Suppression[] = [];
-	const suppressionPattern = /\/\*\s*ds-allow\s+(ds\/[a-z0-9-]+):\s*([^*]+?)\s*\*\//giu;
+	const invalidReasons: InvalidSuppressionReason[] = [];
+	const suppressionPattern = /\/\*\s*ds-allow\s+(ds\/[a-z0-9-]+):\s*([\s\S]*?)\s*\*\//giu;
 
 	for (const match of source.matchAll(suppressionPattern)) {
 		const ruleId = match[1] as DesignSystemRuleId;
 		const reason = match[2]?.trim() ?? '';
-		if (!(ruleId in RULES) || reason.length < 10) continue;
+		if (!(ruleId in RULES)) continue;
 
-		const line = lineIndex.positionAt(match.index ?? 0).line;
-		suppressions.push({ ruleId, line });
-		suppressions.push({ ruleId, line: line + 1 });
+		const position = lineIndex.positionAt(match.index ?? 0);
+		if (reason.length < MIN_SUPPRESSION_REASON_LENGTH) {
+			invalidReasons.push({ ruleId, line: position.line, column: position.column });
+			continue;
+		}
+
+		suppressions.push({
+			ruleId,
+			line: position.line,
+			column: position.column,
+			targetLines: [position.line, position.line + 1],
+			used: false,
+		});
 	}
 
-	return suppressions;
+	return { suppressions, invalidReasons };
 }
 
 function isSuppressed(context: FileContext, ruleId: DesignSystemRuleId, line: number): boolean {
-	return context.suppressions.some(
-		(suppression) => suppression.ruleId === ruleId && suppression.line === line
+	const suppression = context.suppressions.find(
+		(item) => item.ruleId === ruleId && item.targetLines.includes(line)
 	);
+
+	if (!suppression) return false;
+
+	suppression.used = true;
+	return true;
 }
 
 function parseHtmlAttributes(tag: string): Record<string, string> {
@@ -882,6 +965,7 @@ async function runCli(): Promise<void> {
 	const report = checkDesignSystem({
 		rootDir: process.cwd(),
 		files: files.length > 0 ? files : undefined,
+		incremental: changed,
 	});
 
 	for (const violation of report.violations) {

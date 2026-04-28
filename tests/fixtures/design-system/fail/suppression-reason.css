@@ -1,0 +1,4 @@
+.card {
+	/* ds-allow ds/missing-token: short */
+	color: var(--text-not-real);
+}

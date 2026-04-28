@@ -1,0 +1,4 @@
+.card {
+	/* ds-allow ds/missing-token: fixture verifies valid suppression */
+	color: var(--text-not-real);
+}
