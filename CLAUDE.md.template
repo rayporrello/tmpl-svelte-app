@@ -28,6 +28,7 @@ bun run preview              # preview production build
 bun run check                # TypeScript / svelte-check
 bun run images:optimize      # run image prebuild pipeline manually (idempotent)
 bun run check:seo            # validate SEO config and route registry
+bun run check:design-system  # validate design-system guardrails
 bun run check:cms            # validate CMS config
 bun run check:content        # validate content files
 bun run check:content-diff   # check for destructive content changes

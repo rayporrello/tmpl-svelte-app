@@ -414,6 +414,7 @@ bun run check:analytics         # analytics config validation (GTM format, stagi
 bun run check:cms               # CMS config validation
 bun run check:content           # content file validation
 bun run check:content-diff      # destructive content diff check
+bun run check:design-system     # design-system guardrail validation
 ```
 
 Or run everything at once: `bun run validate`
