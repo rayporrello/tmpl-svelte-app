@@ -11,14 +11,14 @@ The CMS configuration in `static/admin/config.yml` is a **data interface contrac
 ```html
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Content Manager</title>
-  </head>
-  <body>
-    <script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
-  </body>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Content Manager</title>
+	</head>
+	<body>
+		<script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+	</body>
 </html>
 ```
 
@@ -118,8 +118,8 @@ import type { PageServerLoad } from './$types';
 import { loadHomePage } from '$lib/content/index';
 
 export const load: PageServerLoad = async () => {
-  const home = loadHomePage();
-  return { home };
+	const home = loadHomePage();
+	return { home };
 };
 ```
 
@@ -137,9 +137,9 @@ CMS image path fields hold a string like `/uploads/photo.jpg`. Render them throu
 ```svelte
 <!-- ✓ Correct -->
 {#if member.photo}
-  <figure>
-    <CmsImage src={member.photo} alt={member.photo_alt ?? ''} width={400} height={400} />
-  </figure>
+	<figure>
+		<CmsImage src={member.photo} alt={member.photo_alt ?? ''} width={400} height={400} />
+	</figure>
 {/if}
 
 <!-- ✗ Wrong — bypasses WebP optimization and lazy loading defaults -->
@@ -150,7 +150,7 @@ CMS image path fields hold a string like `/uploads/photo.jpg`. Render them throu
 
 ## Rich text fields
 
-Sveltia CMS `markdown` widget fields return Markdown string content. To render Markdown in Svelte, use a Markdown renderer (e.g., `marked` or `@sveltejs/markdown`) added per project. The base template does not ship a Markdown renderer — add one when the first rich-text field is consumed.
+Sveltia CMS `markdown` widget fields return Markdown string content. The base template ships a sanitized Markdown renderer at `src/lib/content/markdown.ts` and uses it for article bodies.
 
 ---
 
@@ -160,7 +160,7 @@ Date fields from the CMS are ISO 8601 strings (e.g., `'2026-04-27'`). Render the
 
 ```svelte
 <time datetime={article.date}>
-  {new Date(article.date).toLocaleDateString('en-US', { dateStyle: 'long' })}
+	{new Date(article.date).toLocaleDateString('en-US', { dateStyle: 'long' })}
 </time>
 ```
 
@@ -173,13 +173,13 @@ Types live in `src/lib/content/types.ts`. Every collection has a corresponding i
 ```ts
 // src/lib/content/types.ts
 export interface HomePageContent {
-  title: string;
-  description: string;
-  hero: {
-    eyebrow?: string;
-    headline: string;
-    // ...
-  };
+	title: string;
+	description: string;
+	hero: {
+		eyebrow?: string;
+		headline: string;
+		// ...
+	};
 }
 ```
 

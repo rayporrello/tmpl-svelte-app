@@ -13,7 +13,12 @@
 	// via the SEO component on individual routes — do not duplicate it here.
 	const rootSchema = [organizationSchema(), websiteSchema()];
 	const year = new Date().getFullYear();
+	const rssUrl = `${site.url.replace(/\/$/, '')}/rss.xml`;
 </script>
+
+<svelte:head>
+	<link rel="alternate" type="application/rss+xml" title={`${site.name} Articles`} href={rssUrl} />
+</svelte:head>
 
 <SchemaJsonLd schema={rootSchema} />
 

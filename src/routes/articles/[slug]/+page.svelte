@@ -2,6 +2,7 @@
 	import SEO from '$lib/components/seo/SEO.svelte';
 	import { site } from '$lib/config/site';
 	import { resolveArticleShareImage } from '$lib/seo/metadata';
+	import { articleSchema } from '$lib/seo/schemas';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -11,31 +12,22 @@
 	const seo = $derived({
 		title: data.article.title,
 		description: data.article.description,
-		canonicalPath: `/articles/${data.slug}`,
+		canonicalPath: `/articles/${data.article.slug}`,
 		image: share.image,
 		imageAlt: share.imageAlt,
 		type: 'article' as const,
 		publishedDate: data.article.date,
-		schema: {
-			'@context': 'https://schema.org',
-			'@type': 'Article',
-			headline: data.article.title,
+		modifiedDate: data.article.modified_date,
+		schema: articleSchema({
+			title: data.article.title,
 			description: data.article.description,
-			datePublished: data.article.date,
-			...(share.image ? { image: share.image } : {}),
-			author: {
-				'@type': 'Organization',
-				name: site.organization.name,
-			},
-			publisher: {
-				'@type': 'Organization',
-				name: site.organization.name,
-				logo: {
-					'@type': 'ImageObject',
-					url: site.organization.logo,
-				},
-			},
-		},
+			canonicalPath: `/articles/${data.article.slug}`,
+			imagePath: share.image ?? site.defaultOgImage,
+			publishedDate: data.article.date,
+			modifiedDate: data.article.modified_date,
+			authorName: site.organization.name,
+			authorUrl: site.url,
+		}),
 	});
 </script>
 

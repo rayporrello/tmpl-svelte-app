@@ -2,6 +2,8 @@ export type Changefreq = 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 
 
 export interface RouteEntry {
 	path: string;
+	title: string;
+	description: string;
 	/** Whether this route should appear in sitemap.xml and be crawled. */
 	indexable: boolean;
 	changefreq?: Changefreq;
@@ -22,22 +24,30 @@ export interface RouteEntry {
 export const routes: RouteEntry[] = [
 	{
 		path: '/',
+		title: 'Home',
+		description: 'Homepage and primary site overview.',
 		indexable: true,
 		changefreq: 'weekly',
 		priority: 1.0,
 	},
 	{
 		path: '/articles',
+		title: 'Articles',
+		description: 'All published articles.',
 		indexable: true,
 		changefreq: 'weekly',
 		priority: 0.7,
 	},
 	{
 		path: '/styleguide',
+		title: 'Styleguide',
+		description: 'Internal design system demonstration.',
 		indexable: false,
 	},
 	{
 		path: '/admin',
+		title: 'Admin',
+		description: 'Internal content management interface.',
 		indexable: false,
 	},
 	{
@@ -45,14 +55,16 @@ export const routes: RouteEntry[] = [
 		// site builds — never indexed. The check-seo script enforces this for
 		// any route added under /examples.
 		path: '/examples',
+		title: 'Examples',
+		description: 'Internal copyable page archetypes.',
 		indexable: false,
 	},
 	{
 		path: '/contact',
+		title: 'Contact',
+		description: 'Contact page.',
 		indexable: true,
 		changefreq: 'yearly',
 		priority: 0.5,
 	},
-	// Article routes (/articles/[slug]) are dynamic — add published article paths here
-	// or generate them dynamically in the sitemap builder from loadArticles().
 ];

@@ -11,11 +11,14 @@ SEO is built into this template. It is not optional and not a checklist item —
 | `src/lib/seo/metadata.ts`           | Helpers: canonical URL, image URL, title template, robots directive                            |
 | `src/lib/seo/schemas.ts`            | JSON-LD schema helpers: Organization, WebSite, Article, Breadcrumb, Person, LocalBusiness, FAQ |
 | `src/lib/seo/routes.ts`             | Static route registry — declares every route and its indexability                              |
-| `src/lib/seo/sitemap.ts`            | Generates `sitemap.xml` content from the route registry                                        |
+| `src/lib/seo/public-routes.ts`      | Merges static routes with published article routes for sitemap, llms.txt, and feeds            |
+| `src/lib/seo/sitemap.ts`            | Generates `sitemap.xml` content from public routes                                             |
+| `src/lib/seo/feed.ts`               | Generates the RSS 2.0 article feed                                                             |
 | `src/lib/components/seo/SEO.svelte` | Svelte component — renders all head tags for a page                                            |
 | `src/routes/sitemap.xml/+server.ts` | Prerendered `/sitemap.xml` endpoint                                                            |
 | `src/routes/robots.txt/+server.ts`  | Prerendered `/robots.txt` endpoint                                                             |
 | `src/routes/llms.txt/+server.ts`    | Prerendered `/llms.txt` endpoint for AI discovery                                              |
+| `src/routes/rss.xml/+server.ts`     | Prerendered RSS 2.0 feed for published articles                                                |
 | `scripts/check-seo.ts`              | Validation script — warns on placeholders and fails on structural/indexability errors          |
 
 ## How to add a new public route
@@ -43,6 +46,27 @@ SEO is built into this template. It is not optional and not a checklist item —
 ```
 
 That is the minimum. `title`, `description`, and `canonicalPath` are required. Everything else defaults from `site.ts`.
+
+## Dynamic article routes
+
+Static marketing routes live in [src/lib/seo/routes.ts](../../src/lib/seo/routes.ts). Published article routes are generated automatically from `content/articles/*.md` by [src/lib/seo/public-routes.ts](../../src/lib/seo/public-routes.ts).
+
+Do not hand-add `/articles/{slug}` entries to `routes.ts`. A published article appears in public discovery artifacts when:
+
+- the file is in `content/articles/`
+- the filename matches the frontmatter slug, e.g. `content/articles/getting-started.md` with `slug: getting-started`
+- `draft: false`
+- the article date is valid and not in the future
+
+Draft articles are excluded from `/articles`, `/articles/[slug]` prerender entries, `sitemap.xml`, `llms.txt`, and `rss.xml`.
+
+Article `lastmod` is resolved automatically in this order:
+
+1. The most recent git commit timestamp for the article file
+2. Optional `modified_date` frontmatter
+3. The article `date`
+
+The git timestamp path is best-effort. It falls back cleanly when a build environment has no `.git` directory or no `git` binary.
 
 ## How to configure for a new project
 
@@ -83,6 +107,23 @@ Add `indexable: false` in `routes.ts` and pass `robots: 'noindex, nofollow'` to 
 
 `scripts/check-seo.ts` will error if any of these paths are accidentally marked indexable.
 
+## Sitemap, llms.txt, and RSS
+
+`/sitemap.xml`, `/llms.txt`, and `/rss.xml` are prerendered because this template uses Git-backed content and container images ship the built app, not the editable `content/` directory.
+
+- `sitemap.xml` is the canonical URL inventory for search engines.
+- `llms.txt` is a concise Markdown discovery file with titled links and descriptions.
+- `rss.xml` is an RSS 2.0 feed for published articles only.
+
+The base template ships RSS only. Atom can be added per project from the same public-route/article manifest, but the default should expose one feed format to keep autodiscovery simple.
+
+RSS rules:
+
+- Item `<guid isPermaLink="true">` is the canonical article URL.
+- Item `<description>` uses the article description only; full article HTML is not included by default.
+- Channel `<lastBuildDate>` is derived from article dates/lastmod values, not the current build time.
+- The root layout includes one RSS autodiscovery link.
+
 ## Share / OG image hierarchy
 
 Every page emits `og:image` and `twitter:image`. The image is picked from the first source that resolves:
@@ -121,7 +162,7 @@ Otherwise omit `image` entirely — the SEO component substitutes `site.defaultO
 **Validation:**
 
 - `scripts/check-assets.ts` confirms `static/og-default.png` is exactly 1200×630 and that `site.defaultOgImage` resolves to a real file under `static/`.
-- `scripts/validate-content.ts` warns when an article's `image` / `og_image` field is set but blank, and fails when the referenced path does not exist on disk. Remote URLs (http/https) are not checked.
+- `scripts/validate-content.ts` treats blank optional article image fields as omitted, requires alt text when an image is set, and fails when the referenced path does not exist on disk. Remote URLs (http/https) are not checked.
 
 If you want generated per-article OG images down the road, prefer a provider-neutral build script that writes files to `static/og/generated/` and references them via the `og_image` field. The template intentionally does not ship runtime OG generation — that would tie you to a specific host.
 
@@ -129,6 +170,7 @@ If you want generated per-article OG images down the road, prefer a provider-neu
 
 ```bash
 bun run check:seo       # SEO config + route registry sanity
+bun run check:content   # article slug/date/draft/image contract
 bun run check:launch    # release-grade: confirms ORIGIN/PUBLIC_SITE_URL look like a real HTTPS URL
 ```
 
@@ -139,6 +181,8 @@ bun run check:launch    # release-grade: confirms ORIGIN/PUBLIC_SITE_URL look li
 - `site.defaultOgImage` is set
 - SEO source files do not contain hardcoded `yourdomain.com`
 - `/styleguide`, `/admin`, `/preview`, `/draft` routes are not marked indexable
+
+`check:content` checks article filename/slug alignment, draft state, required dates, future-dated published articles, duplicate slugs, and image alt text.
 
 Both scripts are wired into the validation pipeline:
 

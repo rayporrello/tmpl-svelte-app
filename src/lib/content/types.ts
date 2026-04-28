@@ -20,6 +20,7 @@ export interface ArticleFrontmatter {
 	slug: string;
 	description: string;
 	date: string;
+	modified_date?: string;
 	draft: boolean;
 	/** Feature image — appears at the top of the article. Also used as the
 	 *  share/OG image fallback when og_image is not set. */

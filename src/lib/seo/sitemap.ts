@@ -1,11 +1,8 @@
 import { site } from '$lib/config/site';
-import { routes } from './routes';
-import type { RouteEntry } from './routes';
+import { indexableRoutes } from './public-routes';
+import type { PublicRouteEntry } from './public-routes';
 
-/** Return only routes that should appear in sitemap.xml. */
-export function indexableRoutes(): RouteEntry[] {
-	return routes.filter((r) => r.indexable);
-}
+export { indexableRoutes } from './public-routes';
 
 function xmlEscape(str: string): string {
 	return str
@@ -16,7 +13,7 @@ function xmlEscape(str: string): string {
 		.replace(/'/g, '&apos;');
 }
 
-function routeToUrl(route: RouteEntry): string {
+function routeToUrl(route: PublicRouteEntry): string {
 	const base = site.url.replace(/\/$/, '');
 	const loc = xmlEscape(`${base}${route.path}`);
 	const parts = [`    <loc>${loc}</loc>`];
@@ -30,12 +27,12 @@ function routeToUrl(route: RouteEntry): string {
 	return `  <url>\n${parts.join('\n')}\n  </url>`;
 }
 
-export function generateSitemapXml(): string {
-	const entries = indexableRoutes().map(routeToUrl).join('\n');
+export function generateSitemapXml(routes = indexableRoutes()): string {
+	const entries = routes.map(routeToUrl).join('\n');
 	return [
 		'<?xml version="1.0" encoding="UTF-8"?>',
 		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		entries,
-		'</urlset>'
+		'</urlset>',
 	].join('\n');
 }

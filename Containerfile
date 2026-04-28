@@ -28,6 +28,8 @@ FROM oven/bun:1-alpine AS builder
 
 WORKDIR /app
 
+RUN apk add --no-cache git
+
 # Install dependencies first (layer cache: only re-runs when lockfile changes)
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile

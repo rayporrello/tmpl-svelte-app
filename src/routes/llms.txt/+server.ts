@@ -6,26 +6,32 @@ export const prerender = true;
 export function GET(): Response {
 	const base = site.url.replace(/\/$/, '');
 	const sitemapUrl = `${base}/sitemap.xml`;
+	const rssUrl = `${base}/rss.xml`;
 
 	const publicRoutes = indexableRoutes()
-		.map((r) => `- ${base}${r.path}`)
+		.map((route) => `- [${route.title}](${base}${route.path}): ${route.description}`)
 		.join('\n');
 
 	const body = [
 		`# ${site.name}`,
 		'',
-		site.defaultDescription,
+		`> ${site.defaultDescription}`,
 		'',
 		`Homepage: ${site.url}`,
 		`Sitemap: ${sitemapUrl}`,
+		`RSS: ${rssUrl}`,
 		'',
 		'## Public pages',
-		publicRoutes
+		publicRoutes,
+		'',
+		'## Feeds',
+		`- [XML sitemap](${sitemapUrl}): Canonical URL inventory for search engines.`,
+		`- [RSS feed](${rssUrl}): Recent published articles.`,
 	].join('\n');
 
 	return new Response(body, {
 		headers: {
-			'Content-Type': 'text/plain'
-		}
+			'Content-Type': 'text/plain',
+		},
 	});
 }

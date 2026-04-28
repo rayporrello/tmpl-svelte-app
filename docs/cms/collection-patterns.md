@@ -8,13 +8,13 @@ Reference for working with the four base collections and for adding new ones.
 
 ### pages
 
-| Property | Value |
-|----------|-------|
-| Path | `content/pages/` |
-| Format | Pure YAML (no frontmatter delimiters) |
-| Parser | `js-yaml` |
-| CMS type | Files collection (singleton files) |
-| Loader | `src/lib/content/pages.ts` → `loadPage()` / `loadHomePage()` |
+| Property | Value                                                        |
+| -------- | ------------------------------------------------------------ |
+| Path     | `content/pages/`                                             |
+| Format   | Pure YAML (no frontmatter delimiters)                        |
+| Parser   | `js-yaml`                                                    |
+| CMS type | Files collection (singleton files)                           |
+| Loader   | `src/lib/content/pages.ts` → `loadPage()` / `loadHomePage()` |
 
 Each file is a specific page (e.g., `home.yml`, `about.yml`). The CMS config lists them individually under `files:`.
 
@@ -24,15 +24,17 @@ Each file is a specific page (e.g., `home.yml`, `about.yml`). The CMS config lis
 
 ### articles
 
-| Property | Value |
-|----------|-------|
-| Path | `content/articles/` |
-| Format | Markdown with YAML frontmatter |
-| Parser | `gray-matter` |
-| CMS type | Folder collection |
-| Loader | `src/lib/content/articles.ts` → `loadArticle()` / `loadArticles()` |
+| Property | Value                                                              |
+| -------- | ------------------------------------------------------------------ |
+| Path     | `content/articles/`                                                |
+| Format   | Markdown with YAML frontmatter                                     |
+| Parser   | `gray-matter`                                                      |
+| CMS type | Folder collection                                                  |
+| Loader   | `src/lib/content/articles.ts` → `loadArticle()` / `loadArticles()` |
 
 Each file is a Markdown article. The `body` field is the Markdown content below the `---` delimiters, remapped from gray-matter's `.content` property.
+
+The filename must match frontmatter `slug` for every article, including drafts. For example, `content/articles/getting-started.md` must contain `slug: getting-started`. Published articles (`draft: false`) are automatically added to article prerender entries, `sitemap.xml`, `llms.txt`, and `rss.xml`.
 
 **Automation-safe writes:** AI-generated article drafts should use `draft: true` and target a branch or PR. Never auto-publish AI copy directly to main without review.
 
@@ -40,13 +42,13 @@ Each file is a Markdown article. The `body` field is the Markdown content below 
 
 ### team
 
-| Property | Value |
-|----------|-------|
-| Path | `content/team/` |
-| Format | Pure YAML |
-| Parser | `js-yaml` |
-| CMS type | Folder collection |
-| Loader | Add `loadTeam()` to `src/lib/content/pages.ts` pattern when needed |
+| Property | Value                                                              |
+| -------- | ------------------------------------------------------------------ |
+| Path     | `content/team/`                                                    |
+| Format   | Pure YAML                                                          |
+| Parser   | `js-yaml`                                                          |
+| CMS type | Folder collection                                                  |
+| Loader   | Add `loadTeam()` to `src/lib/content/pages.ts` pattern when needed |
 
 Each file is a team member. `order` controls display order. `active: false` hides the member.
 
@@ -56,13 +58,13 @@ Each file is a team member. `order` controls display order. `active: false` hide
 
 ### testimonials
 
-| Property | Value |
-|----------|-------|
-| Path | `content/testimonials/` |
-| Format | Pure YAML |
-| Parser | `js-yaml` |
-| CMS type | Folder collection |
-| Loader | Add `loadTestimonials()` when needed |
+| Property | Value                                |
+| -------- | ------------------------------------ |
+| Path     | `content/testimonials/`              |
+| Format   | Pure YAML                            |
+| Parser   | `js-yaml`                            |
+| CMS type | Folder collection                    |
+| Loader   | Add `loadTestimonials()` when needed |
 
 Each file is a testimonial. `published: false` hides it from the live site. An automation can create testimonials with `published: false` for editorial review.
 
@@ -111,13 +113,13 @@ draft: true
 
 ```ts
 export interface Job {
-  title: string;
-  slug: string;
-  department: string;
-  location: string;
-  type: 'full-time' | 'part-time' | 'contract';
-  description: string;
-  draft: boolean;
+	title: string;
+	slug: string;
+	department: string;
+	location: string;
+	type: 'full-time' | 'part-time' | 'contract';
+	description: string;
+	draft: boolean;
 }
 ```
 
@@ -129,12 +131,12 @@ For pure YAML collections, follow the pattern in `src/lib/content/pages.ts`:
 import type { Job } from './types.js';
 
 export function loadJobs(): Job[] {
-  const dir = join(process.cwd(), 'content', 'jobs');
-  return readdirSync(dir)
-    .filter((f) => f.endsWith('.yml'))
-    .map((f) => parse(readFileSync(join(dir, f), 'utf-8')) as Job)
-    .filter((j) => !j.draft)
-    .sort((a, b) => a.title.localeCompare(b.title));
+	const dir = join(process.cwd(), 'content', 'jobs');
+	return readdirSync(dir)
+		.filter((f) => f.endsWith('.yml'))
+		.map((f) => parse(readFileSync(join(dir, f), 'utf-8')) as Job)
+		.filter((j) => !j.draft)
+		.sort((a, b) => a.title.localeCompare(b.title));
 }
 ```
 
@@ -148,7 +150,7 @@ import type { PageServerLoad } from './$types';
 import { loadJobs } from '$lib/content/index';
 
 export const load: PageServerLoad = async () => {
-  return { jobs: loadJobs() };
+	return { jobs: loadJobs() };
 };
 ```
 

@@ -12,12 +12,14 @@
 ```typescript
 import { renderMarkdown } from '$lib/content/markdown';
 
-const html = renderMarkdown(article.body);              // tier: 'local' (default)
-const html = renderMarkdown(article.body, 'cms');       // CMS-authored content
-const html = renderMarkdown(userComment, 'user');        // End-user-submitted
+const html = renderMarkdown(article.body); // tier: 'local' (default)
+const html = renderMarkdown(article.body, 'cms'); // CMS-authored content
+const html = renderMarkdown(userComment, 'user'); // End-user-submitted
 ```
 
 The function is synchronous and returns a sanitized HTML string.
+
+Article frontmatter and publishing rules are documented in [articles.md](articles.md).
 
 ---
 
@@ -25,11 +27,11 @@ The function is synchronous and returns a sanitized HTML string.
 
 Three tiers control how aggressively output is sanitized.
 
-| Tier | Who authors it | Sanitization | Use cases |
-|------|----------------|--------------|-----------|
-| `'local'` | Developers, committed to git | Permissive (allows headings, images, code, details) | `content/articles/`, `content/pages/` |
-| `'cms'` | Sveltia CMS editors, committed to git | Same as `local` (CMS content goes through git, not a database) | Article body from the CMS editor |
-| `'user'` | End users (contact forms, comments) | Strict (only `p`, `strong`, `em`, `a`, `ul`, `ol`, `li`, `code`) | Form submissions — do not render user content at `'local'` trust |
+| Tier      | Who authors it                        | Sanitization                                                     | Use cases                                                        |
+| --------- | ------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `'local'` | Developers, committed to git          | Permissive (allows headings, images, code, details)              | `content/articles/`, `content/pages/`                            |
+| `'cms'`   | Sveltia CMS editors, committed to git | Same as `local` (CMS content goes through git, not a database)   | Article body from the CMS editor                                 |
+| `'user'`  | End users (contact forms, comments)   | Strict (only `p`, `strong`, `em`, `a`, `ul`, `ol`, `li`, `code`) | Form submissions — do not render user content at `'local'` trust |
 
 ### Why local and cms have the same trust level
 
@@ -50,6 +52,7 @@ Every heading gets a deterministic `id` attribute computed from the heading text
 ```markdown
 ## What you will find here
 ```
+
 ```html
 <h2 id="what-you-will-find-here">What you will find here</h2>
 ```
@@ -63,6 +66,7 @@ Links to `http://` or `https://` origins get `target="_blank" rel="noopener nore
 ```markdown
 [Read more](https://example.com)
 ```
+
 ```html
 <a href="https://example.com" target="_blank" rel="noopener noreferrer">Read more</a>
 ```
@@ -78,6 +82,7 @@ Fenced code blocks emit a `language-*` class for syntax highlighter integration:
 const x = 1;
 ```
 ````
+
 ```html
 <pre><code class="language-typescript">const x = 1;</code></pre>
 ```
@@ -95,6 +100,7 @@ Raw HTML passthrough is not disabled at the parser level. `sanitize-html` remove
 ### Trusted (local / cms)
 
 Extends `sanitize-html` defaults with:
+
 - **Tags:** `h1`–`h6`, `img`, `figure`, `figcaption`, `details`, `summary`, `pre`
 - **Attributes:** `id` and `class` on any element; `target` and `rel` on `<a>`; `src`, `alt`, `width`, `height`, `loading` on `<img>`; `class` on `<pre>` and `<code>`
 - **Schemes:** `http`, `https`, `mailto`
@@ -102,6 +108,7 @@ Extends `sanitize-html` defaults with:
 ### User (strict)
 
 Only allows:
+
 - **Tags:** `p`, `br`, `strong`, `em`, `a`, `ul`, `ol`, `li`, `blockquote`, `code`
 - **Attributes:** `href` on `<a>` only
 - **Schemes:** `https` only

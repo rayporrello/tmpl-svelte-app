@@ -5,12 +5,13 @@
  */
 
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { basename, join, relative } from 'node:path';
 import matter from 'gray-matter';
 
 const CONTENT_DIRS = ['content', 'src/content'];
 const STATIC_DIR = 'static';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)$/;
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VALID_STATUS = new Set(['draft', 'published', 'archived']);
 const NULL_VALUES = new Set(['', 'null', 'undefined']);
@@ -23,10 +24,6 @@ const HIGH_RISK_FIELDS = [
 	'status',
 	'slug',
 	'canonical',
-	'image',
-	'image_alt',
-	'og_image',
-	'og_image_alt',
 	'seoTitle',
 	'seoDescription',
 ];
@@ -38,12 +35,13 @@ const IMAGE_PATH_FIELDS = ['image', 'og_image', 'photo'];
 // Required fields per content type (matched by directory name)
 const REQUIRED_FIELDS: Record<string, string[]> = {
 	posts: ['title', 'description', 'publishedAt', 'status'],
-	articles: ['title', 'description', 'date'],
+	articles: ['title', 'slug', 'description', 'date', 'draft'],
 	pages: ['title', 'description', 'status'],
 };
 
 let errors = 0;
 let warnings = 0;
+const articleSlugs = new Map<string, string>();
 
 function fail(file: string, field: string, problem: string, fix: string): void {
 	console.error(`[FAIL] ${file}`);
@@ -80,6 +78,24 @@ function isNullValue(value: unknown): boolean {
 	if (value === null || value === undefined) return true;
 	if (typeof value === 'string' && NULL_VALUES.has(value.trim())) return true;
 	return false;
+}
+
+function isValidStoredDate(value: string): boolean {
+	if (!DATE_ONLY_RE.test(value) && !DATE_RE.test(value)) return false;
+	return !Number.isNaN(new Date(value).getTime());
+}
+
+function isFutureDate(value: string): boolean {
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return false;
+	return date.getTime() > Date.now();
+}
+
+function stringValue(data: Record<string, unknown>, field: string): string | undefined {
+	const value = data[field];
+	if (typeof value !== 'string') return undefined;
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function collectMarkdownFiles(dir: string): string[] {
@@ -192,7 +208,7 @@ function validateFile(filePath: string): void {
 
 		if (typeof value === 'string') {
 			// Allow date-only format (YYYY-MM-DD) for legacy date fields
-			const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+			const dateOnly = DATE_ONLY_RE.test(value);
 			const fullIso = DATE_RE.test(value);
 			if (!dateOnly && !fullIso) {
 				warn(
@@ -202,6 +218,86 @@ function validateFile(filePath: string): void {
 					`Use ISO 8601 datetime with timezone for stored dates.`
 				);
 			}
+		}
+	}
+
+	if (contentType === 'articles') {
+		const slug = stringValue(data, 'slug');
+		const date = stringValue(data, 'date');
+		const draft = data['draft'];
+		const expectedSlug = basename(filePath, '.md');
+
+		if (slug) {
+			if (slug !== expectedSlug) {
+				fail(
+					rel,
+					'slug',
+					`Frontmatter slug "${slug}" does not match filename "${expectedSlug}".`,
+					`Rename the file to content/articles/${slug}.md or change slug to "${expectedSlug}".`
+				);
+			}
+
+			const existing = articleSlugs.get(slug);
+			if (existing && existing !== rel) {
+				fail(
+					rel,
+					'slug',
+					`Duplicate article slug "${slug}" also appears in ${existing}.`,
+					'Use a unique slug for every article.'
+				);
+			} else {
+				articleSlugs.set(slug, rel);
+			}
+		}
+
+		if (draft !== undefined && typeof draft !== 'boolean') {
+			fail(
+				rel,
+				'draft',
+				`Draft must be a boolean (got ${JSON.stringify(draft)}).`,
+				'Use draft: true or draft: false.'
+			);
+		}
+
+		if (date && !isValidStoredDate(date)) {
+			fail(
+				rel,
+				'date',
+				`Article date "${date}" is invalid.`,
+				'Use YYYY-MM-DD or ISO 8601 datetime with timezone.'
+			);
+		}
+
+		if (date && draft === false && isFutureDate(date)) {
+			fail(
+				rel,
+				'date',
+				`Published article date "${date}" is in the future.`,
+				'Keep future-dated articles as draft: true, or add a scheduled rebuild workflow before enabling scheduled publishing.'
+			);
+		}
+
+		const image = stringValue(data, 'image');
+		const imageAlt = stringValue(data, 'image_alt');
+		const ogImage = stringValue(data, 'og_image');
+		const ogImageAlt = stringValue(data, 'og_image_alt');
+
+		if (image && !imageAlt) {
+			fail(
+				rel,
+				'image_alt',
+				'Feature image is set but image_alt is blank or missing.',
+				'Add descriptive alt text for the feature image.'
+			);
+		}
+
+		if (ogImage && !ogImageAlt) {
+			fail(
+				rel,
+				'og_image_alt',
+				'Share image is set but og_image_alt is blank or missing.',
+				'Add descriptive alt text for the share image.'
+			);
 		}
 	}
 

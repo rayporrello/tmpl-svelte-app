@@ -11,27 +11,26 @@ import { loadArticle, loadArticles } from '$lib/content/articles';
 
 describe('loadArticle()', () => {
 	it('loads the sample article by slug', () => {
-		// The template ships with a sample-post article
-		const article = loadArticle('sample-post');
+		// The template ships with a getting-started draft article
+		const article = loadArticle('getting-started');
 		expect(article).toBeDefined();
 		expect(typeof article.title).toBe('string');
 		expect(article.title.length).toBeGreaterThan(0);
 		expect(typeof article.body).toBe('string');
+		expect(article.slug).toBe('getting-started');
 	});
 
 	it('throws a clear error for a missing slug', () => {
-		expect(() => loadArticle('this-slug-does-not-exist')).toThrow(
-			/Article not found/
-		);
+		expect(() => loadArticle('this-slug-does-not-exist')).toThrow(/Article not found/);
 	});
 
 	it('returns a body string (remapped from gray-matter .content)', () => {
-		const article = loadArticle('sample-post');
+		const article = loadArticle('getting-started');
 		expect(typeof article.body).toBe('string');
 	});
 
 	it('parses the date as a string that converts to a valid Date', () => {
-		const article = loadArticle('sample-post');
+		const article = loadArticle('getting-started');
 		const d = new Date(article.date);
 		expect(isNaN(d.getTime())).toBe(false);
 	});

@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const port = process.env.PLAYWRIGHT_PORT ?? '3000';
+const origin = `http://127.0.0.1:${port}`;
+
 /**
  * Playwright e2e configuration.
  * Tests run against the built server (bun build/index.js), not the dev server.
@@ -14,7 +17,7 @@ export default defineConfig({
 	workers: 1,
 	reporter: process.env.CI ? 'github' : 'list',
 	use: {
-		baseURL: 'http://127.0.0.1:3000',
+		baseURL: origin,
 		trace: 'on-first-retry',
 	},
 	projects: [
@@ -25,14 +28,14 @@ export default defineConfig({
 	],
 	webServer: {
 		command: 'bun build/index.js',
-		url: 'http://127.0.0.1:3000/healthz',
+		url: `${origin}/healthz`,
 		reuseExistingServer: !process.env.CI,
 		timeout: 30_000,
 		env: {
-			PORT: '3000',
+			PORT: port,
 			HOST: '127.0.0.1',
-			ORIGIN: 'http://127.0.0.1:3000',
-			PUBLIC_SITE_URL: 'http://127.0.0.1:3000',
+			ORIGIN: origin,
+			PUBLIC_SITE_URL: origin,
 			// Stub: lets initEnv() pass without a live DB. No queries run in e2e tests.
 			DATABASE_URL: process.env.DATABASE_URL ?? 'postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub',
 		},

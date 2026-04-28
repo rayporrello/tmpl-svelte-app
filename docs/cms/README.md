@@ -126,6 +126,20 @@ The `articles` collection has four image-related fields:
 
 Both `image` and `og_image` are optional. When both are blank, social shares use `site.defaultOgImage` from [src/lib/config/site.ts](../../src/lib/config/site.ts). The full priority chain and validation rules are documented in [docs/seo/README.md → Share / OG image hierarchy](../seo/README.md#share--og-image-hierarchy).
 
+## Article publishing contract
+
+Article filenames are part of the public URL contract. The filename must match the frontmatter slug:
+
+```yaml
+# content/articles/getting-started.md
+slug: getting-started
+draft: true
+```
+
+`draft: true` keeps an article out of `/articles`, `/articles/[slug]`, `sitemap.xml`, `llms.txt`, and `rss.xml`. Publishing is a code/content change: set `draft: false`, commit, let CI rebuild, and deploy the new build artifact.
+
+Published articles cannot use future dates in the base template. If a project needs scheduled publishing, add a scheduled GitHub Actions rebuild and deliberately update the validator policy for that project.
+
 ---
 
 ## Further reading

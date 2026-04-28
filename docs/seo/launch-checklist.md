@@ -31,6 +31,7 @@ Complete this checklist before a site goes live. These are one-time tasks per pr
 - [ ] `/sitemap.xml` is accessible in production
 - [ ] All public content routes appear in the sitemap
 - [ ] No internal/admin/preview routes appear in the sitemap
+- [ ] `bun run check:content` passes for article slug/date/image rules
 - [ ] Sitemap was submitted to Google Search Console
 
 ## Per-page metadata
@@ -57,4 +58,4 @@ Complete this checklist before a site goes live. These are one-time tasks per pr
 
 - [ ] Monitor Google Search Console for crawl errors and coverage issues over the first 2–4 weeks
 - [ ] Re-run `bun run check:seo` after any change to `site.ts` or `routes.ts`
-- [ ] Update `lastmod` dates in `routes.ts` when page content changes significantly
+- [ ] Update static `lastmod` dates in `routes.ts` when static page content changes significantly

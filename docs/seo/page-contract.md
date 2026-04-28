@@ -24,6 +24,8 @@ Every route created in this template must satisfy this contract. No exceptions f
 
 For articles, the share image priority is `og_image > image > site.defaultOgImage`. See [README.md → Share / OG image hierarchy](README.md#share--og-image-hierarchy).
 
+Article detail routes are generated from `content/articles/*.md`. Do not add individual `/articles/{slug}` paths to `routes.ts`; keep the article filename, frontmatter `slug`, and canonical path aligned instead.
+
 ## Non-indexable pages
 
 For internal, admin, or dev-only pages, set both:
@@ -107,3 +109,5 @@ For internal, admin, or dev-only pages, set both:
 2. Is this an internal/admin/preview page? → Set `robots: 'noindex, nofollow'` and `indexable: false`.
 3. Did you add the route to `src/lib/seo/routes.ts`? → Required for all routes, indexable or not.
 4. Does the page need schema? → Read [schema-guide.md](schema-guide.md) before adding.
+
+For article files, also confirm `content/articles/{slug}.md` matches frontmatter `slug` and that `draft: false` is only used for content ready to appear in sitemap, llms.txt, and RSS.
