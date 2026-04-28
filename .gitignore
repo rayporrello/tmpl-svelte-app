@@ -47,6 +47,12 @@ coverage/
 *.temp
 *.tsbuildinfo
 
+# ── Backup artifacts ──────────────────────────────────────────────────────────
+# Local backup output from backup:db and backup:uploads.
+# These are runtime artifacts — never commit them.
+# See docs/operations/backups.md for the backup workflow.
+backups/
+
 # ── Image optimization output directories ────────────────────────────────────
 # The current pipeline generates .webp siblings inside static/uploads/ and
 # COMMITS them alongside their source images. See ADR-009 and

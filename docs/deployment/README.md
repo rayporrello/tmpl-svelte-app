@@ -6,23 +6,25 @@ Documentation for deploying sites built from this template. The deployment model
 
 ## What is documented here
 
-| File | Status | Purpose |
-|------|--------|---------|
-| [secrets.md](secrets.md) | Complete | SOPS + age secrets workflow — encrypting, committing, and rendering secrets |
-| [runbook.md](runbook.md) | Complete | Step-by-step deploy guide: bootstrap, rolling deploy, rollback by SHA, post-deploy smoke |
+| File                                                 | Status   | Purpose                                                                                  |
+| ---------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------- |
+| [secrets.md](secrets.md)                             | Complete | SOPS + age secrets workflow — encrypting, committing, and rendering secrets              |
+| [runbook.md](runbook.md)                             | Complete | Step-by-step deploy guide: bootstrap, rolling deploy, rollback by SHA, post-deploy smoke |
+| [../operations/backups.md](../operations/backups.md) | Complete | Backup procedures for database and uploads; off-host storage options                     |
+| [../operations/restore.md](../operations/restore.md) | Complete | Restore guide: database, uploads, test restore, production safety                        |
 
 ---
 
 ## Deployment artifacts
 
-| Artifact | Location | Purpose |
-|----------|----------|---------|
-| `Containerfile` | repo root | Multi-stage Bun runtime image (builder + lean runtime) |
-| `Containerfile.node.example` | repo root | Escape-hatch recipe for adapter-node swap (not CI-tested) |
-| `deploy/env.example` | `deploy/` | Runtime env var reference for container / Quadlet |
-| `deploy/quadlets/web.container` | `deploy/quadlets/` | Systemd user unit via Podman Quadlet |
-| `deploy/quadlets/web.network` | `deploy/quadlets/` | Project-local Podman network |
-| `deploy/Caddyfile.example` | `deploy/` | Caddy reverse proxy with TLS, HSTS, compression |
+| Artifact                        | Location           | Purpose                                                   |
+| ------------------------------- | ------------------ | --------------------------------------------------------- |
+| `Containerfile`                 | repo root          | Multi-stage Bun runtime image (builder + lean runtime)    |
+| `Containerfile.node.example`    | repo root          | Escape-hatch recipe for adapter-node swap (not CI-tested) |
+| `deploy/env.example`            | `deploy/`          | Runtime env var reference for container / Quadlet         |
+| `deploy/quadlets/web.container` | `deploy/quadlets/` | Systemd user unit via Podman Quadlet                      |
+| `deploy/quadlets/web.network`   | `deploy/quadlets/` | Project-local Podman network                              |
+| `deploy/Caddyfile.example`      | `deploy/`          | Caddy reverse proxy with TLS, HSTS, compression           |
 
 ---
 
@@ -75,3 +77,5 @@ This is not a Vercel/Netlify/cloud-platform deployment. The template is designed
 - [ADR-007](../planning/adrs/ADR-007-podman-caddy-infrastructure.md) — Podman + Caddy decision
 - [ADR-013](../planning/adrs/ADR-013-sops-age-secrets-management.md) — secrets management decision
 - [ADR-018](../planning/adrs/ADR-018-production-runtime-and-deployment-contract.md) — production runtime contract
+- [docs/operations/backups.md](../operations/backups.md) — backup procedures
+- [docs/operations/restore.md](../operations/restore.md) — restore guide

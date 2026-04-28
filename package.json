@@ -39,6 +39,11 @@
 		"db:check": "drizzle-kit check",
 		"secrets:render": "bash scripts/render-secrets.sh",
 		"secrets:check": "bash scripts/check-secrets.sh",
+		"backup:db": "bash scripts/backup-db.sh",
+		"backup:uploads": "bash scripts/backup-uploads.sh",
+		"backup:all": "bash scripts/backup-all.sh",
+		"backup:verify": "bash scripts/verify-backup.sh",
+		"restore:db": "bash scripts/restore-db.sh",
 		"prepare": "lefthook install"
 	},
 	"devDependencies": {

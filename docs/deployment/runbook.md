@@ -6,13 +6,13 @@ Step-by-step guide for first-time setup, rolling deploys, rollbacks, and post-de
 
 ## Prerequisites
 
-| Requirement | Notes |
-|---|---|
+| Requirement             | Notes                                                          |
+| ----------------------- | -------------------------------------------------------------- |
 | Linux host with systemd | Tested on Fedora / RHEL 9+; works on any modern systemd distro |
-| Podman ≥ 4.4 | Rootless operation required (`loginctl enable-linger <user>`) |
-| Caddy ≥ 2.7 | Via package manager or direct binary |
-| GHCR access | `podman login ghcr.io -u <github-user> --password-stdin` |
-| SOPS + age key | See [secrets.md](secrets.md) |
+| Podman ≥ 4.4            | Rootless operation required (`loginctl enable-linger <user>`)  |
+| Caddy ≥ 2.7             | Via package manager or direct binary                           |
+| GHCR access             | `podman login ghcr.io -u <github-user> --password-stdin`       |
+| SOPS + age key          | See [secrets.md](secrets.md)                                   |
 
 ---
 
@@ -204,14 +204,35 @@ If any check fails:
 
 ## Common Operations
 
-| Task | Command |
-|---|---|
-| Restart app | `systemctl --user restart <project>-web` |
-| Stop app | `systemctl --user stop <project>-web` |
-| Check health | `systemctl --user status <project>-web` |
-| View containers | `podman ps` |
-| Prune old images | `podman image prune --filter "dangling=true"` |
-| Force-remove image | `podman rmi ghcr.io/<owner>/<name>:<sha>` |
+| Task               | Command                                       |
+| ------------------ | --------------------------------------------- |
+| Restart app        | `systemctl --user restart <project>-web`      |
+| Stop app           | `systemctl --user stop <project>-web`         |
+| Check health       | `systemctl --user status <project>-web`       |
+| View containers    | `podman ps`                                   |
+| Prune old images   | `podman image prune --filter "dangling=true"` |
+| Force-remove image | `podman rmi ghcr.io/<owner>/<name>:<sha>`     |
+
+---
+
+## Backup and Restore
+
+Take a backup before any destructive operation (database migration, configuration change, restore from older backup).
+
+```bash
+# Back up database and uploads
+bun run backup:all
+
+# Verify most recent backup
+bun run backup:verify
+
+# Restore database (requires --confirm; see restore guide first)
+bash scripts/restore-db.sh backups/db/db-<timestamp>.pgdump --confirm
+```
+
+Backups are stored in `backups/` (gitignored). Copy them off-host — a backup on the same server as the app is not a real backup.
+
+Full procedures: [docs/operations/backups.md](../operations/backups.md) · [docs/operations/restore.md](../operations/restore.md)
 
 ---
 
@@ -222,5 +243,7 @@ If any check fails:
 - [deploy/quadlets/web.container](../quadlets/web.container) — Quadlet unit template
 - [deploy/Caddyfile.example](../Caddyfile.example) — Caddy config reference
 - [secrets.md](secrets.md) — SOPS + age secrets workflow
+- [docs/operations/backups.md](../operations/backups.md) — backup procedures
+- [docs/operations/restore.md](../operations/restore.md) — restore guide
 - [ADR-007](../planning/adrs/ADR-007-podman-caddy-infrastructure.md) — Podman + Caddy decision
 - [ADR-018](../planning/adrs/ADR-018-production-runtime-and-deployment-contract.md) — runtime contract
