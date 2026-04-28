@@ -16,6 +16,7 @@ This document explains the content safety layer, what it protects against, and h
 These failures are hard to catch because neither the CMS nor the CI pipeline necessarily validates content semantics. The site may render with empty titles, missing descriptions, or broken date fields.
 
 **Common causes:**
+
 - Optional datetime fields saved as `""` or `null` when left empty.
 - A CMS UI bug or misconfiguration that blanks fields on save.
 - An n8n automation that overwrites content with a malformed payload.
@@ -39,16 +40,7 @@ Validates `static/admin/config.yml` when it exists.
 
 ### `bun run check:content`
 
-Validates all `.md` files under `content/` and `src/content/` when those directories exist.
-
-- Fails if a file is missing YAML frontmatter.
-- Fails if frontmatter cannot be parsed.
-- Fails if required fields for the content type are absent.
-- Fails if required fields are blank, `null`, or `"null"`.
-- Fails if date-like fields contain bad values (`""`, `null`, `"null"`, `"undefined"`).
-- Fails if `status` is present but not one of `draft`, `published`, `archived`.
-- Fails if `slug` is present but not URL-safe.
-- Warns on high-risk fields that are blank or null.
+Validates Markdown and pure YAML content across all base collections using the shared Valibot schemas. See [docs/content/validation.md](../content/validation.md) for the canonical field contract, rules, and error format.
 
 ### `bun run check:content-diff`
 
@@ -83,8 +75,9 @@ All three are included in `bun run validate` alongside the normal checks.
 3. Re-run `bun run check:cms` to verify.
 
 Common fixes:
+
 - Change `format: toml-frontmatter` to `format: frontmatter`.
-- Remove `required: false` from a `datetime` widget, or add the field name to `OPTIONAL_DATETIME_ALLOWLIST`.
+- Remove `required: false` from a `datetime` widget, or add the field name to `OPTIONAL_DATETIME_ALLOWLIST` with matching schema validation.
 - Remove duplicate field names.
 
 ### check:content fails
@@ -141,6 +134,7 @@ Agents (Claude, Codex, Cursor, etc.) working in this repository must:
 The CMS is a UI on top of Git. The Git repo is the source of truth. Validation scripts enforce the content contract at the repo level, independent of what the CMS UI accepted.
 
 This means:
+
 - A file that the CMS saved "successfully" but that fails `bun run check:content` is **invalid content**.
 - A CMS config that passes Sveltia's own validation but fails `bun run check:cms` is **invalid config**.
 - Do not deploy content that fails the validation scripts, even if the CMS did not complain.

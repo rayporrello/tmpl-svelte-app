@@ -85,6 +85,13 @@ collections:
         date_format: 'YYYY-MM-DD'
         time_format: false
         picker_utc: true
+      - label: Modified Date
+        name: modified_date
+        widget: datetime
+        date_format: 'YYYY-MM-DD'
+        time_format: false
+        picker_utc: true
+        required: false
       - { label: Draft, name: draft, widget: boolean, default: true }
       - { label: Feature Image, name: image, widget: image, required: false, allow_multiple: false }
       - { label: Feature Image Alt, name: image_alt, widget: string, required: false }

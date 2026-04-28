@@ -6,12 +6,13 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { load as yamlLoad } from 'js-yaml';
+import { contentSchemas } from '../src/lib/content/schemas';
 
 const CONFIG_PATH = 'static/admin/config.yml';
 const APPROVED_CONTENT_DIRS = ['content/', 'src/content/'];
 
 // Optional datetime allowlist: add field names here to permit them per project.
-const OPTIONAL_DATETIME_ALLOWLIST: string[] = [];
+const OPTIONAL_DATETIME_ALLOWLIST: string[] = ['modified_date'];
 
 let errors = 0;
 let warnings = 0;
@@ -52,7 +53,9 @@ const publicFolder = config['public_folder'] as string | undefined;
 if (!mediaFolder) {
 	fail('media_folder is missing from config.yml. Add: media_folder: static/uploads');
 } else if (!mediaFolder.startsWith('static/')) {
-	warn(`media_folder "${mediaFolder}" does not start with "static/". Uploads may not be served correctly.`);
+	warn(
+		`media_folder "${mediaFolder}" does not start with "static/". Uploads may not be served correctly.`
+	);
 }
 
 if (!publicFolder) {
@@ -80,7 +83,7 @@ for (const collection of collections) {
 	if (format === 'toml-frontmatter') {
 		fail(
 			`Collection "${colLabel}" uses toml-frontmatter. ` +
-			`Use yaml-frontmatter or frontmatter instead.`
+				`Use yaml-frontmatter or frontmatter instead.`
 		);
 	}
 
@@ -92,7 +95,7 @@ for (const collection of collections) {
 		if (!approved) {
 			fail(
 				`Collection "${colLabel}" folder "${folder}" is outside approved content directories. ` +
-				`Approved: ${APPROVED_CONTENT_DIRS.join(', ')}`
+					`Approved: ${APPROVED_CONTENT_DIRS.join(', ')}`
 			);
 		}
 	}
@@ -107,16 +110,32 @@ for (const collection of collections) {
 		if (fileFormat === 'toml-frontmatter') {
 			fail(
 				`Collection "${colLabel}" > file "${fileName}" uses toml-frontmatter. ` +
-				`Use yaml or frontmatter instead.`
+					`Use yaml or frontmatter instead.`
 			);
 		}
 		checkFields(colLabel, fileName, (f['fields'] as unknown[]) ?? []);
+		if (colName === 'pages' && fileName === 'home') {
+			checkCmsFieldsAgainstSchema(
+				`${colLabel} > ${fileName}`,
+				(f['fields'] as unknown[]) ?? [],
+				contentSchemas.pages.home
+			);
+		}
 	}
 
 	// ── Field-level checks ────────────────────────────────────────────────────
 
 	const topFields = (col['fields'] as unknown[]) ?? [];
 	checkFields(colLabel, null, topFields);
+	if (colName === 'articles') {
+		checkCmsFieldsAgainstSchema(colLabel, topFields, contentSchemas.articles);
+	}
+	if (colName === 'team') {
+		checkCmsFieldsAgainstSchema(colLabel, topFields, contentSchemas.team);
+	}
+	if (colName === 'testimonials') {
+		checkCmsFieldsAgainstSchema(colLabel, topFields, contentSchemas.testimonials);
+	}
 
 	// ── Canonical collection required fields ─────────────────────────────────
 
@@ -134,11 +153,105 @@ for (const collection of collections) {
 	}
 }
 
-function checkFields(
-	collectionLabel: string,
-	fileLabel: string | null,
-	fields: unknown[]
+interface ContractField {
+	path: string;
+	required: boolean;
+}
+
+function isSchemaOptional(schema: Record<string, unknown>): boolean {
+	return (
+		schema['type'] === 'optional' ||
+		schema['type'] === 'exact_optional' ||
+		schema['type'] === 'nullish'
+	);
+}
+
+function unwrapOptional(schema: Record<string, unknown>): Record<string, unknown> {
+	return isSchemaOptional(schema) ? (schema['wrapped'] as Record<string, unknown>) : schema;
+}
+
+function flattenSchemaFields(
+	schemaInput: unknown,
+	prefix = '',
+	parentRequired = true
+): ContractField[] {
+	const schema = schemaInput as Record<string, unknown>;
+	const optional = isSchemaOptional(schema);
+	const unwrapped = unwrapOptional(schema);
+	const required = parentRequired && !optional;
+	const fields: ContractField[] = [];
+
+	if (prefix) fields.push({ path: prefix, required });
+
+	const entries = unwrapped['entries'] as Record<string, unknown> | undefined;
+	if (entries) {
+		for (const [key, child] of Object.entries(entries)) {
+			fields.push(...flattenSchemaFields(child, prefix ? `${prefix}.${key}` : key, required));
+		}
+		return fields;
+	}
+
+	if (unwrapped['type'] === 'array') {
+		const item = unwrapped['item'];
+		if (item) fields.push(...flattenSchemaFields(item, `${prefix}[]`, required));
+	}
+
+	return fields;
+}
+
+function flattenCmsFields(
+	fieldsInput: unknown[],
+	prefix = '',
+	parentRequired = true
+): ContractField[] {
+	const fields: ContractField[] = [];
+
+	for (const fieldInput of fieldsInput) {
+		const field = fieldInput as Record<string, unknown>;
+		const name = String(field['name'] ?? '');
+		if (!name) continue;
+		const path = prefix ? `${prefix}.${name}` : name;
+		const required = parentRequired && field['required'] !== false;
+		fields.push({ path, required });
+
+		const subFields = (field['fields'] as unknown[]) ?? [];
+		if (subFields.length === 0) continue;
+		const widget = field['widget'];
+		const childPrefix = widget === 'list' ? `${path}[]` : path;
+		fields.push(...flattenCmsFields(subFields, childPrefix, required));
+	}
+
+	return fields;
+}
+
+function checkCmsFieldsAgainstSchema(
+	location: string,
+	cmsFieldsInput: unknown[],
+	schema: unknown
 ): void {
+	const cmsFields = flattenCmsFields(cmsFieldsInput);
+	const schemaFields = flattenSchemaFields(schema);
+	const cmsPaths = new Set(cmsFields.map((field) => field.path));
+	const schemaPaths = new Set(schemaFields.map((field) => field.path));
+
+	for (const field of cmsFields) {
+		if (!schemaPaths.has(field.path)) {
+			fail(
+				`Collection "${location}" exposes field "${field.path}" but src/lib/content/schemas.ts does not define it.`
+			);
+		}
+	}
+
+	for (const field of schemaFields) {
+		if (field.required && !cmsPaths.has(field.path)) {
+			fail(
+				`Collection "${location}" is missing schema-required field "${field.path}" from static/admin/config.yml.`
+			);
+		}
+	}
+}
+
+function checkFields(collectionLabel: string, fileLabel: string | null, fields: unknown[]): void {
 	const location = fileLabel ? `${collectionLabel} > ${fileLabel}` : collectionLabel;
 
 	// Duplicate field names
@@ -160,16 +273,13 @@ function checkFields(
 
 		if (widget === 'datetime' && required === false) {
 			if (OPTIONAL_DATETIME_ALLOWLIST.includes(fieldName)) {
-				warn(
-					`Collection "${location}" field "${fieldName}" is an optional datetime (allowlisted). ` +
-					`Ensure empty values are omitted, not saved as "" or null.`
-				);
+				continue;
 			} else {
 				fail(
 					`Collection "${location}" field "${fieldName}" is an optional datetime. ` +
-					`Optional datetime fields are forbidden by default. ` +
-					`Add to OPTIONAL_DATETIME_ALLOWLIST in scripts/check-cms-config.ts if intentional, ` +
-					`then validate that empty values are omitted in content files.`
+						`Optional datetime fields are forbidden by default. ` +
+						`Add to OPTIONAL_DATETIME_ALLOWLIST in scripts/check-cms-config.ts if intentional, ` +
+						`then validate that empty values are omitted in content files.`
 				);
 			}
 		}
@@ -194,7 +304,7 @@ function checkCanonicalFields(
 		if (!fieldNames.has(required)) {
 			fail(
 				`Collection "${collectionLabel}" is missing required field "${required}". ` +
-				`Add it to the collection fields in config.yml.`
+					`Add it to the collection fields in config.yml.`
 			);
 		}
 	}

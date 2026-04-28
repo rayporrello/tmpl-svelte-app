@@ -1,6 +1,6 @@
 /**
  * Detects destructive content changes before commit/deploy.
- * Inspects changed Markdown files under approved content directories using git.
+ * Inspects changed Markdown and YAML files under approved content directories using git.
  * Exits 0 when not in a git repo, no content files changed, or all checks pass.
  * Exits 1 on detected destructive changes with actionable messages.
  */
@@ -8,6 +8,7 @@
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import matter from 'gray-matter';
+import { load as yamlLoad } from 'js-yaml';
 
 const CONTENT_DIRS = ['content/', 'src/content/'];
 const NULL_VALUES = new Set(['', 'null', 'undefined']);
@@ -47,11 +48,13 @@ function isInGitRepo(): boolean {
 
 function getChangedContentFiles(): string[] {
 	// Get files changed vs. HEAD (staged + unstaged)
-	const staged = runGit('git diff --cached --name-only --diff-filter=ACM') ?? '';
-	const unstaged = runGit('git diff --name-only --diff-filter=ACM') ?? '';
+	const staged = runGit('git diff --cached --name-only --diff-filter=ACMR') ?? '';
+	const unstaged = runGit('git diff --name-only --diff-filter=ACMR') ?? '';
 	const all = [...new Set([...staged.split('\n'), ...unstaged.split('\n')])].filter(Boolean);
 	return all.filter(
-		(f) => f.endsWith('.md') && CONTENT_DIRS.some((dir) => f.startsWith(dir))
+		(f) =>
+			(f.endsWith('.md') || f.endsWith('.yml') || f.endsWith('.yaml')) &&
+			CONTENT_DIRS.some((dir) => f.startsWith(dir))
 	);
 }
 
@@ -59,11 +62,17 @@ function getHeadContent(filePath: string): string | null {
 	return runGit(`git show HEAD:${filePath}`);
 }
 
-function parseFrontmatter(raw: string): Record<string, unknown> | null {
+function parseContentData(filePath: string, raw: string): Record<string, unknown> | null {
 	try {
-		if (!raw.startsWith('---')) return null;
-		const parsed = matter(raw);
-		return parsed.data as Record<string, unknown>;
+		if (filePath.endsWith('.md')) {
+			if (!raw.startsWith('---')) return null;
+			const parsed = matter(raw);
+			return parsed.data as Record<string, unknown>;
+		}
+		const parsed = yamlLoad(raw);
+		return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+			? (parsed as Record<string, unknown>)
+			: null;
 	} catch {
 		return null;
 	}
@@ -87,10 +96,10 @@ function checkFile(filePath: string): void {
 	const headRaw = getHeadContent(filePath);
 
 	if (!currentRaw) return; // File deleted — not destructive for this check
-	if (!headRaw) return;   // New file — nothing to compare against HEAD
+	if (!headRaw) return; // New file — nothing to compare against HEAD
 
-	const currentData = parseFrontmatter(currentRaw);
-	const headData = parseFrontmatter(headRaw);
+	const currentData = parseContentData(filePath, currentRaw);
+	const headData = parseContentData(filePath, headRaw);
 
 	if (!currentData || !headData) return;
 
@@ -101,23 +110,25 @@ function checkFile(filePath: string): void {
 			fail(
 				filePath,
 				`Field "${key}" was non-empty in HEAD but is now blank/null/undefined. ` +
-				`If intentional, remove the field entirely rather than saving it as "".`
+					`If intentional, remove the field entirely rather than saving it as "".`
 			);
 		}
 	}
 
-	// Check: body content shrank by more than 70%
-	const headBody = getBodyContent(headRaw);
-	const currentBody = getBodyContent(currentRaw);
-	if (headBody.length > 100) {
-		const shrinkRatio = 1 - currentBody.length / headBody.length;
-		if (shrinkRatio > 0.7) {
-			fail(
-				filePath,
-				`Body content shrank by ${Math.round(shrinkRatio * 100)}% ` +
-				`(${headBody.length} → ${currentBody.length} chars). ` +
-				`If intentional, verify this is not a CMS truncation error.`
-			);
+	if (filePath.endsWith('.md')) {
+		// Check: body content shrank by more than 70%
+		const headBody = getBodyContent(headRaw);
+		const currentBody = getBodyContent(currentRaw);
+		if (headBody.length > 100) {
+			const shrinkRatio = 1 - currentBody.length / headBody.length;
+			if (shrinkRatio > 0.7) {
+				fail(
+					filePath,
+					`Body content shrank by ${Math.round(shrinkRatio * 100)}% ` +
+						`(${headBody.length} → ${currentBody.length} chars). ` +
+						`If intentional, verify this is not a CMS truncation error.`
+				);
+			}
 		}
 	}
 
@@ -130,8 +141,10 @@ function checkFile(filePath: string): void {
 			fail(
 				filePath,
 				`Frontmatter key count dropped by ${Math.round(dropRatio * 100)}% ` +
-				`(${headKeyCount} → ${currentKeyCount} keys). ` +
-				`Missing keys: ${Object.keys(headData).filter((k) => !(k in currentData)).join(', ')}.`
+					`(${headKeyCount} → ${currentKeyCount} keys). ` +
+					`Missing keys: ${Object.keys(headData)
+						.filter((k) => !(k in currentData))
+						.join(', ')}.`
 			);
 		}
 	}
@@ -147,14 +160,14 @@ if (!isInGitRepo()) {
 const changedFiles = getChangedContentFiles();
 
 if (changedFiles.length === 0) {
-	console.log('[INFO] No content Markdown files changed. Nothing to check.');
+	console.log('[INFO] No content Markdown/YAML files changed. Nothing to check.');
 	process.exit(0);
 }
 
 if (changedFiles.length > 10) {
 	warn(
 		`${changedFiles.length} content files changed at once. ` +
-		`Review the diff manually to ensure this is intentional.`
+			`Review the diff manually to ensure this is intentional.`
 	);
 }
 

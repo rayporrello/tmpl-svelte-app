@@ -1,382 +1,266 @@
 /**
- * Validates Markdown content files under content/ and src/content/.
- * Exits 0 when no content directories exist (pre-Phase 3) or all files pass.
- * Exits 1 on any violation with actionable messages.
+ * Validates all content files under content/.
+ * Pure YAML collections use js-yaml. Markdown articles use gray-matter.
  */
 
-import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import matter from 'gray-matter';
+import { load as yamlLoad } from 'js-yaml';
+import {
+	ArticleSchema,
+	HomePageSchema,
+	TeamMemberSchema,
+	TestimonialSchema,
+} from '../src/lib/content/schemas';
+import type { Article, HomePageContent, TeamMember, Testimonial } from '../src/lib/content/types';
+import {
+	duplicateValueIssues,
+	filenameSlugIssue,
+	formatContentIssues,
+	makeContentIssue,
+	type ContentRecord,
+	type ContentValidationIssue,
+	validateWithSchema,
+} from '../src/lib/content/validation';
 
-const CONTENT_DIRS = ['content', 'src/content'];
+const CONTENT_DIR = 'content';
 const STATIC_DIR = 'static';
-const DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)$/;
-const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
-const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const VALID_STATUS = new Set(['draft', 'published', 'archived']);
-const NULL_VALUES = new Set(['', 'null', 'undefined']);
 
-const HIGH_RISK_FIELDS = [
-	'title',
-	'description',
-	'publishedAt',
-	'updatedAt',
-	'status',
-	'slug',
-	'canonical',
-	'seoTitle',
-	'seoDescription',
-];
+type CollectionName = 'pages' | 'articles' | 'team' | 'testimonials';
 
-// Frontmatter keys that hold image paths and should be checked for file existence
-// when set to a site-relative path. Remote URLs (http/https) are skipped.
-const IMAGE_PATH_FIELDS = ['image', 'og_image', 'photo'];
+const errors: ContentValidationIssue[] = [];
+const warnings: ContentValidationIssue[] = [];
 
-// Required fields per content type (matched by directory name)
-const REQUIRED_FIELDS: Record<string, string[]> = {
-	posts: ['title', 'description', 'publishedAt', 'status'],
-	articles: ['title', 'slug', 'description', 'date', 'draft'],
-	pages: ['title', 'description', 'status'],
-};
+const articleRecords: ContentRecord<Article>[] = [];
+const teamRecords: ContentRecord<TeamMember>[] = [];
+const testimonialRecords: ContentRecord<Testimonial>[] = [];
 
-let errors = 0;
-let warnings = 0;
-const articleSlugs = new Map<string, string>();
-
-function fail(file: string, field: string, problem: string, fix: string): void {
-	console.error(`[FAIL] ${file}`);
-	console.error(`       field: ${field}`);
-	console.error(`       problem: ${problem}`);
-	console.error(`       fix: ${fix}`);
-	console.error('');
-	errors++;
+function rel(path: string): string {
+	return relative(process.cwd(), path);
 }
 
-function warn(file: string, field: string, problem: string, fix: string): void {
-	console.warn(`[WARN] ${file}`);
-	console.warn(`       field: ${field}`);
-	console.warn(`       problem: ${problem}`);
-	console.warn(`       fix: ${fix}`);
-	console.warn('');
-	warnings++;
-}
-
-function isDateLikeKey(key: string): boolean {
-	const lower = key.toLowerCase();
-	return (
-		lower === 'date' ||
-		lower.includes('date') ||
-		lower.endsWith('at') || // publishedAt, updatedAt, createdAt, occurredAt
-		lower === 'published' ||
-		lower === 'created' ||
-		lower === 'updated' ||
-		lower === 'expires'
-	);
-}
-
-function isNullValue(value: unknown): boolean {
-	if (value === null || value === undefined) return true;
-	if (typeof value === 'string' && NULL_VALUES.has(value.trim())) return true;
-	return false;
-}
-
-function isValidStoredDate(value: string): boolean {
-	if (!DATE_ONLY_RE.test(value) && !DATE_RE.test(value)) return false;
-	return !Number.isNaN(new Date(value).getTime());
-}
-
-function isFutureDate(value: string): boolean {
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return false;
-	return date.getTime() > Date.now();
-}
-
-function stringValue(data: Record<string, unknown>, field: string): string | undefined {
-	const value = data[field];
-	if (typeof value !== 'string') return undefined;
-	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function collectMarkdownFiles(dir: string): string[] {
+function collectFiles(dir: string, extensions: string[]): string[] {
+	if (!existsSync(dir)) return [];
+	const entries = readdirSync(dir, { withFileTypes: true });
 	const files: string[] = [];
+	for (const entry of entries) {
+		const full = join(dir, entry.name);
+		if (entry.isDirectory()) files.push(...collectFiles(full, extensions));
+		else if (entry.isFile() && extensions.some((ext) => entry.name.endsWith(ext))) files.push(full);
+	}
+	return files.sort();
+}
+
+function parseYamlFile(file: string): unknown | undefined {
 	try {
-		const entries = readdirSync(dir, { withFileTypes: true });
-		for (const entry of entries) {
-			const full = join(dir, entry.name);
-			if (entry.isDirectory()) {
-				files.push(...collectMarkdownFiles(full));
-			} else if (entry.isFile() && entry.name.endsWith('.md')) {
-				files.push(full);
-			}
-		}
-	} catch {
-		// Directory unreadable — skip
+		return yamlLoad(readFileSync(file, 'utf-8'));
+	} catch (err) {
+		errors.push(
+			makeContentIssue(
+				rel(file),
+				'(file)',
+				'YAML parse error',
+				err instanceof Error ? err.message : String(err)
+			)
+		);
+		return undefined;
 	}
-	return files;
 }
 
-function getContentType(filePath: string): string | null {
-	const parts = filePath.replace(/\\/g, '/').split('/');
-	for (const [dir] of Object.entries(REQUIRED_FIELDS)) {
-		if (parts.includes(dir)) return dir;
-	}
-	return null;
-}
-
-function validateFile(filePath: string): void {
-	const rel = relative(process.cwd(), filePath);
+function parseArticleFile(file: string): Record<string, unknown> | undefined {
 	let raw: string;
 	try {
-		raw = readFileSync(filePath, 'utf-8');
+		raw = readFileSync(file, 'utf-8');
 	} catch (err) {
-		fail(rel, '(file)', `Cannot read file: ${String(err)}`, 'Check file permissions.');
-		return;
-	}
-
-	// Must have YAML frontmatter
-	if (!raw.startsWith('---')) {
-		fail(
-			rel,
-			'(frontmatter)',
-			'File does not start with YAML frontmatter (---).',
-			'Add --- frontmatter block at the top of the file.'
+		errors.push(
+			makeContentIssue(
+				rel(file),
+				'(file)',
+				'cannot read file',
+				err instanceof Error ? err.message : String(err)
+			)
 		);
-		return;
+		return undefined;
 	}
 
-	let data: Record<string, unknown>;
+	if (!raw.startsWith('---')) {
+		errors.push(
+			makeContentIssue(rel(file), '(frontmatter)', 'must start with YAML frontmatter', undefined)
+		);
+		return undefined;
+	}
+
 	try {
 		const parsed = matter(raw);
-		data = parsed.data as Record<string, unknown>;
+		return { ...(parsed.data as Record<string, unknown>), body: parsed.content };
 	} catch (err) {
-		fail(
-			rel,
-			'(frontmatter)',
-			`Frontmatter YAML parse error: ${String(err)}`,
-			'Fix the YAML syntax in the frontmatter block.'
+		errors.push(
+			makeContentIssue(
+				rel(file),
+				'(frontmatter)',
+				'frontmatter YAML parse error',
+				err instanceof Error ? err.message : String(err)
+			)
 		);
-		return;
+		return undefined;
 	}
+}
 
-	// Required fields for this content type
-	const contentType = getContentType(filePath);
-	const requiredFields = contentType ? (REQUIRED_FIELDS[contentType] ?? []) : [];
-
-	for (const field of requiredFields) {
-		const value = data[field];
-		if (value === undefined) {
-			fail(rel, field, 'Required field is missing.', `Add "${field}: <value>" to the frontmatter.`);
-		} else if (isNullValue(value)) {
-			fail(
-				rel,
-				field,
-				`Required field is blank or null (got: ${JSON.stringify(value)}).`,
-				`Set "${field}" to a valid non-empty value.`
-			);
-		}
-	}
-
-	// High-risk field checks (warn on blank)
-	for (const field of HIGH_RISK_FIELDS) {
-		if (!(field in data)) continue;
-		const value = data[field];
-		if (isNullValue(value)) {
-			warn(
-				rel,
-				field,
-				`High-risk field is blank or null (got: ${JSON.stringify(value)}).`,
-				`Remove "${field}" from frontmatter if unused, or set a valid value.`
-			);
-		}
-	}
-
-	// Date-like fields: if present, must be ISO 8601 with timezone or omitted
-	for (const [key, value] of Object.entries(data)) {
-		if (!isDateLikeKey(key)) continue;
-		if (value === undefined || value === null) continue; // Omitted is fine
-
-		if (isNullValue(value)) {
-			fail(
-				rel,
-				key,
-				`Date-like field saved as blank/null (got: ${JSON.stringify(value)}).`,
-				`Remove "${key}" from frontmatter when unused instead of saving as "" or null.`
+function addImagePathChecks(file: string, values: Record<string, unknown>, fields: string[]): void {
+	for (const field of fields) {
+		const value = values[field];
+		if (typeof value !== 'string' || value.trim().length === 0) continue;
+		const trimmed = value.trim();
+		if (trimmed.startsWith('https://')) continue;
+		if (trimmed.startsWith('http://')) {
+			warnings.push(
+				makeContentIssue(file, field, 'should use https:// for remote images', trimmed, 'warning')
 			);
 			continue;
 		}
-
-		if (typeof value === 'string') {
-			// Allow date-only format (YYYY-MM-DD) for legacy date fields
-			const dateOnly = DATE_ONLY_RE.test(value);
-			const fullIso = DATE_RE.test(value);
-			if (!dateOnly && !fullIso) {
-				warn(
-					rel,
-					key,
-					`Date value "${value}" is not ISO 8601 with timezone (e.g. 2026-04-27T12:00:00Z).`,
-					`Use ISO 8601 datetime with timezone for stored dates.`
-				);
-			}
-		}
-	}
-
-	if (contentType === 'articles') {
-		const slug = stringValue(data, 'slug');
-		const date = stringValue(data, 'date');
-		const draft = data['draft'];
-		const expectedSlug = basename(filePath, '.md');
-
-		if (slug) {
-			if (slug !== expectedSlug) {
-				fail(
-					rel,
-					'slug',
-					`Frontmatter slug "${slug}" does not match filename "${expectedSlug}".`,
-					`Rename the file to content/articles/${slug}.md or change slug to "${expectedSlug}".`
-				);
-			}
-
-			const existing = articleSlugs.get(slug);
-			if (existing && existing !== rel) {
-				fail(
-					rel,
-					'slug',
-					`Duplicate article slug "${slug}" also appears in ${existing}.`,
-					'Use a unique slug for every article.'
-				);
-			} else {
-				articleSlugs.set(slug, rel);
-			}
-		}
-
-		if (draft !== undefined && typeof draft !== 'boolean') {
-			fail(
-				rel,
-				'draft',
-				`Draft must be a boolean (got ${JSON.stringify(draft)}).`,
-				'Use draft: true or draft: false.'
-			);
-		}
-
-		if (date && !isValidStoredDate(date)) {
-			fail(
-				rel,
-				'date',
-				`Article date "${date}" is invalid.`,
-				'Use YYYY-MM-DD or ISO 8601 datetime with timezone.'
-			);
-		}
-
-		if (date && draft === false && isFutureDate(date)) {
-			fail(
-				rel,
-				'date',
-				`Published article date "${date}" is in the future.`,
-				'Keep future-dated articles as draft: true, or add a scheduled rebuild workflow before enabling scheduled publishing.'
-			);
-		}
-
-		const image = stringValue(data, 'image');
-		const imageAlt = stringValue(data, 'image_alt');
-		const ogImage = stringValue(data, 'og_image');
-		const ogImageAlt = stringValue(data, 'og_image_alt');
-
-		if (image && !imageAlt) {
-			fail(
-				rel,
-				'image_alt',
-				'Feature image is set but image_alt is blank or missing.',
-				'Add descriptive alt text for the feature image.'
-			);
-		}
-
-		if (ogImage && !ogImageAlt) {
-			fail(
-				rel,
-				'og_image_alt',
-				'Share image is set but og_image_alt is blank or missing.',
-				'Add descriptive alt text for the share image.'
-			);
-		}
-	}
-
-	// status field validation
-	if ('status' in data) {
-		const status = data['status'];
-		if (typeof status === 'string' && !VALID_STATUS.has(status)) {
-			fail(
-				rel,
-				'status',
-				`Invalid status value "${status}".`,
-				`Set status to one of: draft, published, archived.`
-			);
-		}
-	}
-
-	// Image path existence — only check site-relative paths.
-	// Remote URLs and empty strings are skipped (already handled above).
-	for (const field of IMAGE_PATH_FIELDS) {
-		const value = data[field];
-		if (typeof value !== 'string' || value.length === 0) continue;
-		if (value.startsWith('http://') || value.startsWith('https://')) continue;
-		const normalized = value.startsWith('/') ? value.slice(1) : value;
+		const normalized = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed;
 		const onDisk = join(STATIC_DIR, normalized);
 		if (!existsSync(onDisk)) {
-			fail(
-				rel,
-				field,
-				`Referenced image does not exist on disk: ${onDisk}`,
-				`Upload the file to static/ or remove the "${field}" field.`
-			);
-		}
-	}
-
-	// slug field validation
-	if ('slug' in data) {
-		const slug = data['slug'];
-		if (typeof slug === 'string' && slug.length > 0 && !SLUG_RE.test(slug)) {
-			fail(
-				rel,
-				'slug',
-				`Slug "${slug}" is not URL-safe.`,
-				`Use lowercase letters, numbers, and hyphens only (e.g. "my-article-title").`
+			errors.push(
+				makeContentIssue(file, field, 'referenced image does not exist on disk', trimmed)
 			);
 		}
 	}
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+function addCtaWarnings(file: string, home: HomePageContent): void {
+	const ctas = [
+		['hero.primary_cta.href', home.hero.primary_cta?.href],
+		['hero.secondary_cta.href', home.hero.secondary_cta?.href],
+	] as const;
 
-const existingDirs = CONTENT_DIRS.filter((dir) => existsSync(dir));
+	for (const [path, href] of ctas) {
+		if (href?.startsWith('http://')) {
+			warnings.push(
+				makeContentIssue(file, path, 'should use https:// for remote CTA links', href, 'warning')
+			);
+		}
+	}
+}
 
-if (existingDirs.length === 0) {
-	console.log('[INFO] No content directories found. Skipping content validation.');
+function validateHome(file: string): void {
+	const parsed = parseYamlFile(file);
+	if (parsed === undefined) return;
+	const fileLabel = rel(file);
+	const result = validateWithSchema(HomePageSchema, parsed, fileLabel);
+	if (!result.success) {
+		errors.push(...result.issues);
+		return;
+	}
+	addCtaWarnings(fileLabel, result.output);
+}
+
+function validateArticle(file: string): void {
+	const parsed = parseArticleFile(file);
+	if (parsed === undefined) return;
+	const fileLabel = rel(file);
+	const result = validateWithSchema(ArticleSchema, parsed, fileLabel);
+	if (!result.success) {
+		errors.push(...result.issues);
+		return;
+	}
+
+	const expectedSlug = basename(file, '.md');
+	const slugIssue = filenameSlugIssue(fileLabel, result.output.slug, expectedSlug);
+	if (slugIssue) errors.push(slugIssue);
+
+	addImagePathChecks(fileLabel, result.output, ['image', 'og_image']);
+	articleRecords.push({ file: fileLabel, value: result.output });
+}
+
+function validateTeam(file: string): void {
+	const parsed = parseYamlFile(file);
+	if (parsed === undefined) return;
+	const fileLabel = rel(file);
+	const result = validateWithSchema(TeamMemberSchema, parsed, fileLabel);
+	if (!result.success) {
+		errors.push(...result.issues);
+		return;
+	}
+
+	const expectedSlug = basename(file).replace(/\.ya?ml$/, '');
+	const slugIssue = filenameSlugIssue(fileLabel, result.output.slug, expectedSlug);
+	if (slugIssue) errors.push(slugIssue);
+
+	addImagePathChecks(fileLabel, result.output, ['photo']);
+	teamRecords.push({ file: fileLabel, value: result.output });
+}
+
+function validateTestimonial(file: string): void {
+	const parsed = parseYamlFile(file);
+	if (parsed === undefined) return;
+	const fileLabel = rel(file);
+	const result = validateWithSchema(TestimonialSchema, parsed, fileLabel);
+	if (!result.success) {
+		errors.push(...result.issues);
+		return;
+	}
+
+	const expectedSlug = basename(file).replace(/\.ya?ml$/, '');
+	const slugIssue = filenameSlugIssue(fileLabel, result.output.slug, expectedSlug);
+	if (slugIssue) errors.push(slugIssue);
+
+	addImagePathChecks(fileLabel, result.output, ['photo']);
+	testimonialRecords.push({ file: fileLabel, value: result.output });
+}
+
+function validateCollection(collection: CollectionName): void {
+	if (collection === 'pages') {
+		const homePath = join(CONTENT_DIR, 'pages', 'home.yml');
+		if (existsSync(homePath)) validateHome(homePath);
+		return;
+	}
+
+	if (collection === 'articles') {
+		for (const file of collectFiles(join(CONTENT_DIR, 'articles'), ['.md'])) validateArticle(file);
+		return;
+	}
+
+	if (collection === 'team') {
+		for (const file of collectFiles(join(CONTENT_DIR, 'team'), ['.yml', '.yaml']))
+			validateTeam(file);
+		return;
+	}
+
+	for (const file of collectFiles(join(CONTENT_DIR, 'testimonials'), ['.yml', '.yaml'])) {
+		validateTestimonial(file);
+	}
+}
+
+if (!existsSync(CONTENT_DIR)) {
+	console.log('[INFO] No content directory found. Skipping content validation.');
 	process.exit(0);
 }
 
-const allFiles = existingDirs.flatMap((dir) => collectMarkdownFiles(dir));
+validateCollection('pages');
+validateCollection('articles');
+validateCollection('team');
+validateCollection('testimonials');
 
-if (allFiles.length === 0) {
-	console.log('[INFO] No Markdown content files found. Nothing to validate.');
-	process.exit(0);
-}
+errors.push(...duplicateValueIssues(articleRecords, (record) => record.slug, 'slug'));
+errors.push(...duplicateValueIssues(teamRecords, (record) => record.slug, 'slug'));
+errors.push(...duplicateValueIssues(testimonialRecords, (record) => record.slug, 'slug'));
+errors.push(...duplicateValueIssues(teamRecords, (record) => record.order, 'order'));
+errors.push(...duplicateValueIssues(testimonialRecords, (record) => record.order, 'order'));
 
-console.log(`Validating ${allFiles.length} Markdown file(s)...\n`);
+const errorOutput = formatContentIssues(errors);
+const warningOutput = formatContentIssues(warnings, 'warning');
 
-for (const file of allFiles) {
-	validateFile(file);
-}
-
-// ── Summary ───────────────────────────────────────────────────────────────────
-
-if (errors > 0) {
-	console.error(
-		`Content validation: ${errors} error(s), ${warnings} warning(s). Fix errors above.`
-	);
+if (errorOutput) {
+	console.error(errorOutput);
+	if (warningOutput) console.warn(`\n${warningOutput}`);
 	process.exit(1);
-} else if (warnings > 0) {
-	console.log(`Content validation passed with ${warnings} warning(s). Review warnings above.`);
+}
+
+if (warningOutput) {
+	console.warn(warningOutput);
+	console.log('Content validation passed with warnings.');
 } else {
-	console.log(`Content validation passed (${allFiles.length} file(s)).`);
+	console.log('Content validation passed.');
 }

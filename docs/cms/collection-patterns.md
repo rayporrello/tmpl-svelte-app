@@ -13,6 +13,7 @@ Reference for working with the four base collections and for adding new ones.
 | Path     | `content/pages/`                                             |
 | Format   | Pure YAML (no frontmatter delimiters)                        |
 | Parser   | `js-yaml`                                                    |
+| Schema   | `src/lib/content/schemas.ts` → `HomePageSchema`              |
 | CMS type | Files collection (singleton files)                           |
 | Loader   | `src/lib/content/pages.ts` → `loadPage()` / `loadHomePage()` |
 
@@ -29,6 +30,7 @@ Each file is a specific page (e.g., `home.yml`, `about.yml`). The CMS config lis
 | Path     | `content/articles/`                                                |
 | Format   | Markdown with YAML frontmatter                                     |
 | Parser   | `gray-matter`                                                      |
+| Schema   | `src/lib/content/schemas.ts` → `ArticleSchema`                     |
 | CMS type | Folder collection                                                  |
 | Loader   | `src/lib/content/articles.ts` → `loadArticle()` / `loadArticles()` |
 
@@ -42,13 +44,14 @@ The filename must match frontmatter `slug` for every article, including drafts. 
 
 ### team
 
-| Property | Value                                                              |
-| -------- | ------------------------------------------------------------------ |
-| Path     | `content/team/`                                                    |
-| Format   | Pure YAML                                                          |
-| Parser   | `js-yaml`                                                          |
-| CMS type | Folder collection                                                  |
-| Loader   | Add `loadTeam()` to `src/lib/content/pages.ts` pattern when needed |
+| Property | Value                                                                |
+| -------- | -------------------------------------------------------------------- |
+| Path     | `content/team/`                                                      |
+| Format   | Pure YAML                                                            |
+| Parser   | `js-yaml`                                                            |
+| Schema   | `src/lib/content/schemas.ts` → `TeamMemberSchema`                    |
+| CMS type | Folder collection                                                    |
+| Loader   | `src/lib/content/team.ts` → `loadTeamMember()` / `loadTeamMembers()` |
 
 Each file is a team member. `order` controls display order. `active: false` hides the member.
 
@@ -58,13 +61,14 @@ Each file is a team member. `order` controls display order. `active: false` hide
 
 ### testimonials
 
-| Property | Value                                |
-| -------- | ------------------------------------ |
-| Path     | `content/testimonials/`              |
-| Format   | Pure YAML                            |
-| Parser   | `js-yaml`                            |
-| CMS type | Folder collection                    |
-| Loader   | Add `loadTestimonials()` when needed |
+| Property | Value                                                                          |
+| -------- | ------------------------------------------------------------------------------ |
+| Path     | `content/testimonials/`                                                        |
+| Format   | Pure YAML                                                                      |
+| Parser   | `js-yaml`                                                                      |
+| Schema   | `src/lib/content/schemas.ts` → `TestimonialSchema`                             |
+| CMS type | Folder collection                                                              |
+| Loader   | `src/lib/content/testimonials.ts` → `loadTestimonial()` / `loadTestimonials()` |
 
 Each file is a testimonial. `published: false` hides it from the live site. An automation can create testimonials with `published: false` for editorial review.
 
@@ -109,19 +113,17 @@ draft: true
     - { label: Draft, name: draft, widget: boolean, default: true }
 ```
 
-### Step 3 — Add a TypeScript interface to src/lib/content/types.ts
+### Step 3 — Add the Valibot schema and derived type
 
 ```ts
-export interface Job {
-	title: string;
-	slug: string;
-	department: string;
-	location: string;
-	type: 'full-time' | 'part-time' | 'contract';
-	description: string;
-	draft: boolean;
-}
+// src/lib/content/schemas.ts
+export const JobSchema = v.strictObject({
+	/* fields */
+});
+export type Job = v.InferOutput<typeof JobSchema>;
 ```
+
+Then export the type from `src/lib/content/types.ts`. See [docs/content/validation.md](../content/validation.md).
 
 ### Step 4 — Add a loader function
 
@@ -167,7 +169,7 @@ Register the route in `src/lib/seo/routes.ts`.
 ## Removing a collection
 
 1. Remove from `static/admin/config.yml`
-2. Remove the TypeScript interface from `types.ts`
+2. Remove the schema and derived type export from `src/lib/content/schemas.ts` / `types.ts`
 3. Remove the loader from the relevant file and from `index.ts`
 4. Remove the route's `+page.server.ts` load call
 5. Remove the route entry from `src/lib/seo/routes.ts`

@@ -93,13 +93,14 @@ For local development with `local_backend: true`, run `npx netlify-cms-proxy-ser
 
 ## Relationship to n8n automations
 
-Content automations in n8n write the same files that Sveltia manages. The files follow the same schema as defined in `static/admin/config.yml`. See [docs/automations/content-automation-contract.md](../automations/content-automation-contract.md) for the contract n8n must follow when writing content files.
+Content automations in n8n write the same files that Sveltia manages. The files follow the same schema as defined in `src/lib/content/schemas.ts` and exposed through `static/admin/config.yml`. See [docs/automations/content-automation-contract.md](../automations/content-automation-contract.md) for the contract n8n must follow when writing content files.
 
 ---
 
 ## Content safety
 
 CMS writes are treated as untrusted until validated by repo scripts. A successful save in the CMS UI does not guarantee valid content.
+The shared Valibot schema contract and validator rules are documented in [docs/content/validation.md](../content/validation.md).
 
 ```bash
 bun run check:cms          # validate static/admin/config.yml

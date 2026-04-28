@@ -39,14 +39,15 @@ Sveltia CMS bundles its styles in the JavaScript file and is not distributed as 
 ```
 config.yml field name
   = content file key
-  = TypeScript interface property
+  = src/lib/content/schemas.ts schema key
+  = TypeScript property
   = Svelte component data key
 ```
 
 If you rename a field in config.yml, you must also update:
 
 1. Existing content files in `content/` (all affected files)
-2. The TypeScript interface in `src/lib/content/types.ts`
+2. The Valibot schema in `src/lib/content/schemas.ts`
 3. Any content loader in `src/lib/content/`
 4. Any Svelte component that reads that field
 5. This doc and `docs/cms/collection-patterns.md`
@@ -168,27 +169,22 @@ Date fields from the CMS are ISO 8601 strings (e.g., `'2026-04-27'`). Render the
 
 ## TypeScript types
 
-Types live in `src/lib/content/types.ts`. Every collection has a corresponding interface. Field names in the interface must exactly match the content file keys.
+Types are derived from Valibot schemas in `src/lib/content/schemas.ts` and re-exported from `src/lib/content/types.ts`. See [docs/content/validation.md](../content/validation.md) for the shared schema contract.
 
 ```ts
-// src/lib/content/types.ts
-export interface HomePageContent {
-	title: string;
-	description: string;
-	hero: {
-		eyebrow?: string;
-		headline: string;
-		// ...
-	};
-}
+// src/lib/content/schemas.ts
+export const HomePageSchema = v.strictObject({
+	/* fields */
+});
+export type HomePageContent = v.InferOutput<typeof HomePageSchema>;
 ```
 
 ---
 
 ## Adding a new field to an existing collection
 
-1. Add the field to `static/admin/config.yml` under the relevant collection
-2. Add the field to the TypeScript interface in `src/lib/content/types.ts`
+1. Add the field to the Valibot schema in `src/lib/content/schemas.ts`
+2. Add the field to `static/admin/config.yml` under the relevant collection
 3. Update existing content files if the field is required (or give it a sensible default)
 4. Use the field in the Svelte component
 5. Update `docs/cms/collection-patterns.md`

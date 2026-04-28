@@ -101,8 +101,9 @@ Full docs: [docs/cms/README.md](docs/cms/README.md) · Contract: [docs/cms/svelt
 - **CMS editor:** `/admin` — Sveltia CMS (configure `backend.repo` in `static/admin/config.yml`)
 - **Content directory:** `content/` — Git-backed YAML and Markdown files
 - **Loaders:** `src/lib/content/` — `loadHomePage()`, `loadArticle()`, `loadArticles()`, etc.
-- **Types:** `src/lib/content/types.ts`
-- **Schema:** `static/admin/config.yml` — the definitive collection and field definitions
+- **Schemas:** `src/lib/content/schemas.ts` — shared Valibot content contract
+- **Types:** `src/lib/content/types.ts` — derived from the schemas
+- **CMS config:** `static/admin/config.yml` — editor UI fields, cross-checked against schemas
 
 ### Parser rules — critical, do not mix
 
@@ -114,17 +115,18 @@ Full docs: [docs/cms/README.md](docs/cms/README.md) · Contract: [docs/cms/svelt
 - Never use gray-matter for pure YAML files
 - Never use js-yaml for Markdown frontmatter files
 - Always remap gray-matter body: `return { ...data, body: content }` — never `data.body`
+- Validate parsed content with `src/lib/content/schemas.ts`; do not cast parsed CMS data directly
 - File-reading routes must use `+page.server.ts`, not `+page.ts`
 
 ### Sveltia CMS gotchas
 
-- Field names in `config.yml` = TypeScript properties = Svelte component data keys — they are a contract
+- Field names in `config.yml` = `src/lib/content/schemas.ts` keys = TypeScript properties = Svelte component data keys — they are a contract
 - Never rename a field without updating config, content files, types, loaders, components, and docs
 - Use `snake_case` for all YAML field names
 - Do not use `content` or `data` as field names — they clash with loader conventions
 - CMS image fields must render through `CmsImage`, not bare `<img>`
 - `local_backend: true` in `config.yml` is for local dev only — remove before deploying
-- To add a collection: config + starter file + type + loader + route + SEO entry + docs (all 6 steps)
+- To add a collection: schema + config + starter file + loader + route/SEO + docs
 - `static/admin/index.html` must use a plain `<script src="...sveltia-cms.js">` in `<body>` — no stylesheet link, no `type="module"`. Sveltia bundles its styles in the JS file and is not an ES module. Do not copy Static CMS / Netlify CMS patterns here.
 
 ### AI reference for config.yml edits

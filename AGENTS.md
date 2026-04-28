@@ -511,6 +511,8 @@ Then load `/admin` in a browser to confirm the affected collection loads without
 
 ### Parser rules — never mix these
 
+Shared content schemas live in `src/lib/content/schemas.ts`. Loaders and `bun run check:content` must validate parsed content with those schemas; TypeScript content types are derived from them via `src/lib/content/types.ts`.
+
 | File type                    | Parser          | Location                       |
 | ---------------------------- | --------------- | ------------------------------ |
 | `content/pages/*.yml`        | **js-yaml**     | Pure YAML, no `---` delimiters |
@@ -559,7 +561,7 @@ Render CMS image path strings through `CmsImage`, not bare `<img>`:
 - Use `snake_case` for all YAML field names
 - Do not use `content` or `data` as field names — they clash with loader conventions
 - `body` is reserved for the Markdown body in articles
-- Field names in `config.yml` = TypeScript interface properties = Svelte component data keys
+- Field names in `config.yml` = `src/lib/content/schemas.ts` schema keys = TypeScript properties = Svelte component data keys
 - **Never rename a CMS field** without also updating: `config.yml`, content files, `types.ts`, loaders, components, and docs
 
 ### Sveltia CMS admin entrypoint
@@ -596,8 +598,8 @@ These mistakes come from confusing Sveltia CMS with Static CMS or Netlify CMS pa
 All six steps are required — partial completion breaks the content contract:
 
 1. Create a starter content file in `content/{collection}/`
-2. Add to `static/admin/config.yml`
-3. Add TypeScript interface to `src/lib/content/types.ts`
+2. Add or update the Valibot schema in `src/lib/content/schemas.ts`
+3. Add to `static/admin/config.yml`
 4. Add loader and export from `src/lib/content/index.ts`
 5. Wire to `+page.server.ts` route; register in `src/lib/seo/routes.ts`
 6. Update `docs/cms/collection-patterns.md`
