@@ -4,12 +4,22 @@
  * Builds a per-request CSP string from static defaults, applying a more
  * permissive policy for the /admin route (Sveltia CMS loads from unpkg.com).
  *
+ * Analytics extension: when PUBLIC_ANALYTICS_ENABLED=true, GTM and GA4 hosts
+ * are automatically added to script-src, connect-src, and img-src. When
+ * PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN is set, Cloudflare Analytics hosts
+ * are added to script-src and connect-src.
+ *
  * Extension points are documented inline. To widen a directive for a specific
- * project feature (analytics, external CDN, form endpoints, etc.), edit the
- * relevant array below. See ADR-019 for the full ownership and extension guide.
+ * project feature, edit the relevant array below. See ADR-019.
  */
 
 type CspDirectives = Record<string, string[]>;
+
+// Read analytics env vars directly — this module runs server-side only.
+// Analytics is off by default; CSP widens automatically when enabled.
+const analyticsEnabled = process.env.PUBLIC_ANALYTICS_ENABLED === 'true';
+const cfAnalyticsEnabled =
+	analyticsEnabled && Boolean(process.env.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN);
 
 function buildDirectives(isAdmin: boolean): CspDirectives {
 	const base: CspDirectives = {
@@ -17,22 +27,43 @@ function buildDirectives(isAdmin: boolean): CspDirectives {
 		'default-src': ["'self'"],
 
 		// Images: allow data URIs for inline base64 images.
+		// GA4 uses a pixel endpoint for some measurement — added when analytics is on.
 		// Add external CDN origins here when using a CMS media CDN or image host:
 		//   'img-src': ["'self'", 'data:', 'https://cdn.example.com'],
-		'img-src': ["'self'", 'data:'],
+		'img-src': [
+			"'self'",
+			'data:',
+			...(analyticsEnabled ? ['https://www.google-analytics.com'] : []),
+		],
 
 		// 'unsafe-inline' is required because SvelteKit injects styles as inline
 		// style attributes during SSR. Nonce upgrade is deferred to Phase 5.
 		'style-src': ["'self'", "'unsafe-inline'"],
 
-		// Connect (fetch, XHR, WebSocket). Add analytics or webhook hosts here:
-		//   'connect-src': ["'self'", 'https://plausible.io'],
+		// Connect (fetch, XHR, WebSocket). Analytics hosts added when enabled.
 		// Forms module: the contact form submits to same-origin SvelteKit actions —
 		// no external connect-src is required. If you add a client-side fetch to an
-		// email or webhook API (e.g. n8n, Postmark), add its origin here:
+		// external API (e.g. n8n, Postmark), add its origin here:
 		//   'connect-src': ["'self'", 'https://api.postmarkapp.com'],
 		//   'connect-src': ["'self'", 'https://your-n8n.example.com'],
-		'connect-src': ["'self'"],
+		'connect-src': [
+			"'self'",
+			...(analyticsEnabled
+				? [
+						'https://www.google-analytics.com',
+						'https://analytics.google.com',
+						'https://www.googletagmanager.com',
+					]
+				: []),
+			...(cfAnalyticsEnabled ? ['https://cloudflareinsights.com'] : []),
+		],
+
+		// GTM noscript fallback: AnalyticsBody.svelte renders a <noscript><iframe
+		// src="https://www.googletagmanager.com/ns.html"> for JS-disabled clients.
+		// Without an explicit frame-src the directive falls back to default-src:'self',
+		// which blocks the iframe. frame-ancestors is a separate directive (it controls
+		// who may embed THIS page — unrelated to outbound frames).
+		'frame-src': [...(analyticsEnabled ? ['https://www.googletagmanager.com'] : ["'none'"])],
 
 		// Stricter than X-Frame-Options: DENY — both are set for belt-and-suspenders.
 		'frame-ancestors': ["'none'"],
@@ -46,7 +77,7 @@ function buildDirectives(isAdmin: boolean): CspDirectives {
 		'form-action': ["'self'"],
 
 		// Prevent base-tag injection attacks.
-		'base-uri': ["'self'"]
+		'base-uri': ["'self'"],
 	};
 
 	if (isAdmin) {
@@ -54,22 +85,15 @@ function buildDirectives(isAdmin: boolean): CspDirectives {
 		// may use eval() for dynamic features. These exceptions are scoped to /admin
 		// only; the public site uses the default restrictive script-src.
 		// See ADR-019 for rationale.
+		base['script-src'] = ["'self'", 'https://unpkg.com', "'unsafe-inline'", "'unsafe-eval'"];
+		base['connect-src'] = ["'self'", 'https://api.github.com', 'https://unpkg.com'];
+	} else {
+		// Public pages: GTM and Cloudflare script hosts added when analytics is enabled.
 		base['script-src'] = [
 			"'self'",
-			'https://unpkg.com',
-			"'unsafe-inline'",
-			"'unsafe-eval'"
+			...(analyticsEnabled ? ['https://www.googletagmanager.com'] : []),
+			...(cfAnalyticsEnabled ? ['https://static.cloudflareinsights.com'] : []),
 		];
-		base['connect-src'] = [
-			"'self'",
-			'https://api.github.com',
-			'https://unpkg.com'
-		];
-	} else {
-		// Public pages: only same-origin scripts.
-		// Add external script hosts here when activating analytics:
-		//   base['script-src'] = ["'self'", 'https://plausible.io'];
-		base['script-src'] = ["'self'"];
 	}
 
 	return base;

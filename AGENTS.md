@@ -82,24 +82,27 @@ Before generating any UI markup or components, read:
 
 ## What agents may edit
 
-| Target | What to do |
-|--------|-----------|
-| `tokens.css` | Edit freely for brand customization |
-| `src/lib/config/site.ts` | Replace all placeholder values for each project |
-| `src/lib/seo/routes.ts` | Add new routes; set `indexable` correctly |
-| Component `<style>` blocks | Write component-specific styles here |
-| Brand sections in architecture files | Add after the `BRAND-SPECIFIC` marker comment |
-| `+layout.svelte` | Add global layout wrapper, header, footer |
-| `app.html` | Update title, `theme-color` hex, favicon |
+| Target                               | What to do                                            |
+| ------------------------------------ | ----------------------------------------------------- |
+| `tokens.css`                         | Edit freely for brand customization                   |
+| `src/lib/config/site.ts`             | Replace all placeholder values for each project       |
+| `src/lib/seo/routes.ts`              | Add new routes; set `indexable` correctly             |
+| `src/lib/analytics/events.ts`        | Add new typed event names and helpers                 |
+| `src/lib/analytics/consent.ts`       | Wire consent state to a project's consent UI          |
+| `src/lib/server/analytics/events.ts` | Activate a real provider via `setAnalyticsProvider()` |
+| Component `<style>` blocks           | Write component-specific styles here                  |
+| Brand sections in architecture files | Add after the `BRAND-SPECIFIC` marker comment         |
+| `+layout.svelte`                     | Add global layout wrapper, header, footer             |
+| `app.html`                           | Update title, `theme-color` hex, favicon              |
 
 ## What agents must NOT edit
 
-| Target | Reason |
-|--------|--------|
-| `reset.css` | Universal — editing breaks all projects |
-| `base.css` | Element defaults — extend via components |
-| Architecture sections of `utilities.css`, `animations.css`, `forms.css` | Shared across projects — editing breaks all |
-| Layer order in `app.css` | Must stay `reset, tokens, base, utilities, components` |
+| Target                                                                  | Reason                                                 |
+| ----------------------------------------------------------------------- | ------------------------------------------------------ |
+| `reset.css`                                                             | Universal — editing breaks all projects                |
+| `base.css`                                                              | Element defaults — extend via components               |
+| Architecture sections of `utilities.css`, `animations.css`, `forms.css` | Shared across projects — editing breaks all            |
+| Layer order in `app.css`                                                | Must stay `reset, tokens, base, utilities, components` |
 
 ---
 
@@ -112,10 +115,10 @@ HTML markup rules: [docs/design-system/llm-html-rules.md](docs/design-system/llm
 
 **Step 1 — Ask: is this image's path known at build time?**
 
-| Answer | Folder | Component |
-|--------|--------|-----------|
-| **Yes** — file committed to repo, referenced in code | `src/lib/assets/` | `<enhanced:img>` |
-| **No** — path is a runtime string from CMS, DB, or user upload | `static/uploads/` | `<CmsImage>` |
+| Answer                                                         | Folder            | Component        |
+| -------------------------------------------------------------- | ----------------- | ---------------- |
+| **Yes** — file committed to repo, referenced in code           | `src/lib/assets/` | `<enhanced:img>` |
+| **No** — path is a runtime string from CMS, DB, or user upload | `static/uploads/` | `<CmsImage>`     |
 
 Default to `src/lib/assets/` + `<enhanced:img>` unless there is a clear runtime-path reason for `CmsImage`. The distinction is not "developer vs editor" — it is build-time vs runtime. If unclear, ask before writing markup.
 
@@ -127,13 +130,13 @@ Default to `src/lib/assets/` + `<enhanced:img>` unless there is a clear runtime-
 
 Use standard dimensions from `docs/design-system/images.md`. For Tier 1 (`<enhanced:img>`), `width`/`height` should match the source file — the plugin generates srcset from there. For Tier 2 (`CmsImage`), use the display size.
 
-| Use case | Source file | `width` attr | `height` attr |
-|----------|------------|-------------|--------------|
-| Hero / full-bleed | 2560 × 1280 | 1920 | 960 |
-| Section feature | 1920 × 1080 | 1600 | 900 |
-| Article featured | 1200 × 630 | 1200 | 630 |
-| Card (2–3/row) | 1200 × 675 | 800 | 450 |
-| Team headshot | 600 × 600 | 400 | 400 |
+| Use case          | Source file | `width` attr | `height` attr |
+| ----------------- | ----------- | ------------ | ------------- |
+| Hero / full-bleed | 2560 × 1280 | 1920         | 960           |
+| Section feature   | 1920 × 1080 | 1600         | 900           |
+| Article featured  | 1200 × 630  | 1200         | 630           |
+| Card (2–3/row)    | 1200 × 675  | 800          | 450           |
+| Team headshot     | 600 × 600   | 400          | 400           |
 
 Add `sizes="100vw"` to any full-bleed image.
 
@@ -201,12 +204,41 @@ bun add sveltekit-superforms valibot
 Superforms owns: validation, data binding, submission, progressive enhancement, server errors, constraint API.
 
 Do not:
+
 - Add form validation logic to `forms.css` or any CSS file
 - Build a custom form submission handler — use Superforms server actions
 - Add Formsnap (Superforms direct is the standard)
 - Duplicate Superforms behavior in CSS or Svelte components
 
 All form controls must support `aria-invalid`, `data-invalid`, `:disabled`, visible `:focus-visible`, help text (`.field-help`), and error text (`.field-error`).
+
+---
+
+## Analytics rules
+
+Full reference: [docs/analytics/README.md](docs/analytics/README.md)  
+Event taxonomy: [docs/analytics/event-taxonomy.md](docs/analytics/event-taxonomy.md)  
+Server conversions: [docs/analytics/server-conversions.md](docs/analytics/server-conversions.md)
+
+### Always
+
+- Add new analytics events to `docs/analytics/event-taxonomy.md` and `src/lib/analytics/events.ts` before using them in code
+- Fire server conversion events ONLY after successful validation and primary operation (email sent, DB insert, webhook fired)
+- Use `trackCtaClick()`, `trackOutboundLink()`, and other helpers from `src/lib/analytics/events.ts` — do not push to `window.dataLayer` directly
+- Run `bun run check:analytics` before deploying
+
+### Never
+
+- Do not add a direct `gtag.js` GA4 snippet when GTM is active — GA4 is configured inside GTM
+- Do not send PII (names, emails, phone numbers, raw message content) to any analytics event or parameter
+- Do not track every click by default — use event helpers deliberately on meaningful interactions
+- Do not enable analytics in staging/preview/dev without `PUBLIC_ANALYTICS_STAGING_OVERRIDE=true`
+- Do not let analytics failures break user-facing form submissions — use `emitServerAnalyticsEvent()` which catches and logs failures
+- Do not use Cloudflare Web Analytics as your ad attribution or conversion tracking source
+- Do not use GA4 Measurement Protocol as a replacement for browser GTM/GA4 collection
+- Do not add server-side GTM, Meta CAPI, LinkedIn CAPI, or Google Ads enhanced conversions to the base template — these are paid-acquisition upgrade paths documented in `docs/analytics/paid-ads-upgrade.md`
+- Do not add Search Console verification as runtime code — it belongs in `site.ts` (HTML tag) or DNS (preferred) as a launch/onboarding task
+- Do not commit real GTM IDs, GA4 IDs, or Cloudflare tokens to the template — use placeholder comments in `.env.example` only
 
 ---
 
@@ -241,14 +273,14 @@ Decision: [ADR-019](docs/planning/adrs/ADR-019-security-headers-and-csp-baseline
 
 ### Header ownership split
 
-| Header | Owner | Where set |
-|--------|-------|-----------|
-| `Content-Security-Policy` | **App** | `src/lib/server/csp.ts` via `hooks.server.ts` |
-| `X-Content-Type-Options` | **App** | `src/hooks.server.ts` |
-| `Referrer-Policy` | **App** | `src/hooks.server.ts` |
-| `X-Frame-Options` | **App** | `src/hooks.server.ts` |
-| `Permissions-Policy` | **App** | `src/hooks.server.ts` |
-| `Strict-Transport-Security` | **Edge (Caddy)** | `deploy/Caddyfile.example` |
+| Header                      | Owner            | Where set                                     |
+| --------------------------- | ---------------- | --------------------------------------------- |
+| `Content-Security-Policy`   | **App**          | `src/lib/server/csp.ts` via `hooks.server.ts` |
+| `X-Content-Type-Options`    | **App**          | `src/hooks.server.ts`                         |
+| `Referrer-Policy`           | **App**          | `src/hooks.server.ts`                         |
+| `X-Frame-Options`           | **App**          | `src/hooks.server.ts`                         |
+| `Permissions-Policy`        | **App**          | `src/hooks.server.ts`                         |
+| `Strict-Transport-Security` | **Edge (Caddy)** | `deploy/Caddyfile.example`                    |
 
 Do NOT set HSTS, compression, or access logging headers in the app. Those are Caddy's responsibility.
 
@@ -256,13 +288,13 @@ Do NOT set HSTS, compression, or access logging headers in the app. Those are Ca
 
 To widen a CSP directive for a new project feature, edit `src/lib/server/csp.ts`. Do NOT add directives inline in `hooks.server.ts`. Each extension point has a comment in `csp.ts`:
 
-| Feature | Directive | Edit |
-|---------|-----------|------|
+| Feature                      | Directive                   | Edit                         |
+| ---------------------------- | --------------------------- | ---------------------------- |
 | Analytics (Plausible, Umami) | `connect-src`, `script-src` | Add host to respective array |
-| CMS media CDN | `img-src` | Add CDN origin |
-| Email/form endpoint | `form-action` | Add host |
-| n8n webhook | `connect-src` | Add host |
-| Embedded video (YouTube) | `frame-src` | Add host |
+| CMS media CDN                | `img-src`                   | Add CDN origin               |
+| Email/form endpoint          | `form-action`               | Add host                     |
+| n8n webhook                  | `connect-src`               | Add host                     |
+| Embedded video (YouTube)     | `frame-src`                 | Add host                     |
 
 The `/admin` route already has a more permissive policy (allows `https://unpkg.com` for Sveltia CMS). Do not copy-paste the admin exceptions to other routes.
 
@@ -274,10 +306,10 @@ Decision: [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment
 
 ### Import paths
 
-| Path | Use for | Security |
-|------|---------|----------|
-| `$lib/env/public` | ORIGIN, PUBLIC_SITE_URL | Server-side only (transitively imports `$lib/server/`) |
-| `$lib/env/private` | DATABASE_URL, SESSION_SECRET, etc. | Server-side only |
+| Path               | Use for                            | Security                                               |
+| ------------------ | ---------------------------------- | ------------------------------------------------------ |
+| `$lib/env/public`  | ORIGIN, PUBLIC_SITE_URL            | Server-side only (transitively imports `$lib/server/`) |
+| `$lib/env/private` | DATABASE_URL, SESSION_SECRET, etc. | Server-side only                                       |
 
 Never import env vars directly from `process.env` in application code — use the typed exports from `$lib/env/public` or `$lib/env/private`.
 
@@ -349,15 +381,15 @@ This repo is **Bun-first**. All package management, scripts, and tooling use Bun
 
 ### Never commit these
 
-| Path | Reason |
-|------|--------|
-| `node_modules/` | Installed from `bun.lock`; never source-controlled |
-| `.svelte-kit/` | Generated on `bun run dev` or `svelte-kit sync`; never source-controlled |
-| `build/` | Production bundle output; regenerated on every deploy |
-| `dist/` | Alternative build output; same policy |
-| `.env`, `.env.*` | Local secrets — use `.env.example` for safe defaults |
-| `bun.lockb` | Legacy binary lockfile; this repo uses `bun.lock` |
-| `static/uploads/optimized/`, `static/uploads/responsive/`, `static/uploads/generated/` | Potential generated output dirs — ignore if created |
+| Path                                                                                   | Reason                                                                   |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `node_modules/`                                                                        | Installed from `bun.lock`; never source-controlled                       |
+| `.svelte-kit/`                                                                         | Generated on `bun run dev` or `svelte-kit sync`; never source-controlled |
+| `build/`                                                                               | Production bundle output; regenerated on every deploy                    |
+| `dist/`                                                                                | Alternative build output; same policy                                    |
+| `.env`, `.env.*`                                                                       | Local secrets — use `.env.example` for safe defaults                     |
+| `bun.lockb`                                                                            | Legacy binary lockfile; this repo uses `bun.lock`                        |
+| `static/uploads/optimized/`, `static/uploads/responsive/`, `static/uploads/generated/` | Potential generated output dirs — ignore if created                      |
 
 ### Image artifacts — special case
 
@@ -378,6 +410,7 @@ bun run check                   # TypeScript + svelte-check
 bun run images:optimize         # prebuild image pipeline (idempotent)
 bun run build                   # production build
 bun run check:seo               # SEO config validation
+bun run check:analytics         # analytics config validation (GTM format, staging isolation)
 bun run check:cms               # CMS config validation
 bun run check:content           # content file validation
 bun run check:content-diff      # destructive content diff check
@@ -396,11 +429,23 @@ src/
   app.d.ts          SvelteKit type augmentation — App.Locals (requestId, etc.)
   hooks.server.ts   request ID injection, centralized error handling
   lib/
+    analytics/
+      config.ts             reads PUBLIC_* env vars; buildAnalyticsConfig factory
+      events.ts             typed browser event names and push helpers (trackCtaClick, etc.)
+      browser.ts            window.dataLayer initializer
+      pageview.ts           SvelteKit SPA page_view tracking via afterNavigate
+      attribution.client.ts first-touch UTM/click ID capture and localStorage storage
+      consent.ts            Consent Mode v2 types and dataLayer helpers
     config/
       site.ts       BRAND FILE — SEO/site config single source of truth
     observability/
       types.ts      ObservabilityTier, LogLevel, HealthResponse, WorkflowEventPayload
     server/
+      analytics/
+        types.ts                          ServerAnalyticsProvider interface and event types
+        events.ts                         emitServerAnalyticsEvent() — wraps provider with failure guard
+        noop-provider.ts                  default no-op provider
+        ga4-measurement-protocol.example.ts  dormant GA4 MP provider (example/upgrade path)
       logger.ts     structured JSON logger with redaction — use instead of console.error
       request-id.ts read/generate request ID from x-request-id header
       safe-error.ts normalize thrown errors; split public message from diagnostic detail
@@ -418,17 +463,21 @@ src/
       utilities.css   architecture — add brand utilities below marker
       forms.css       architecture — add brand form overrides below marker
     components/
+      analytics/
+        AnalyticsHead.svelte  GTM head snippet + Cloudflare Web Analytics (disabled by default)
+        AnalyticsBody.svelte  GTM noscript fallback
       seo/
         SEO.svelte  renders all head/meta/schema for a page
   routes/
     +error.svelte           friendly accessible error page
-    +layout.svelte          imports app.css, injects root schema
+    +layout.svelte          imports app.css, injects root schema + analytics components
     healthz/+server.ts      process liveness check — returns JSON
     sitemap.xml/+server.ts  prerendered sitemap
     robots.txt/+server.ts   prerendered robots.txt
     llms.txt/+server.ts     prerendered llms.txt
     styleguide/+page.svelte design system demo — keep updated
 scripts/
+  check-analytics.ts    validate analytics config (GTM format, docs exist, staging isolation)
   check-cms-config.ts   validate static/admin/config.yml
   validate-content.ts   validate .md content files under content/
   check-content-diff.ts detect destructive content changes in git diff
@@ -462,12 +511,12 @@ Then load `/admin` in a browser to confirm the affected collection loads without
 
 ### Parser rules — never mix these
 
-| File type | Parser | Location |
-|-----------|--------|---------|
-| `content/pages/*.yml` | **js-yaml** | Pure YAML, no `---` delimiters |
-| `content/team/*.yml` | **js-yaml** | Pure YAML |
-| `content/testimonials/*.yml` | **js-yaml** | Pure YAML |
-| `content/articles/*.md` | **gray-matter** | Markdown with YAML frontmatter |
+| File type                    | Parser          | Location                       |
+| ---------------------------- | --------------- | ------------------------------ |
+| `content/pages/*.yml`        | **js-yaml**     | Pure YAML, no `---` delimiters |
+| `content/team/*.yml`         | **js-yaml**     | Pure YAML                      |
+| `content/testimonials/*.yml` | **js-yaml**     | Pure YAML                      |
+| `content/articles/*.md`      | **gray-matter** | Markdown with YAML frontmatter |
 
 ```ts
 // ✓ Correct — pure YAML

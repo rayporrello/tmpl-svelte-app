@@ -48,6 +48,12 @@ See [ADR-010](adrs/ADR-010-typography-and-font-loading.md).
 **Built-in:** central site config, SEO component, schema helpers, sitemap, robots.txt, check script.  
 See [ADR-011](adrs/ADR-011-built-in-seo-system.md).
 
+## Analytics
+
+**Dormant spine, env-var activated.** GTM web container + GA4 is the default production path. SvelteKit emits explicit `dataLayer` page views on every navigation. Cloudflare Web Analytics is a supported optional sanity layer. Server-side conversion events exist as a typed seam (no-op by default). GA4 Measurement Protocol, server-side GTM, and ad-platform APIs are documented upgrade paths — not default infrastructure.
+
+See [docs/analytics/README.md](../analytics/README.md).
+
 ## Deployment
 
 **Podman Quadlet + Caddy** — container-based, rootless. Templates planned for Phase 6.  

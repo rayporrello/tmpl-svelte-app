@@ -140,13 +140,14 @@ with real copy. The home route loads this file at build time — no database nee
 
 ## Step 10 — Activate dormant modules (only when needed)
 
-| Module             | How to activate                                                                                                                                                 |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contact form       | Rename `src/routes/contact-example/` → `src/routes/contact/`; install an email provider (see [docs/design-system/forms-guide.md](design-system/forms-guide.md)) |
-| Postgres + Drizzle | Add `DATABASE_URL` to `.env`; create a schema file                                                                                                              |
-| n8n webhooks       | Add `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` env vars                                                                                                           |
-| Postmark email     | Copy `src/lib/server/forms/providers/postmark.example.ts` → `postmark.ts`; add `POSTMARK_SERVER_TOKEN` (matches `.env.example`)                                 |
-| Better Auth        | Follow the auth module docs                                                                                                                                     |
+| Module             | How to activate                                                                                                                                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contact form       | Rename `src/routes/contact-example/` → `src/routes/contact/`; install an email provider (see [docs/design-system/forms-guide.md](design-system/forms-guide.md))                                            |
+| Analytics          | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md) and [docs/analytics/gtm-ga4-setup.md](analytics/gtm-ga4-setup.md). |
+| Postgres + Drizzle | Add `DATABASE_URL` to `.env`; create a schema file                                                                                                                                                         |
+| n8n webhooks       | Add `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` env vars                                                                                                                                                      |
+| Postmark email     | Copy `src/lib/server/forms/providers/postmark.example.ts` → `postmark.ts`; add `POSTMARK_SERVER_TOKEN` (matches `.env.example`)                                                                            |
+| Better Auth        | Follow the auth module docs                                                                                                                                                                                |
 
 ---
 

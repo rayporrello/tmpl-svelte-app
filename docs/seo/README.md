@@ -105,8 +105,27 @@ Both scripts are wired into the validation pipeline:
 
 Run `validate:launch` before going live. The launch checks fail loudly on placeholder URLs.
 
+## Google Search Console
+
+Search Console is a required launch task, not app runtime code. There is no Search Console integration in the application code — it is a property you verify and configure in Google's dashboard.
+
+**What to do at launch:**
+
+1. Go to [search.google.com/search-console](https://search.google.com/search-console) and create a property for your production domain.
+2. Verify ownership — DNS TXT record is preferred. For HTML tag verification, add the token to `src/lib/config/site.ts`:
+   ```ts
+   searchConsoleVerification: 'your-token-here';
+   ```
+   The SEO component injects it as `<meta name="google-site-verification">`.
+3. Submit your sitemap: `https://yourdomain.com/sitemap.xml`
+4. Confirm the sitemap shows "Success" in the Coverage report (within 24–72 hours).
+5. Inspect key URLs — confirm they are indexable and have no canonical issues.
+
+See [docs/analytics/client-onboarding-checklist.md](../analytics/client-onboarding-checklist.md) for the full Search Console onboarding steps.
+
 ## Further reading
 
 - [page-contract.md](page-contract.md) — required metadata for every route
 - [schema-guide.md](schema-guide.md) — when and how to use JSON-LD schema
 - [launch-checklist.md](launch-checklist.md) — pre-launch SEO checklist
+- [docs/analytics/launch-checklist.md](../analytics/launch-checklist.md) — analytics launch checklist (includes Search Console)

@@ -36,6 +36,7 @@ Starting a new web project from scratch means re-solving the same problems every
 - Contact form pattern (Superforms + Valibot + EmailProvider seam + rate limiter at `src/routes/contact-example/`)
 - Postmark transactional email provider (`src/lib/server/forms/providers/postmark.example.ts`)
 - n8n integration env contract (`N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`)
+- Analytics spine: GTM + GA4 + Cloudflare Web Analytics + server conversion events (set `PUBLIC_ANALYTICS_ENABLED=true` in production — see `docs/analytics/README.md`)
 
 **Planned, not yet implemented:**
 
@@ -55,8 +56,7 @@ Independent of Phase 5 — small wins, can be picked up anytime:
 Beyond the website-only baseline — each will be scoped in its own thread (see `12-post-v1-roadmap.md`):
 
 - i18n / localisation
-- Analytics / RUM
-- Cookie consent / privacy banner
+- Cookie consent / privacy banner (consent seam is implemented; full banner UI is per-project)
 - Newsletter subscription dormant module
 - Site search (Pagefind)
 - Per-article OG image generation

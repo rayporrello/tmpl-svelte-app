@@ -1,6 +1,8 @@
 <script lang="ts">
 	import '../app.css';
 	import SEO from '$lib/components/seo/SEO.svelte';
+	import AnalyticsHead from '$lib/components/analytics/AnalyticsHead.svelte';
+	import AnalyticsBody from '$lib/components/analytics/AnalyticsBody.svelte';
 	import { organizationSchema, websiteSchema } from '$lib/seo/schemas';
 	import { site } from '$lib/config/site';
 	import { page } from '$app/state';
@@ -20,6 +22,16 @@
 		schema: rootSchema,
 	}}
 />
+
+<!--
+  Analytics: GTM head snippet + Cloudflare Web Analytics (when enabled via env vars).
+  Disabled by default — set PUBLIC_ANALYTICS_ENABLED=true in production env only.
+  See docs/analytics/README.md.
+-->
+<AnalyticsHead />
+
+<!-- GTM noscript fallback — as close to <body> as SvelteKit layout allows -->
+<AnalyticsBody />
 
 <!-- Skip link — first element, visible on focus -->
 <a href="#main-content" class="skip-link">Skip to main content</a>

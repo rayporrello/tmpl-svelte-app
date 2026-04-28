@@ -15,7 +15,7 @@ import * as v from 'valibot';
 
 const publicSchema = v.object({
 	ORIGIN: v.pipe(v.string(), v.minLength(1, 'ORIGIN must not be empty')),
-	PUBLIC_SITE_URL: v.pipe(v.string(), v.minLength(1, 'PUBLIC_SITE_URL must not be empty'))
+	PUBLIC_SITE_URL: v.pipe(v.string(), v.minLength(1, 'PUBLIC_SITE_URL must not be empty')),
 });
 
 const privateSchema = v.object({
@@ -28,7 +28,13 @@ const privateSchema = v.object({
 	N8N_WEBHOOK_SECRET: v.optional(v.string()),
 	// Forms — set to "true" to enable in-process rate limiting on form endpoints.
 	// This is a single-node guard; buckets reset on restart. See rate-limit.ts.
-	RATE_LIMIT_ENABLED: v.optional(v.string())
+	RATE_LIMIT_ENABLED: v.optional(v.string()),
+	// Analytics — server-side conversion events (dormant by default).
+	// Set to "true" only after configuring a real ServerAnalyticsProvider.
+	// See docs/analytics/server-conversions.md.
+	ANALYTICS_SERVER_EVENTS_ENABLED: v.optional(v.string()),
+	GA4_MEASUREMENT_ID: v.optional(v.string()),
+	GA4_MEASUREMENT_PROTOCOL_API_SECRET: v.optional(v.string()),
 });
 
 export type PublicEnv = v.InferOutput<typeof publicSchema>;
@@ -58,7 +64,7 @@ export function initEnv(): void {
 
 	const publicResult = v.safeParse(publicSchema, {
 		ORIGIN: process.env.ORIGIN,
-		PUBLIC_SITE_URL: process.env.PUBLIC_SITE_URL
+		PUBLIC_SITE_URL: process.env.PUBLIC_SITE_URL,
 	});
 
 	const privateResult = v.safeParse(privateSchema, {
@@ -69,7 +75,10 @@ export function initEnv(): void {
 		CONTACT_FROM_EMAIL: process.env.CONTACT_FROM_EMAIL,
 		N8N_WEBHOOK_URL: process.env.N8N_WEBHOOK_URL,
 		N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET,
-		RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED
+		RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
+		ANALYTICS_SERVER_EVENTS_ENABLED: process.env.ANALYTICS_SERVER_EVENTS_ENABLED,
+		GA4_MEASUREMENT_ID: process.env.GA4_MEASUREMENT_ID,
+		GA4_MEASUREMENT_PROTOCOL_API_SECRET: process.env.GA4_MEASUREMENT_PROTOCOL_API_SECRET,
 	});
 
 	const errors: string[] = [];
@@ -108,12 +117,12 @@ export const publicEnv: PublicEnv = new Proxy({} as PublicEnv, {
 	get(_, prop: string) {
 		if (!_publicEnv) initEnv();
 		return _publicEnv![prop as keyof PublicEnv];
-	}
+	},
 });
 
 export const privateEnv: PrivateEnv = new Proxy({} as PrivateEnv, {
 	get(_, prop: string) {
 		if (!_privateEnv) initEnv();
 		return _privateEnv![prop as keyof PrivateEnv];
-	}
+	},
 });

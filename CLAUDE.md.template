@@ -268,6 +268,33 @@ bun run check:content-diff  # check for destructive changes
 - Never rewrite frontmatter wholesale; preserve existing valid values.
 - A content diff that blanks required fields or removes body content is a blocker — stop and report.
 
+## Analytics
+
+Full docs: [docs/analytics/README.md](docs/analytics/README.md)
+
+Analytics is disabled by default. Enable in production only by setting env vars.
+
+- `PUBLIC_ANALYTICS_ENABLED=true` — master switch (production only)
+- `PUBLIC_GTM_ID=GTM-XXXXXXX` — GTM web container
+- `PUBLIC_GA4_MEASUREMENT_ID=G-XXXXXXXXXX` — informational (GA4 lives inside GTM)
+- `PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN=...` — optional privacy-first sanity layer
+
+**Agent rules:**
+- Do not add a direct `gtag.js` GA4 snippet when GTM is active — GA4 is configured inside GTM.
+- Do not send PII (names, emails, message bodies) to any analytics event.
+- Do not track every click automatically — use helpers from `src/lib/analytics/events.ts` deliberately.
+- Do not enable analytics in staging/preview without `PUBLIC_ANALYTICS_STAGING_OVERRIDE=true`.
+- Add new analytics events to `docs/analytics/event-taxonomy.md` before using them.
+- Server conversion events must fire ONLY after successful validation and primary operation.
+- Analytics failures must not break user-facing form submissions — `emitServerAnalyticsEvent()` catches failures.
+- Search Console setup is a launch/onboarding task, not app runtime code.
+- Cloudflare Web Analytics is a sanity-check layer, not the ad attribution source.
+- Server-side GTM, GA4 Measurement Protocol, and ad-platform APIs are upgrade paths — see `docs/analytics/paid-ads-upgrade.md`.
+
+```bash
+bun run check:analytics  # validate analytics config
+```
+
 ## What not to do
 
 - Do not add Tailwind, shadcn, or any pre-built component library.
