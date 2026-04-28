@@ -3,8 +3,8 @@
  *
  * Usage:
  *   1. Default: console provider (logs to stdout). Works out of the box.
- *   2. Postmark: see providers/postmark.example.ts — rename to postmark.ts and
- *      replace the import in your route action.
+ *   2. Postmark: set POSTMARK_SERVER_TOKEN and resolveEmailProvider() switches
+ *      automatically.
  *   3. Custom: implement this interface and pass it to your action.
  */
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import SEO from '$lib/components/seo/SEO.svelte';
+	import SchemaJsonLd from '$lib/components/seo/SchemaJsonLd.svelte';
 	import AnalyticsHead from '$lib/components/analytics/AnalyticsHead.svelte';
 	import AnalyticsBody from '$lib/components/analytics/AnalyticsBody.svelte';
 	import { organizationSchema, websiteSchema } from '$lib/seo/schemas';
@@ -12,16 +12,10 @@
 	// Root-level schema injected on every page. Page-specific schema is added
 	// via the SEO component on individual routes — do not duplicate it here.
 	const rootSchema = [organizationSchema(), websiteSchema()];
+	const year = new Date().getFullYear();
 </script>
 
-<SEO
-	seo={{
-		title: site.defaultTitle,
-		description: site.defaultDescription,
-		canonicalPath: '/',
-		schema: rootSchema,
-	}}
-/>
+<SchemaJsonLd schema={rootSchema} />
 
 <!--
   Analytics: GTM head snippet + Cloudflare Web Analytics (when enabled via env vars).
@@ -38,7 +32,7 @@
 
 <header class="site-header">
 	<div class="container">
-		<a href="/" class="site-logo">[Site Name]</a>
+		<a href="/" class="site-logo">{site.name}</a>
 		<nav aria-label="Primary">
 			<ul role="list" class="nav-list">
 				<li>
@@ -90,7 +84,7 @@
 				{/if}
 			</ul>
 		</nav>
-		<p><small>&copy; [Year] [Site Name]. All rights reserved.</small></p>
+		<p><small>&copy; {year} {site.name}. All rights reserved.</small></p>
 	</div>
 </footer>
 

@@ -4,8 +4,8 @@
  *
  * Prompts for project-specific values and rewrites all placeholder strings in:
  *   package.json, src/lib/config/site.ts, static/admin/config.yml,
- *   static/site.webmanifest, README.md, .env.example, deploy/env.example,
- *   deploy/Caddyfile.example, deploy/quadlets/web.container
+ *   static/site.webmanifest, src/app.html, README.md, .env.example,
+ *   deploy/env.example, deploy/Caddyfile.example, deploy/quadlets/web.container
  *
  * Idempotent — re-running with the same answers produces identical files.
  * Re-running with different answers applies the new values atomically.
@@ -162,6 +162,10 @@ function rewriteWebmanifest(content: string, name: string, shortName: string): s
 	}
 }
 
+function rewriteAppHtml(content: string, name: string): string {
+	return content.replace(/<title>.*<\/title>/, `<title>${name}</title>`);
+}
+
 function rewriteReadme(content: string, name: string): string {
 	// Replace only the H1 title line
 	return content.replace(/^# .+$/m, `# ${name}`);
@@ -242,6 +246,7 @@ async function main() {
 	const siteTs = readFile('src/lib/config/site.ts');
 	const configYml = readFile('static/admin/config.yml');
 	const webmanifest = readFile('static/site.webmanifest');
+	const appHtml = readFile('src/app.html');
 	const readme = readFile('README.md');
 	const envExample = readFile('.env.example');
 	const deployEnv = readFile('deploy/env.example');
@@ -333,6 +338,11 @@ async function main() {
 		if (updated !== webmanifest) writeFile('static/site.webmanifest', updated);
 	}
 
+	if (appHtml) {
+		const updated = rewriteAppHtml(appHtml, siteName);
+		if (updated !== appHtml) writeFile('src/app.html', updated);
+	}
+
 	if (readme) {
 		const updated = rewriteReadme(readme, siteName);
 		if (updated !== readme) writeFile('README.md', updated);
@@ -360,7 +370,7 @@ async function main() {
 
 	console.log('\n✓  init:site complete. Files updated:');
 	console.log('   package.json, src/lib/config/site.ts, static/admin/config.yml');
-	console.log('   static/site.webmanifest, README.md, .env.example');
+	console.log('   static/site.webmanifest, src/app.html, README.md, .env.example');
 	console.log('   deploy/env.example, deploy/Caddyfile.example, deploy/quadlets/web.container');
 	console.log('\nNext steps:');
 	console.log('  1. Replace static/og-default.png with a real 1200×630 OG image');

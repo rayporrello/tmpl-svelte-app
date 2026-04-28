@@ -42,7 +42,7 @@ picks up `POSTMARK_SERVER_TOKEN` and switches to the Postmark provider. No code 
 needed — just set the env var.
 
 **CSP note:** Postmark's API is called server-side (no browser fetch), so no `connect-src`
-change is needed. The provider implementation is in `postmark.example.ts`.
+change is needed. The provider implementation is in `postmark.ts`.
 
 ---
 

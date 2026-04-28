@@ -1,15 +1,9 @@
 /**
- * Postmark email provider — EXAMPLE FILE, not auto-loaded.
+ * Postmark email provider.
  *
  * Activation:
- *   1. Rename this file to postmark.ts.
- *   2. Set POSTMARK_SERVER_TOKEN in your env (already declared in env.ts privateSchema).
- *   3. In your route action, replace:
- *        import { consoleProvider } from '$lib/server/forms/providers/console';
- *      with:
- *        import { makePostmarkProvider } from '$lib/server/forms/providers/postmark';
- *        import { privateEnv } from '$lib/server/env';
- *        const emailProvider = makePostmarkProvider(privateEnv.POSTMARK_SERVER_TOKEN!);
+ *   Set POSTMARK_SERVER_TOKEN in your env. resolveEmailProvider() automatically
+ *   switches from the console provider to this provider when the token is set.
  *
  * CSP note: if you use Postmark's inbound webhook rather than the SMTP API, widen
  * connect-src in src/lib/server/csp.ts:
@@ -17,8 +11,8 @@
  * and form-action if you redirect to a Postmark endpoint:
  *   'form-action': ["'self'", 'https://api.postmarkapp.com'],
  *
- * bun add postmark   ← run this to install the official Postmark SDK (optional;
- *                      this example uses the bare fetch API instead).
+ * This implementation uses the bare fetch API, so no Postmark SDK dependency is
+ * required. If a project wants the official SDK, add it per project.
  */
 
 import type { EmailPayload, EmailProvider } from '../email-provider';
@@ -31,7 +25,7 @@ export function makePostmarkProvider(serverToken: string): EmailProvider {
 				headers: {
 					Accept: 'application/json',
 					'Content-Type': 'application/json',
-					'X-Postmark-Server-Token': serverToken
+					'X-Postmark-Server-Token': serverToken,
 				},
 				body: JSON.stringify({
 					From: payload.from,
@@ -39,14 +33,14 @@ export function makePostmarkProvider(serverToken: string): EmailProvider {
 					Subject: payload.subject,
 					TextBody: payload.text,
 					...(payload.html ? { HtmlBody: payload.html } : {}),
-					...(payload.replyTo ? { ReplyTo: payload.replyTo } : {})
-				})
+					...(payload.replyTo ? { ReplyTo: payload.replyTo } : {}),
+				}),
 			});
 
 			if (!response.ok) {
 				const body = await response.text().catch(() => '(no body)');
 				throw new Error(`Postmark send failed: ${response.status} ${body}`);
 			}
-		}
+		},
 	};
 }

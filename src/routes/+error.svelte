@@ -6,7 +6,7 @@
 		404: "The page you were looking for doesn't exist.",
 		403: "You don't have permission to view this page.",
 		500: 'The server encountered an error. Please try again in a moment.',
-		503: 'The service is temporarily unavailable. Please try again shortly.'
+		503: 'The service is temporarily unavailable. Please try again shortly.',
 	};
 
 	const heading = page.status === 404 ? 'Page not found' : 'Something went wrong';
@@ -132,18 +132,18 @@
 
 	.error-copy-btn {
 		font-size: var(--text-xs);
-		color: var(--color-accent);
+		color: var(--border-focus);
 		background: none;
-		border: 1px solid var(--color-accent);
+		border: 1px solid var(--border-focus);
 		border-radius: var(--radius-sm);
-		padding-block: var(--space-0-5);
+		padding-block: calc(var(--space-1) / 2);
 		padding-inline: var(--space-2);
 		cursor: pointer;
 		min-height: 28px;
 	}
 
 	.error-copy-btn:hover {
-		background: color-mix(in oklch, var(--color-accent) 10%, transparent);
+		background: color-mix(in oklch, var(--border-focus) 10%, transparent);
 	}
 
 	.error-contact-hint {
@@ -153,7 +153,7 @@
 	}
 
 	.error-contact-hint a {
-		color: var(--color-accent);
+		color: var(--border-focus);
 		text-underline-offset: 0.2em;
 	}
 
@@ -184,7 +184,7 @@
 	.error-home-link {
 		display: inline-block;
 		margin-block-start: var(--space-2);
-		color: var(--color-accent);
+		color: var(--border-focus);
 		text-underline-offset: 0.2em;
 	}
 

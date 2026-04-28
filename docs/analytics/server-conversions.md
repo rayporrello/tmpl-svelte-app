@@ -57,7 +57,8 @@ await emitServerAnalyticsEvent({
 });
 ```
 
-The contact-example route has this commented out with instructions. Uncomment and activate when ready.
+The live contact route does not emit server-side analytics by default. Add this call
+after the successful primary operation only when the project has a real provider configured.
 
 ---
 

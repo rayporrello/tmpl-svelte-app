@@ -4,8 +4,8 @@
  * Logs the email payload to stdout via the structured logger. Useful during
  * development and in any environment where real email delivery is not needed.
  *
- * To activate a real provider, replace this import in your route action with
- * postmark.example.ts (after renaming it) or your own EmailProvider.
+ * To activate Postmark, set POSTMARK_SERVER_TOKEN. resolveEmailProvider() will
+ * switch automatically. Custom providers can still implement EmailProvider.
  */
 
 import { logger } from '$lib/server/logger';
@@ -19,7 +19,7 @@ export const consoleProvider: EmailProvider = {
 			from: payload.from,
 			subject: payload.subject,
 			replyTo: payload.replyTo,
-			textLength: payload.text.length
+			textLength: payload.text.length,
 		});
-	}
+	},
 };

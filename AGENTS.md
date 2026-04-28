@@ -322,7 +322,7 @@ Never import env vars directly from `process.env` in application code — use th
 
 ### Build and CI note
 
-`bun run build` requires `ORIGIN` and `PUBLIC_SITE_URL` to be set (initEnv() runs on first request during prerendering). Locally, copy `.env.example` to `.env`. CI provides stubs in the validate job.
+`bun run build` does not require runtime env vars during SvelteKit prerendering; `hooks.server.ts` skips `initEnv()` while `building` is true. Runtime requests still require `ORIGIN`, `PUBLIC_SITE_URL`, and `DATABASE_URL`, so local development should copy `.env.example` to `.env` or render one from SOPS before using DB-backed routes.
 
 ---
 

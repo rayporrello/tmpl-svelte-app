@@ -16,7 +16,7 @@ SEO is built into this template. It is not optional and not a checklist item —
 | `src/routes/sitemap.xml/+server.ts` | Prerendered `/sitemap.xml` endpoint                                                            |
 | `src/routes/robots.txt/+server.ts`  | Prerendered `/robots.txt` endpoint                                                             |
 | `src/routes/llms.txt/+server.ts`    | Prerendered `/llms.txt` endpoint for AI discovery                                              |
-| `scripts/check-seo.ts`              | Validation script — fails on placeholder values and indexability errors                        |
+| `scripts/check-seo.ts`              | Validation script — warns on placeholders and fails on structural/indexability errors          |
 
 ## How to add a new public route
 
@@ -66,7 +66,8 @@ export const site: SiteConfig = {
 };
 ```
 
-`bun run check:seo` will fail if `url` is still `https://example.com` or `name` is `Your Site Name`.
+`bun run check:seo` warns if `url` is still `https://example.com` or `name` is `Your Site Name`.
+`bun run check:launch` treats those placeholders as launch-blocking errors.
 
 ## Non-indexable routes
 
@@ -133,8 +134,7 @@ bun run check:launch    # release-grade: confirms ORIGIN/PUBLIC_SITE_URL look li
 
 `check:seo` checks that:
 
-- `site.url` is not `https://example.com`
-- `site.name` and `site.defaultTitle` are not placeholder values
+- Placeholder site values are surfaced as warnings during normal development
 - `site.defaultDescription` exists and is non-trivial
 - `site.defaultOgImage` is set
 - SEO source files do not contain hardcoded `yourdomain.com`

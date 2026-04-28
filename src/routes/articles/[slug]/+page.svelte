@@ -75,7 +75,7 @@
 	.article-header {
 		margin-block-end: var(--space-8);
 		padding-block-end: var(--space-6);
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid var(--border-subtle);
 	}
 
 	.article-header h1 {
@@ -89,7 +89,7 @@
 
 	.article-date {
 		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
+		color: var(--text-secondary);
 	}
 
 	.article-body :global(h2),
@@ -117,7 +117,7 @@
 	.article-body :global(pre) {
 		padding: var(--space-4);
 		border-radius: var(--radius-md);
-		background: var(--color-surface-raised);
+		background: var(--surface-sunken);
 		overflow-x: auto;
 		margin-block-end: var(--space-4);
 	}
@@ -128,15 +128,15 @@
 	}
 
 	.article-body :global(blockquote) {
-		border-inline-start: 3px solid var(--color-border);
+		border-inline-start: 3px solid var(--border-focus);
 		padding-inline-start: var(--space-4);
 		margin-inline-start: 0;
-		color: var(--color-text-secondary);
+		color: var(--text-secondary);
 		font-style: italic;
 	}
 
 	.article-body :global(a) {
-		color: var(--color-accent);
+		color: var(--border-focus);
 		text-decoration: underline;
 	}
 

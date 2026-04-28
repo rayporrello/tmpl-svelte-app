@@ -45,7 +45,7 @@ agents behave in the project — fill it in before inviting any AI assistant.
 ## Step 3 — Run init:site
 
 `init:site` is an interactive script that rewrites placeholder values across
-nine files at once. Run it once per project and commit the result.
+ten files at once. Run it once per project and commit the result.
 
 ```bash
 bun run init:site
@@ -71,10 +71,11 @@ Open [src/lib/config/site.ts](../src/lib/config/site.ts) and replace any
 remaining placeholder values that `init:site` does not cover (OG image path,
 social handles, locale, etc.).
 
-Verify no placeholder values remain:
+Verify SEO structure, then run the launch check before shipping:
 
 ```bash
-bun run check:seo   # fails loudly on placeholder strings
+bun run check:seo
+bun run check:launch   # fails loudly on launch-blocking placeholders
 ```
 
 ---

@@ -35,7 +35,11 @@ Documentation for deploying sites built from this template. The deployment model
 podman build -f Containerfile -t my-site .
 
 # 2. Test it
-podman run --rm -p 3000:3000 -e ORIGIN=http://127.0.0.1:3000 my-site
+podman run --rm -p 3000:3000 \
+  -e ORIGIN=http://127.0.0.1:3000 \
+  -e PUBLIC_SITE_URL=http://127.0.0.1:3000 \
+  -e DATABASE_URL=postgres://site_user:yourpassword@host.containers.internal:5432/site_db \
+  my-site
 
 # 3. Verify liveness
 curl -fsS http://127.0.0.1:3000/healthz
@@ -65,7 +69,7 @@ Sites built from this template are self-hosted on a Linux server:
 - **App container**: Podman running the SvelteKit + Bun image
 - **Reverse proxy**: Caddy (handles TLS, HSTS, compression, access logging)
 - **Automation layer** (optional): n8n as a separate container
-- **Database** (optional, Phase 5): Postgres as a separate container
+- **Database**: Postgres as a separate container or managed service
 - **Process management**: systemd user units via Podman Quadlet
 
 This is not a Vercel/Netlify/cloud-platform deployment. The template is designed for solo/founder-led projects on a VPS or dedicated server.

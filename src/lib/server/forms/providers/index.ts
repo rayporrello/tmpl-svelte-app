@@ -1,5 +1,5 @@
 import { consoleProvider } from './console';
-import { makePostmarkProvider } from './postmark.example';
+import { makePostmarkProvider } from './postmark';
 import type { EmailProvider } from '../email-provider';
 
 /**

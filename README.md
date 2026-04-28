@@ -7,7 +7,7 @@ Database-backed SvelteKit website template. Targets websites, landing pages, con
 - SvelteKit / Svelte 5 skeleton with Bun tooling
 - Token-driven CSS design system (native CSS, no Tailwind, no component library)
 - Global button utilities (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-sm`, `.btn-lg`)
-- `forms.css` visual form primitives + Superforms + Valibot pre-installed (contact form ships dormant)
+- `forms.css` visual form primitives + Superforms + Valibot pre-installed; contact form live at `/contact`
 - **Postgres + Drizzle** — default data layer; starter schema (`contact_submissions`, `automation_events`, `automation_dead_letters`); Drizzle Kit migration workflow
 - **Health endpoints** — `/healthz` (process check) and `/readyz` (Postgres connectivity probe, returns 503 if DB unreachable)
 - **Built-in SEO system** — central site config, SEO component, schema helpers, sitemap, robots.txt, llms.txt, validation
@@ -38,7 +38,7 @@ This is a website-first SvelteKit template. The design system is native CSS, tok
 
 **Tailwind is not included.** Styling uses `tokens.css` + scoped Svelte `<style>` blocks.
 
-**Superforms + Valibot are pre-installed** as devDependencies. The contact form pattern ships at `src/routes/contact-example/` (noindex, dormant). Rename the directory to `contact/` to activate it. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md) for the activation walkthrough and email-provider swap instructions.
+**Superforms + Valibot are pre-installed** as devDependencies. The contact form ships live at `src/routes/contact/`: it saves to Postgres, logs email through the console provider by default, and switches to Postmark when `POSTMARK_SERVER_TOKEN` is set. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md) for the behavior and provider details.
 
 A "Warm Coral" re-skin example lives at [src/lib/styles/brand.example.css](src/lib/styles/brand.example.css) — it shows exactly which token sections to swap when starting a new brand.
 
@@ -55,7 +55,7 @@ Every site built from this template inherits a complete SEO system:
 | `/sitemap.xml`, `/robots.txt`, `/llms.txt` | Auto-generated from config and route registry                            |
 
 ```bash
-bun run check:seo   # fails on placeholder values; run before deploying
+bun run check:seo   # structural SEO checks; launch placeholders are enforced by check:launch
 ```
 
 **Share / OG images** follow a fall-through chain:
@@ -141,7 +141,7 @@ bun run check:seo            # validate SEO config
 bun run check:cms            # validate static/admin/config.yml
 bun run check:content        # validate content/ files
 bun run check:assets         # verify favicon / og-default / manifest defaults exist
-bun run init:site            # interactive site initializer (rewrites 9 files)
+bun run init:site            # interactive site initializer (rewrites 10 files)
 bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)
@@ -218,13 +218,13 @@ The full optional module registry lives at **[docs/modules/README.md](docs/modul
 
 ### Active seams (configured but inert until env vars are set)
 
-| Module          | Activation                                                                                                                                                                                               |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contact form    | Rename `src/routes/contact-example/` → `src/routes/contact/` and copy a provider (e.g. `postmark.example.ts → postmark.ts`). See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md). |
-| Postmark email  | Copy `src/lib/server/forms/providers/postmark.example.ts → postmark.ts`; add `POSTMARK_SERVER_TOKEN` (per `.env.example`)                                                                                |
-| n8n webhooks    | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. See [docs/automations/README.md](docs/automations/README.md).                                                                                              |
-| Analytics + GTM | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                                              |
-| Cookie consent  | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md).                            |
+| Module          | Activation                                                                                                                                                                    |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contact form    | Already live at `/contact`; saves to `contact_submissions` and logs email to stdout by default. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md).   |
+| Postmark email  | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL`; `resolveEmailProvider()` switches automatically.                                                   |
+| n8n webhooks    | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. See [docs/automations/README.md](docs/automations/README.md).                                                                   |
+| Analytics + GTM | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                   |
+| Cookie consent  | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md). |
 
 ### Not installed — add per project
 

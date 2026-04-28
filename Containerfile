@@ -17,7 +17,11 @@
 #       Handle body size limits at the Caddy layer if required.
 #
 # Build:  podman build -f Containerfile -t <image> .
-# Run:    podman run --rm -p 3000:3000 -e ORIGIN=https://example.com <image>
+# Run:    podman run --rm -p 3000:3000 \
+#           -e ORIGIN=https://example.com \
+#           -e PUBLIC_SITE_URL=https://example.com \
+#           -e DATABASE_URL=postgres://user:pass@host:5432/db \
+#           <image>
 
 # ── Stage 1: builder ──────────────────────────────────────────────────────────
 FROM oven/bun:1-alpine AS builder
@@ -30,6 +34,7 @@ RUN bun install --frozen-lockfile
 
 # Copy source and build
 COPY . .
+
 RUN bun run build
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────

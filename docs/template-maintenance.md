@@ -29,7 +29,7 @@ bun run check:content            # validate Markdown / YAML files under content/
 bun run check:content-diff       # detect destructive content changes (release-grade)
 bun run check:assets             # verify favicon / og-default / manifest defaults exist
 bun run check:launch             # verify production env (ORIGIN/PUBLIC_SITE_URL look like real HTTPS)
-bun run init:site                # interactive site initializer (rewrites 9 files)
+bun run init:site                # interactive site initializer (rewrites 10 files)
 bun run secrets:render           # decrypt secrets.yaml → .env (requires SOPS + age)
 bun run secrets:check            # verify no plaintext secrets are tracked
 bun run validate                 # PR-grade: check → seo → cms → content → assets → images → build → unit → e2e
@@ -113,7 +113,7 @@ Both git commands should produce empty output.
 | Step                      | What it validates                                                                      |
 | ------------------------- | -------------------------------------------------------------------------------------- |
 | `bun run check`           | TypeScript types; Svelte component types; `svelte-check`                               |
-| `bun run check:seo`       | `site.url`/`site.name` are not placeholders; route registry is valid                   |
+| `bun run check:seo`       | SEO source structure and route registry are valid; placeholder values warn only        |
 | `bun run check:cms`       | `static/admin/config.yml` schema is valid (no broken collection or field config)       |
 | `bun run check:content`   | content/ files parse and pass field validation; no blank required fields, no bad dates |
 | `bun run check:assets`    | Default static assets (favicon, og-default, manifest) exist and are non-empty          |

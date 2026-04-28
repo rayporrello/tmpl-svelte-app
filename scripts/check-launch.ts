@@ -28,14 +28,19 @@ const FORBIDDEN_STRINGS = [
 	'Your Site Name',
 	'https://example.com',
 	'owner/repo-name',
-	'REPLACE PER PROJECT'
+	'REPLACE PER PROJECT',
+	'[Site Title]',
+	'[Site Name]',
+	'[Year]',
 ];
 
 // Files to scan for forbidden placeholder strings.
 const CONFIG_FILES: Array<{ path: string; label: string }> = [
 	{ path: 'src/lib/config/site.ts', label: 'site config' },
+	{ path: 'src/app.html', label: 'app shell' },
+	{ path: 'src/routes/+layout.svelte', label: 'root layout' },
 	{ path: 'static/admin/config.yml', label: 'CMS config' },
-	{ path: 'static/site.webmanifest', label: 'web manifest' }
+	{ path: 'static/site.webmanifest', label: 'web manifest' },
 ];
 
 // Required environment variables — sourced from src/lib/server/env.ts schemas.
@@ -94,8 +99,14 @@ if (!prodUrl) {
 		}
 		const hostname = parsed.hostname;
 		for (const forbidden of FORBIDDEN_DOMAINS) {
-			if (hostname === forbidden || hostname.endsWith(`.${forbidden}`) || hostname.endsWith('.local')) {
-				errors.push(`site.url "${prodUrl}" uses a forbidden hostname "${hostname}" — must be a real production domain`);
+			if (
+				hostname === forbidden ||
+				hostname.endsWith(`.${forbidden}`) ||
+				hostname.endsWith('.local')
+			) {
+				errors.push(
+					`site.url "${prodUrl}" uses a forbidden hostname "${hostname}" — must be a real production domain`
+				);
 				break;
 			}
 		}
@@ -120,7 +131,9 @@ if (warnings.length) {
 if (errors.length) {
 	console.error('\ncheck:launch failed — the following issues must be fixed before launch:\n');
 	for (const e of errors) console.error(`  ✗  ${e}`);
-	console.error(`\n${errors.length} issue(s) found. Run "bun run init:site" to fix most of these automatically.`);
+	console.error(
+		`\n${errors.length} issue(s) found. Run "bun run init:site" to fix most of these automatically.`
+	);
 	process.exit(1);
 } else {
 	console.log('✓ check:launch passed — no placeholder values detected.');
