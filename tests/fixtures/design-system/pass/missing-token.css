@@ -1,0 +1,5 @@
+.card {
+	color: var(--text-primary);
+	background: var(--surface-raised);
+	margin-block-start: var(--flow-space);
+}

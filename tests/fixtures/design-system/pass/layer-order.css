@@ -1,0 +1,8 @@
+@layer reset, tokens, base, utilities, components;
+
+@layer utilities {
+	.stack {
+		display: grid;
+		gap: var(--space-4);
+	}
+}

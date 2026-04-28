@@ -1,0 +1,7 @@
+@layer reset, tokens, base, rogue;
+
+@layer rogue {
+	.card {
+		display: block;
+	}
+}
