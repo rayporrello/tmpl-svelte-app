@@ -6,8 +6,6 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// untrack: superForm is initialized once with the server-loaded form data.
-	// The reactive reference is intentionally not tracked after initialization.
 	const { form, errors, enhance, message, delayed, submitting } = superForm(
 		untrack(() => data.form),
 		{ resetForm: true }
@@ -18,8 +16,7 @@
 	seo={{
 		title: 'Contact',
 		description: 'Send us a message.',
-		canonicalPath: '/contact-example',
-		robots: 'noindex, nofollow'
+		canonicalPath: '/contact',
 	}}
 />
 
@@ -27,10 +24,7 @@
 	<div class="contact-inner">
 		<header class="contact-header">
 			<h1>Contact</h1>
-			<p class="text-secondary">
-				This is the example contact route. Rename <code>contact-example/</code> to
-				<code>contact/</code> to activate it.
-			</p>
+			<p class="text-secondary">Have a question or want to work together? Send us a message.</p>
 		</header>
 
 		{#if $message}
@@ -138,13 +132,5 @@
 
 	.form {
 		margin-block-start: var(--space-6);
-	}
-
-	code {
-		font-family: var(--font-mono);
-		font-size: 0.9em;
-		background: var(--color-surface-raised);
-		padding: 0.15em 0.35em;
-		border-radius: var(--radius-sm);
 	}
 </style>

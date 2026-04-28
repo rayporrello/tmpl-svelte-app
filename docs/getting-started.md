@@ -174,15 +174,19 @@ See [docs/database/README.md](database/README.md) for the full setup guide, scri
 
 ---
 
-## Step 11 — Activate dormant modules (only when needed)
+## Step 11 — Configure optional modules
 
-| Module         | How to activate                                                                                                                                                                                                  |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contact form   | Rename `src/routes/contact-example/` → `src/routes/contact/`; wire submissions to `contact_submissions` table; install an email provider (see [docs/design-system/forms-guide.md](design-system/forms-guide.md)) |
-| Analytics      | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md) and [docs/analytics/gtm-ga4-setup.md](analytics/gtm-ga4-setup.md).       |
-| n8n webhooks   | Add `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` env vars; write automation events to the `automation_events` table                                                                                                  |
-| Postmark email | Copy `src/lib/server/forms/providers/postmark.example.ts` → `postmark.ts`; add `POSTMARK_SERVER_TOKEN` (matches `.env.example`)                                                                                  |
-| Better Auth    | Follow the auth module docs                                                                                                                                                                                      |
+The contact form works by default — it saves to Postgres, logs emails to stdout, and
+skips n8n gracefully. Configure the modules below to extend it.
+
+| Module                    | How to activate                                                                                                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md).                                                 |
+| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                        |
+| **n8n webhooks**          | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. The contact form emits signed `lead.created` events. Failed deliveries are dead-lettered. See [docs/automations/README.md](automations/README.md). |
+| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true`. In-process only; replace with Redis-backed limiter for multi-instance deployments.                                                                                |
+| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                         |
+| **Better Auth**           | Follow the auth module docs.                                                                                                                                                                     |
 
 ---
 
