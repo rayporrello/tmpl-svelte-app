@@ -29,6 +29,7 @@ bun run check:content            # validate Markdown / YAML files under content/
 bun run check:content-diff       # detect destructive content changes (release-grade)
 bun run check:assets             # verify favicon / og-default / manifest defaults exist
 bun run check:launch             # verify production env (ORIGIN/PUBLIC_SITE_URL look like real HTTPS)
+bun run check:init-site          # acceptance-test init:site on a temp copy
 bun run init:site                # interactive/stdin site initializer (rewrites 10 files)
 bun run secrets:render           # decrypt secrets.yaml → .env (requires SOPS + age)
 bun run secrets:check            # verify no plaintext secrets are tracked
@@ -177,6 +178,29 @@ Both git commands should produce empty output.
 | `bun run check:content-diff` | No destructive content rewrites are about to ship (compares git diff against `content/`)                |
 
 CI runs `validate` on every push and `validate:launch` on tags. See [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+
+## Acceptance test for init:site
+
+`bun run check:init-site` copies only git-tracked files to a temp directory under
+`/tmp/tmpl-svelte-app-XXXX`, runs `init:site` with deterministic stdin, and
+proves the initializer can customize a template without mutating the host
+working tree.
+
+It verifies:
+
+1. The host repo's tracked-file hash is unchanged before and after the test.
+2. The ten templated files receive the deterministic project values.
+3. Running `init:site` twice with the same answers is byte-for-byte idempotent.
+4. `check:launch` fails with only the manual `static/og-default.png` placeholder.
+5. After a temp-only deterministic OG replacement, `check:assets` and `check:launch` pass.
+
+On failure, the script keeps the temp copy and prints its path plus a focused
+diff for the offending file. Debug in the printed `/tmp/tmpl-svelte-app-XXXX`
+directory, then fix the real source file in the repo.
+
+This is a template-maintenance test. Passing `check:init-site` means the
+synthetic initializer flow works; it does not mean a real project is launch-ready.
+Run `bun run validate:launch` on the real project for launch readiness.
 
 ---
 

@@ -2,6 +2,9 @@
 
 Complete this checklist before a site goes live. These are one-time tasks per project.
 
+Note: `check:init-site` is synthetic template acceptance; this checklist and
+`validate:launch` on the real repo are this project's launch-readiness gate.
+
 ## Site config
 
 - [ ] `site.url` in `src/lib/config/site.ts` is the production domain (not `https://example.com`)
