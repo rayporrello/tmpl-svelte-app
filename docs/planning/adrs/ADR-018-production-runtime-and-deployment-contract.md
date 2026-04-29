@@ -32,15 +32,15 @@ Podman rootless containers + Caddy reverse proxy (ADR-007) are the deployment ta
 
 Verified by inspecting `node_modules/svelte-adapter-bun/README.md` (version 0.5.2).
 
-| Variable | Default | Required | Purpose |
-|---|---|---|---|
-| `PORT` | `3000` | No | Port the server listens on |
-| `HOST` | `0.0.0.0` | No | Host/interface the server binds to |
-| `ORIGIN` | — | **Yes** | Full origin URL (e.g. `https://example.com`). Required for CSRF protection and URL construction |
-| `PROTOCOL_HEADER` | — | No | Alternative to `ORIGIN`; read protocol from this header (e.g. `x-forwarded-proto`) |
-| `HOST_HEADER` | — | No | Alternative to `ORIGIN`; read host from this header (e.g. `x-forwarded-host`) |
-| `ADDRESS_HEADER` | — | No | Header to read client IP from when behind a proxy (e.g. `True-Client-IP`, `X-Forwarded-For`) |
-| `XFF_DEPTH` | `1` | No | Number of trusted proxies for `X-Forwarded-For` depth (right-most counting) |
+| Variable          | Default   | Required | Purpose                                                                                         |
+| ----------------- | --------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `PORT`            | `3000`    | No       | Port the server listens on                                                                      |
+| `HOST`            | `0.0.0.0` | No       | Host/interface the server binds to                                                              |
+| `ORIGIN`          | —         | **Yes**  | Full origin URL (e.g. `https://example.com`). Required for CSRF protection and URL construction |
+| `PROTOCOL_HEADER` | —         | No       | Alternative to `ORIGIN`; read protocol from this header (e.g. `x-forwarded-proto`)              |
+| `HOST_HEADER`     | —         | No       | Alternative to `ORIGIN`; read host from this header (e.g. `x-forwarded-host`)                   |
+| `ADDRESS_HEADER`  | —         | No       | Header to read client IP from when behind a proxy (e.g. `True-Client-IP`, `X-Forwarded-For`)    |
+| `XFF_DEPTH`       | `1`       | No       | Number of trusted proxies for `X-Forwarded-For` depth (right-most counting)                     |
 
 **Note on `BODY_SIZE_LIMIT`:** This variable appears in `@sveltejs/adapter-node` but is NOT present in `svelte-adapter-bun` v0.5.2. Do not set it — it will have no effect. Body size limiting must be handled at the Caddy layer if required.
 
@@ -108,11 +108,11 @@ If `svelte-adapter-bun` becomes unmaintained, breaks on a new Bun version, or fa
 
 ## Risks Acknowledged
 
-| Risk | Severity | Mitigation |
-|---|---|---|
-| `svelte-adapter-bun` is pre-1.0 and single-maintainer (gornostay25) | Medium | One-line escape hatch; Containerfile.node.example ships alongside |
-| `@sveltejs/enhanced-img` assets may not serve correctly from Bun runtime | Low | Verified in A2 smoke; pause and escalate if broken |
-| Bun `.env` auto-loading may conflict with explicit env passing | Low | Containerfile and Quadlet pass env explicitly; Bun's auto-loading is only active when no env file is explicitly passed |
+| Risk                                                                     | Severity | Mitigation                                                                                                             |
+| ------------------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `svelte-adapter-bun` is pre-1.0 and single-maintainer (gornostay25)      | Medium   | One-line escape hatch; Containerfile.node.example ships alongside                                                      |
+| `@sveltejs/enhanced-img` assets may not serve correctly from Bun runtime | Low      | Verified in A2 smoke; pause and escalate if broken                                                                     |
+| Bun `.env` auto-loading may conflict with explicit env passing           | Low      | Containerfile and Quadlet pass env explicitly; Bun's auto-loading is only active when no env file is explicitly passed |
 
 ---
 
@@ -120,7 +120,7 @@ If `svelte-adapter-bun` becomes unmaintained, breaks on a new Bun version, or fa
 
 - `/readyz` with Postgres connectivity probe — Phase 5
 - Backup automation — Phase 5
-- Dead-letter table for failed n8n events — Phase 5
+- Dead-letter table for failed automation events — Phase 5
 - Better Auth activation pattern — Phase 5
 - CSP nonce upgrade — Phase 5
 - Tightening Trivy gate from CRITICAL-only to HIGH — after 3 successful releases

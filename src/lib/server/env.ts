@@ -24,6 +24,17 @@ const privateSchema = v.object({
 	POSTMARK_SERVER_TOKEN: v.optional(v.string()),
 	CONTACT_TO_EMAIL: v.optional(v.string()),
 	CONTACT_FROM_EMAIL: v.optional(v.string()),
+	AUTOMATION_PROVIDER: v.optional(
+		v.union([
+			v.literal(''),
+			v.literal('n8n'),
+			v.literal('webhook'),
+			v.literal('console'),
+			v.literal('noop'),
+		])
+	),
+	AUTOMATION_WEBHOOK_URL: v.optional(v.string()),
+	AUTOMATION_WEBHOOK_SECRET: v.optional(v.string()),
 	N8N_WEBHOOK_URL: v.optional(v.string()),
 	N8N_WEBHOOK_SECRET: v.optional(v.string()),
 	// Forms — set to "true" to enable in-process rate limiting on form endpoints.
@@ -72,6 +83,9 @@ export function initEnv(): void {
 		POSTMARK_SERVER_TOKEN: process.env.POSTMARK_SERVER_TOKEN,
 		CONTACT_TO_EMAIL: process.env.CONTACT_TO_EMAIL,
 		CONTACT_FROM_EMAIL: process.env.CONTACT_FROM_EMAIL,
+		AUTOMATION_PROVIDER: process.env.AUTOMATION_PROVIDER,
+		AUTOMATION_WEBHOOK_URL: process.env.AUTOMATION_WEBHOOK_URL,
+		AUTOMATION_WEBHOOK_SECRET: process.env.AUTOMATION_WEBHOOK_SECRET,
 		N8N_WEBHOOK_URL: process.env.N8N_WEBHOOK_URL,
 		N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET,
 		RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,

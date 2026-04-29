@@ -1,100 +1,104 @@
-# Automations — n8n as Optional External Operator
+# Automations
 
-This template is **automation-ready by default**. n8n is a first-class automation layer — but it is entirely optional. The site builds, deploys, and serves content without it.
+This template is automation-ready without being tied to one automation product. n8n remains the default provider, but clones can switch runtime delivery to Make, Zapier, a custom HTTP receiver, console logging, or nothing by changing environment configuration instead of form/action code.
 
 ---
 
 ## Design principle
 
-n8n is an **external operator**, not an embedded dependency. It lives outside the SvelteKit application and interacts with it through well-defined interfaces:
+The SvelteKit app owns one generic event contract. Providers only decide where that same event is delivered.
 
-1. **Content automations** — n8n writes Git-backed files to `content/` via the GitHub API
-2. **Runtime automations** (Phase 5) — n8n receives typed webhook events from form/action code running against Postgres
+Runtime automation flow:
 
-The website must work correctly when n8n is unavailable, unreachable, or not configured.
+1. A server action validates input and saves the primary record to Postgres.
+2. The action emits a typed automation event.
+3. The configured provider makes exactly one delivery attempt.
+4. Provider failure is logged and dead-lettered; the user-facing form stays successful after the DB save.
 
----
-
-## What n8n is not
-
-- Not a package installed in this repo
-- Not required for `bun run build` or `bun run dev`
-- Not embedded in SvelteKit server routes
-- Not a replacement for the CMS — it is a complementary interface over the same content files
+Retries and outbox behavior are intentionally outside the provider. They belong in the separate retry wrapper around this layer.
 
 ---
 
-## Two automation categories
+## Providers
 
-### 1. Content automations
+`AUTOMATION_PROVIDER` defaults to `n8n` when unset.
 
-n8n reads and writes files in `content/` through the GitHub API. The files follow the same schema as Sveltia CMS.
+| Provider  | Use case                                        | Config                                                |
+| --------- | ----------------------------------------------- | ----------------------------------------------------- |
+| `n8n`     | Default self-hosted automation operator         | `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`               |
+| `webhook` | Make, Zapier, or any generic HTTP POST receiver | `AUTOMATION_WEBHOOK_URL`, `AUTOMATION_WEBHOOK_SECRET` |
+| `console` | Development visibility without outbound calls   | none                                                  |
+| `noop`    | Sites that intentionally disable automation     | none                                                  |
 
-Examples of content automations:
+HTTP providers with no URL return a clean `not_configured` skip result. `console` logs metadata through the structured logger. `noop` returns a deliberate `disabled` skip result.
 
-- HR system creates `content/team/{slug}.yml` when a new employee is onboarded
-- Review platform creates `content/testimonials/{slug}.yml` when a new review is collected
-- ATS creates `content/jobs/{slug}.md` (if a jobs collection is added)
+---
+
+## Runtime Event Contract
+
+Every provider receives the same versioned JSON envelope:
+
+```ts
+{
+	event: 'lead.created',
+	version: 1,
+	occurred_at: '2026-04-29T12:00:00.000Z',
+	data: {
+		submission_id: 'sub-123',
+		name: 'Alice Example',
+		email: 'alice@example.com',
+		source_path: '/contact',
+		request_id: 'req-abc'
+	}
+}
+```
+
+See [runtime-event-contract.md](runtime-event-contract.md) for the full TypeScript contract and event catalog.
+
+Migration note for existing n8n workflows:
+
+```diff
+- { id, type, createdAt, payload }
++ { event, version, occurred_at, data }
+```
+
+Update any active workflow expressions from `type`/`createdAt`/`payload` to `event`/`occurred_at`/`data` before deploying this change.
+
+---
+
+## What Ships
+
+- A production-ready contact form at `src/routes/contact/`
+- `emitLeadCreated()` at `src/lib/server/automation/events.ts`
+- `AutomationProvider` at `src/lib/server/automation/automation-provider.ts`
+- Static provider resolver at `src/lib/server/automation/providers/index.ts`
+- Four providers: `n8n`, `webhook`, `console`, `noop`
+- `automation_events` table for minimized delivery state
+- `automation_dead_letters` table for failed delivery diagnostics without full payload copies
+
+Dead letters store `event_id`, `event_type`, and `error` only. They do not store full payloads because runtime event data can contain contact information.
+
+---
+
+## Content Automations
+
+Content automations are separate from runtime events. Any external automation that writes files to `content/` must follow the same schema as Sveltia CMS.
+
+Examples:
+
+- HR system creates `content/team/{slug}.yml`
+- Review platform creates `content/testimonials/{slug}.yml`
+- ATS creates `content/jobs/{slug}.md` after a jobs collection is added
 - Broken-link monitor crawls `/sitemap.xml` and sends an alert
 
-See [docs/automations/n8n-patterns.md](n8n-patterns.md) for workflow patterns.
-See [docs/automations/content-automation-contract.md](content-automation-contract.md) for the rules n8n must follow.
-
-### 2. Runtime automations — live at `/contact`
-
-Form/action code saves to Postgres, then emits a typed webhook event to n8n. n8n handles downstream tasks (email, CRM update, Slack alert, etc.).
-
-**What ships in this template:**
-
-- A production-ready contact form at `src/routes/contact/` (indexable, no setup needed)
-- The form saves every submission to `contact_submissions` before attempting anything else
-- `emitLeadCreated()` at `src/lib/server/automation/events.ts` — typed `lead.created` event with HMAC signing
-- `resolveEmailProvider()` at `src/lib/server/forms/providers/index.ts` — picks Postmark or console based on env
-- An in-memory token-bucket rate limiter at `src/lib/server/forms/rate-limit.ts` (gated by `RATE_LIMIT_ENABLED`)
-- `automation_events` table for minimized delivery state
-- `automation_dead_letters` table for failed webhook diagnostics without storing full payloads
-
-**Failure handling:**
-
-| Step        | If it fails                                                     |
-| ----------- | --------------------------------------------------------------- |
-| DB insert   | Returns error to user — submission not recorded                 |
-| Email send  | Logged, user still sees success — lead is not lost              |
-| n8n webhook | Dead-lettered to `automation_dead_letters` — form is unaffected |
-
-Dead letters intentionally store `event_id`, `event_type`, and `error` only. They do not store the full webhook payload, because `lead.created` payloads can contain names and email addresses. Retention defaults are documented in [docs/privacy/data-retention.md](../privacy/data-retention.md).
-
-**To activate n8n:**
-
-```
-N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/YOUR_ID
-N8N_WEBHOOK_SECRET=a-long-random-string
-```
-
-Set both vars and restart. The contact form starts emitting signed `lead.created` events immediately.
-
-**Example flows (already wired):**
-
-- Contact form submitted → `lead.created` → n8n sends notification email to owner
-- n8n down → dead-letter in `automation_dead_letters` → form still works
-
-**Future event types to add:**
-
-- `newsletter.subscribed` — from a newsletter signup form
-- `testimonial.submitted` — user submits a testimonial
+See [content-automation-contract.md](content-automation-contract.md) for the rules every content-writing automation must follow.
 
 ---
 
-## Security
+## Further Reading
 
-All production webhook calls to n8n should be signed using a shared secret. See [docs/automations/security-and-secrets.md](security-and-secrets.md).
-
----
-
-## Further reading
-
-- [n8n-patterns.md](n8n-patterns.md) — specific workflow patterns with examples
-- [content-automation-contract.md](content-automation-contract.md) — rules for writing content files from n8n
-- [docs/planning/runtime-event-contract.md](../planning/runtime-event-contract.md) — typed event design for Phase 5 (lives under planning/ until the emitter ships)
-- [security-and-secrets.md](security-and-secrets.md) — secrets, signing, and env vars
-- [docs/cms/README.md](../cms/README.md) — how content files work and how they relate to automations
+- [runtime-event-contract.md](runtime-event-contract.md) — generic runtime event contract
+- [security-and-secrets.md](security-and-secrets.md) — secrets, provider env vars, and HMAC signing
+- [content-automation-contract.md](content-automation-contract.md) — rules for writing content files from automation
+- [n8n-patterns.md](n8n-patterns.md) — examples for the default n8n provider
+- [docs/cms/README.md](../cms/README.md) — how content files work

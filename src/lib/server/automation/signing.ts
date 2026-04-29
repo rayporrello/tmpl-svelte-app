@@ -1,5 +1,7 @@
 import { createHmac } from 'crypto';
 
+export const WEBHOOK_SIGNATURE_HEADER = 'X-Webhook-Signature';
+
 /**
  * HMAC-SHA256 signature for webhook payloads.
  *

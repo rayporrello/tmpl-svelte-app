@@ -634,8 +634,8 @@ All six steps are required — partial completion breaks the content contract:
 4. User-facing errors must be safe, calm, and non-diagnostic — use `toSafeError` from `src/lib/server/safe-error.ts`.
 5. Do not add Sentry, OpenTelemetry, Grafana, Prometheus, Loki, or other observability dependencies without explicit approval.
 6. Do not add `/readyz` checks until real runtime dependencies exist (Phase 5 minimum).
-7. When adding an n8n-triggered feature, document workflow name, payload shape, retry behavior, failure behavior, and idempotency key.
-8. n8n workflows that mutate data or send external messages must have finite retry behavior and a manual recovery path.
+7. When adding an automation-triggered feature, document provider, payload shape, retry behavior, failure behavior, and idempotency key.
+8. Automation workflows that mutate data or send external messages must have finite retry behavior and a manual recovery path.
 9. Do not implement "self-healing" behavior that mutates production data without explicit approval.
 
 See [docs/observability/README.md](docs/observability/README.md) for the full tier model and rules.
@@ -668,26 +668,26 @@ See [docs/cms/content-safety.md](docs/cms/content-safety.md) and [docs/cms/svelt
 
 ---
 
-## n8n automation posture
+## Automation provider posture
 
 Full reference: [docs/automations/README.md](docs/automations/README.md)
 
 ### Hard rules
 
-- **Do not add n8n to `package.json`** — n8n is an external operator, not an app dependency
+- **Do not add n8n to `package.json`** — n8n is the default external operator, not an app dependency
 - **Do not import n8n packages** in any SvelteKit module
-- **The site must work without n8n** — any webhook code must check `N8N_WEBHOOK_URL` and skip silently if unset
-- **Do not make webhook calls blocking** — use fire-and-forget; never let n8n downtime break a form submission
+- **The site must work without an automation receiver** — HTTP providers with no URL must skip cleanly
+- **Do not make webhook calls blocking** — use fire-and-forget from user-facing actions; never let automation downtime break a form submission
 - **Content automation files must match the CMS schema** — follow `static/admin/config.yml`; do not invent fields
 - **AI-generated content defaults to draft** — `draft: true` for articles, `published: false` for testimonials
 - **Do not commit webhook URLs or secrets** — use `.env.example` for variable names only; real values go in `secrets.yaml`
-- **Production webhooks must be signed** — HMAC-SHA256 with `N8N_WEBHOOK_SECRET`
+- **Production HTTP webhooks must be signed** — HMAC-SHA256 in `X-Webhook-Signature`
 
 ### Two automation categories
 
 ```
-Content automations → n8n writes to content/ via GitHub API
-Runtime automations → SvelteKit server action → Postgres → non-blocking webhook → n8n
+Content automations → automation provider writes to content/ via GitHub API
+Runtime automations → SvelteKit server action → Postgres → non-blocking provider delivery
 ```
 
 Content automation writes must pass the same schema validation as a human Sveltia CMS edit. They are not a separate path.
@@ -715,4 +715,4 @@ Verify against [docs/planning/08-quality-gates.md](docs/planning/08-quality-gate
 - All form controls pass the forms gates
 - CMS fields in `config.yml` match `types.ts` interfaces
 - No n8n package in `package.json`
-- `N8N_WEBHOOK_URL` is in `.env.example` with an empty value
+- `AUTOMATION_PROVIDER`, generic webhook vars, and n8n provider vars are documented in `.env.example`

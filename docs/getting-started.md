@@ -213,19 +213,19 @@ See [docs/database/README.md](database/README.md) for the full setup guide, scri
 
 The full optional module registry is at **[docs/modules/README.md](modules/README.md)**. Every module is dormant by default — no runtime cost unless activated.
 
-The contact form works immediately — it saves to Postgres, logs emails to stdout, and skips n8n gracefully. Configure the modules below to extend it.
+The contact form works immediately — it saves to Postgres, logs emails to stdout, and skips outbound automation gracefully. Configure the modules below to extend it.
 
-| Module                    | How to activate                                                                                                                                                                                                    |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md).                                                                   |
-| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                                          |
-| **n8n webhooks**          | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. The contact form emits signed `lead.created` events. Failed deliveries are dead-lettered. See [docs/automations/README.md](automations/README.md).                   |
-| **Privacy pruning**       | Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` from scheduled maintenance after reviewing the retention policy. See [docs/privacy/data-retention.md](privacy/data-retention.md). |
-| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true`. In-process only; replace with Redis-backed limiter for multi-instance deployments.                                                                                                  |
-| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                                           |
-| **Cookie consent**        | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Required when using GTM/GA4/ad tags with EU or CCPA-jurisdiction users. See [docs/modules/cookie-consent.md](modules/cookie-consent.md).   |
-| **Better Auth**           | Per-project only — not in base template. See [docs/modules/better-auth.md](modules/better-auth.md).                                                                                                                |
-| **Search (Pagefind)**     | Install `pagefind`, pre-render content routes, add `/search` route. See [docs/modules/pagefind.md](modules/pagefind.md).                                                                                           |
+| Module                    | How to activate                                                                                                                                                                                                                               |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md).                                                                                              |
+| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                                                                     |
+| **Automations**           | Set `AUTOMATION_PROVIDER` to `n8n`, `webhook`, `console`, or `noop`. n8n is the default and uses `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. Failed HTTP deliveries are dead-lettered. See [docs/automations/README.md](automations/README.md). |
+| **Privacy pruning**       | Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` from scheduled maintenance after reviewing the retention policy. See [docs/privacy/data-retention.md](privacy/data-retention.md).                            |
+| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true`. In-process only; replace with Redis-backed limiter for multi-instance deployments.                                                                                                                             |
+| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                                                                      |
+| **Cookie consent**        | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Required when using GTM/GA4/ad tags with EU or CCPA-jurisdiction users. See [docs/modules/cookie-consent.md](modules/cookie-consent.md).                              |
+| **Better Auth**           | Per-project only — not in base template. See [docs/modules/better-auth.md](modules/better-auth.md).                                                                                                                                           |
+| **Search (Pagefind)**     | Install `pagefind`, pre-render content routes, add `/search` route. See [docs/modules/pagefind.md](modules/pagefind.md).                                                                                                                      |
 
 ---
 

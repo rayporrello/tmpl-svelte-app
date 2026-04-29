@@ -84,8 +84,8 @@ export const actions: Actions = {
 			// Submission is saved — continue to success response
 		}
 
-		// 3. Emit n8n event. Fire-and-forget: errors are dead-lettered internally.
-		//    n8n unavailability never makes the contact form fail after the DB save.
+		// 3. Emit automation event. Fire-and-forget: delivery failures are
+		//    dead-lettered internally and never make the contact form fail.
 		void emitLeadCreated({
 			submissionId,
 			name: form.data.name,

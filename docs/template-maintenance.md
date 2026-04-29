@@ -256,18 +256,18 @@ When renaming a CMS field:
 
 ## Reviewing automation workflows before enabling on a new site
 
-Before enabling an n8n content automation on a new site:
+Before enabling a content automation on a new site:
 
 1. Test the workflow on a branch (not `main`) — verify the generated file matches the CMS schema
 2. Run `bun run build` with the generated file present — build must exit 0
 3. Confirm AI-generated content uses `draft: true` or `published: false`
-4. Confirm the GitHub token used by n8n has minimum required permissions (`Contents: write` only)
-5. Confirm `N8N_WEBHOOK_SECRET` is set and the webhook signature is verified in n8n
+4. Confirm the GitHub token used by the automation provider has minimum required permissions (`Contents: write` only)
+5. Confirm the selected provider secret is set and the webhook signature is verified by the receiver
 6. Document the workflow in the project's CLAUDE.md under "Project-specific rules"
 
-Before enabling a runtime webhook automation (Phase 5):
+Before enabling a runtime webhook automation:
 
 1. Confirm the server action does not `await` the webhook call
-2. Test with `N8N_WEBHOOK_URL` unset — form submission must still succeed
-3. Test with n8n returning a 500 — form submission must still succeed
-4. Confirm the webhook call uses HMAC signing with `N8N_WEBHOOK_SECRET`
+2. Test with the selected HTTP automation provider URL unset — form submission must still succeed
+3. Test with the receiver returning a 500 — form submission must still succeed
+4. Confirm the webhook call uses HMAC signing with the selected provider secret

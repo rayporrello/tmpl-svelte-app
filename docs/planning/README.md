@@ -50,7 +50,6 @@ Update `docs/design-system/` and `AGENTS.md` first, then update ADRs only when a
 | `10-build-decision-ledger.md`  | Decision status ledger (Batches A1–F all ACCEPTED)                                                                                                     |
 | `11-template-build-backlog.md` | Implementation backlog with v1.0.0 readiness list at the top                                                                                           |
 | `12-post-v1-roadmap.md`        | Beyond-baseline topics — each gets its own thread before code lands                                                                                    |
-| `runtime-event-contract.md`    | Phase 5 spec for the typed automation event emitter (lives here until the emitter ships)                                                               |
 | `maintainer-context.md`        | One-shot LLM briefing for template-maintainer threads. Drifts; verify against `src/` before trusting any specific claim.                               |
 | `adrs/`                        | Architecture Decision Records — ADR-001, 002, 004, 005, 007–019. (003 and 006 were never written; superseded by ADR-014 and `AGENTS.md` respectively.) |
 

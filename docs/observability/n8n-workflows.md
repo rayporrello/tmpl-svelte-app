@@ -24,6 +24,7 @@ site:acme:auth:user-welcome
 ```
 
 **Rules:**
+
 - All lowercase, colon-delimited.
 - `<project>` is the site identifier (e.g., `acme`, `mycorp`).
 - `<domain>` is the business area (e.g., `lead`, `contact`, `cms`, `auth`, `payment`).
@@ -36,62 +37,61 @@ site:acme:auth:user-welcome
 
 Each workflow must document the following in the workflow's notes or a linked runbook:
 
-| Field | Description |
-|-------|-------------|
-| **Owner** | Who is responsible for this workflow? |
-| **Trigger** | What starts this workflow? (Webhook, cron, manual) |
-| **Inputs** | What payload does it expect? |
-| **Outputs** | What does it do on success? |
-| **Secrets used** | Which env vars does it read? (Names only — never values) |
-| **Idempotency key** | Which payload field prevents duplicate processing? |
-| **Retry behavior** | How many retries? What backoff? |
-| **Failure behavior** | What happens on permanent failure? |
-| **Manual recovery path** | How to re-run or recover from a stuck execution? |
+| Field                    | Description                                              |
+| ------------------------ | -------------------------------------------------------- |
+| **Owner**                | Who is responsible for this workflow?                    |
+| **Trigger**              | What starts this workflow? (Webhook, cron, manual)       |
+| **Inputs**               | What payload does it expect?                             |
+| **Outputs**              | What does it do on success?                              |
+| **Secrets used**         | Which env vars does it read? (Names only — never values) |
+| **Idempotency key**      | Which payload field prevents duplicate processing?       |
+| **Retry behavior**       | How many retries? What backoff?                          |
+| **Failure behavior**     | What happens on permanent failure?                       |
+| **Manual recovery path** | How to re-run or recover from a stuck execution?         |
 
 ---
 
-## Recommended website-to-n8n payload
+## Runtime payload
 
-When the SvelteKit app emits a webhook event to n8n, use this shape:
+When the SvelteKit app emits a webhook event to n8n, it uses the provider-neutral automation contract:
 
 ```ts
 import type { WorkflowEventPayload } from '$lib/observability/types';
 
 const event: WorkflowEventPayload = {
-  request_id: locals.requestId,
-  site_id: 'acme',                           // matches project name in workflow naming
-  environment: process.env.NODE_ENV ?? 'development',
-  event_type: 'lead.created',
-  occurred_at: new Date().toISOString(),
-  idempotency_key: `lead-${formData.email}-${Date.now()}`,
-  payload_version: '1',
-  payload: {
-    name: formData.name,
-    email: formData.email,
-    source: 'contact-form'
-    // Do not include passwords, tokens, or sensitive values
-  }
+	event: 'lead.created',
+	version: 1,
+	occurred_at: new Date().toISOString(),
+	data: {
+		submission_id: submissionId,
+		name: formData.name,
+		email: formData.email,
+		source_path: '/contact',
+		request_id: locals.requestId,
+		// Do not include passwords, tokens, or sensitive values
+	},
 };
 ```
 
-**`request_id`** allows correlating n8n execution logs with SvelteKit server logs.
+**`data.request_id`** allows correlating n8n execution logs with SvelteKit server logs.
 
-**`idempotency_key`** allows n8n to detect and ignore duplicate webhook deliveries on retries.
+**`version`** allows n8n to handle schema evolution without breaking.
 
-**`payload_version`** allows n8n to handle schema evolution without breaking.
+See [docs/automations/runtime-event-contract.md](../automations/runtime-event-contract.md) for the source-of-truth contract.
 
 ---
 
 ## Failure policy
 
-| Failure type | Handling |
-|-------------|---------|
-| Expected validation failures | Handle directly in the workflow (e.g., missing required field → return 422) |
-| Transient failures (network, rate limit) | Retry with exponential backoff (max 3–5 retries) |
-| Permanent failures (invalid data, 4xx) | Send to manual review queue or alert channel; do not retry indefinitely |
-| Unknown failures | Trigger the central Error Workflow; alert the owner |
+| Failure type                             | Handling                                                                    |
+| ---------------------------------------- | --------------------------------------------------------------------------- |
+| Expected validation failures             | Handle directly in the workflow (e.g., missing required field → return 422) |
+| Transient failures (network, rate limit) | Retry with exponential backoff (max 3–5 retries)                            |
+| Permanent failures (invalid data, 4xx)   | Send to manual review queue or alert channel; do not retry indefinitely     |
+| Unknown failures                         | Trigger the central Error Workflow; alert the owner                         |
 
 **Rules:**
+
 - No infinite retry loops.
 - Retries must have a maximum count and an escalation path.
 - Permanent failures must result in a human notification, not silent discard.
@@ -102,22 +102,14 @@ const event: WorkflowEventPayload = {
 ## Webhook delivery posture from the SvelteKit side
 
 ```ts
-// Non-blocking webhook call — n8n downtime must not break the user-facing form
-if (env.N8N_WEBHOOK_URL) {
-  fetch(env.N8N_WEBHOOK_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-webhook-secret': env.N8N_WEBHOOK_SECRET
-    },
-    body: JSON.stringify(event)
-  }).catch((err) => {
-    logger.warn('n8n webhook delivery failed (non-blocking)', {
-      requestId: locals.requestId,
-      errorMessage: err.message
-    });
-  });
-}
+// Provider delivery happens through src/lib/server/automation/providers/.
+void emitLeadCreated({
+	submissionId,
+	name: formData.name,
+	email: formData.email,
+	sourcePath: '/contact',
+	requestId: locals.requestId,
+});
 ```
 
 Never `await` the webhook call in a user-facing server action. Use fire-and-forget.
@@ -127,7 +119,7 @@ Never `await` the webhook call in a user-facing server action. Use fire-and-forg
 ## Security posture
 
 - **Do not expose the n8n editor publicly.** Bind to `127.0.0.1` and access through an SSH tunnel or VPN.
-- **Validate webhook payloads.** Verify the `x-webhook-secret` header in n8n's webhook node.
+- **Validate webhook payloads.** Verify the `X-Webhook-Signature` header in n8n's webhook node.
 - **Keep n8n patched.** Subscribe to n8n release notes for security advisories.
 - **Avoid Code nodes unless necessary.** Use built-in nodes when possible; Code nodes bypass type safety.
 - **Never paste secrets into workflow notes or documentation.** Use n8n credentials or environment variables.
@@ -138,4 +130,4 @@ Never `await` the webhook call in a user-facing server action. Use fire-and-forg
 
 ## n8n is optional
 
-Sites that do not use n8n do not need any of these conventions. The `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` env vars are in `.env.example` but empty. All webhook code must check `N8N_WEBHOOK_URL` and skip silently when unset.
+Sites that do not use n8n can set `AUTOMATION_PROVIDER=webhook`, `console`, or `noop`. The default `n8n` provider skips cleanly when `N8N_WEBHOOK_URL` is unset.

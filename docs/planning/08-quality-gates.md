@@ -152,11 +152,11 @@ Full guide: `docs/deployment/secrets.md`
 
 - [ ] n8n is not listed in `package.json` dependencies
 - [ ] No SvelteKit module imports from n8n packages
-- [ ] `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.example` with empty values
+- [ ] `AUTOMATION_PROVIDER`, `AUTOMATION_WEBHOOK_URL`, `AUTOMATION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`, and `N8N_WEBHOOK_SECRET` are documented in `.env.example`
 - [ ] No real webhook URL or secret is committed to the repo
-- [ ] `docs/planning/runtime-event-contract.md` documents the planned event shape (Phase 5)
+- [ ] `docs/automations/runtime-event-contract.md` documents the runtime event shape
 - [ ] `docs/automations/content-automation-contract.md` documents the write rules
-- [ ] Site builds and serves correctly when `N8N_WEBHOOK_URL` is unset
+- [ ] Site builds and serves correctly when the selected HTTP automation provider URL is unset
 
 ## Observability / error handling gates
 
@@ -169,7 +169,7 @@ Full guide: `docs/deployment/secrets.md`
 - [ ] `/readyz` is **deferred until Phase 5** (Postgres). With no backing service, a `/readyz` route would be identical to `/healthz` and add nothing. Tier 2+ sites must implement it once Postgres is active so orchestrators can drain traffic during DB unavailability.
 - [ ] n8n-enabled sites have a central Error Workflow configured
 - [ ] n8n-enabled sites document retry and failure behavior for each workflow
-- [ ] n8n-enabled sites pass `request_id` into webhook payloads
+- [ ] automation-enabled sites pass `request_id` into webhook payloads
 - [ ] Medium+ sites have uptime monitoring configured
 - [ ] Medium+ sites have backup verification scheduled
 - [ ] Large sites define alert severity levels and an incident runbook

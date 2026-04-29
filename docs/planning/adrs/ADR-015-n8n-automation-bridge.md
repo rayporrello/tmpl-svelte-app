@@ -36,7 +36,7 @@ Treat **n8n** as an optional first-class automation layer for websites built fro
    - _Content automations:_ n8n writes files to `content/` through the GitHub API. These files must follow the same schema as Sveltia CMS defines in `static/admin/config.yml`.
    - _Runtime automations (Phase 5):_ SvelteKit server actions save to Postgres, then emit a typed webhook event to n8n. n8n handles downstream tasks. The webhook call is non-blocking — user-facing flows must not fail if n8n is down.
 
-4. **Webhook security:** Production webhook calls from SvelteKit to n8n must be signed using HMAC-SHA256 with a shared secret (`N8N_WEBHOOK_SECRET`). Unsigned production webhooks are not acceptable.
+4. **Webhook security:** Production HTTP webhook calls from SvelteKit must be signed using HMAC-SHA256 with the selected provider secret. Unsigned production webhooks are not acceptable.
 
 5. **AI-generated content defaults to draft.** Any n8n workflow that uses an AI node to generate content must set `draft: true` (articles) or `published: false` (testimonials) on the generated file. Direct-to-main publish of AI content requires explicit editorial configuration and review.
 
@@ -68,9 +68,9 @@ Treat **n8n** as an optional first-class automation layer for websites built fro
 ## Implementation notes
 
 - n8n is not installed or required in this template's `package.json`
-- Env vars `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.example` as empty placeholders
+- Env vars `AUTOMATION_PROVIDER`, `AUTOMATION_WEBHOOK_URL`, `AUTOMATION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`, and `N8N_WEBHOOK_SECRET` are documented in `.env.example`
 - Docs: `docs/automations/` — README, n8n-patterns.md, content-automation-contract.md, security-and-secrets.md
-- Phase 5 spec: `docs/planning/runtime-event-contract.md` (lives under planning/ until the runtime emitter ships)
+- Runtime event contract: `docs/automations/runtime-event-contract.md`
 - Phase 5 will implement `src/lib/automation/events.ts` (non-blocking webhook emitter) and `src/lib/automation/signing.ts` (HMAC signing)
 
 ## Revisit triggers

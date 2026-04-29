@@ -10,16 +10,12 @@ export interface HealthResponse {
 }
 
 /**
- * Typed payload for website-to-n8n webhook events.
- * Extend `payload` with event-specific fields per workflow.
+ * Legacy observability-facing shape for workflow payload examples.
+ * Runtime automation delivery uses src/lib/server/automation/automation-provider.ts.
  */
 export interface WorkflowEventPayload {
-	request_id: string;
-	site_id: string;
-	environment: string;
-	event_type: string;
+	event: string;
+	version: number;
 	occurred_at: string;
-	idempotency_key: string;
-	payload_version: string;
-	payload?: Record<string, unknown>;
+	data?: Record<string, unknown>;
 }

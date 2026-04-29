@@ -100,7 +100,7 @@ For a deletion request, use a documented manual process:
 1. Verify the requester enough to avoid deleting the wrong person's data.
 2. Search `contact_submissions` by email address and any provided request context.
 3. Delete matching live rows from `contact_submissions`.
-4. Delete or review related `automation_events` rows by `submissionId` if the project stores that value in event payloads.
+4. Delete or review related `automation_events` rows by `submission_id` if the project stores that value in event payloads.
 5. Review `automation_dead_letters` by `event_id` if a related source event is known.
 6. Document whether backup copies will age out on the normal backup schedule.
 

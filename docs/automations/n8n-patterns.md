@@ -1,6 +1,6 @@
-# n8n Patterns
+# n8n Provider Patterns
 
-Concrete workflow patterns for using n8n as an automation layer with this template. All examples are illustrative — implement only what a specific project actually needs.
+Concrete workflow patterns for using n8n, the default automation provider, with this template. These are examples for n8n operators; the runtime event contract itself is provider-neutral and lives in [runtime-event-contract.md](runtime-event-contract.md).
 
 ---
 
@@ -8,11 +8,11 @@ Concrete workflow patterns for using n8n as an automation layer with this templa
 
 Sveltia CMS and n8n both operate on the same Git-backed content files. The difference is who initiates the write:
 
-| Interface | Initiator | Mechanism |
-|-----------|-----------|-----------|
-| Sveltia CMS | Human editor | Browser UI → Sveltia → GitHub commit |
-| n8n | Automated trigger | n8n GitHub node → GitHub API → commit |
-| Developer | Engineer | Git CLI → commit |
+| Interface   | Initiator         | Mechanism                             |
+| ----------- | ----------------- | ------------------------------------- |
+| Sveltia CMS | Human editor      | Browser UI → Sveltia → GitHub commit  |
+| n8n         | Automated trigger | n8n GitHub node → GitHub API → commit |
+| Developer   | Engineer          | Git CLI → commit                      |
 
 n8n uses the GitHub node (or GitHub API HTTP requests) to create, update, or delete files in `content/`. The files must match the collection schema in `static/admin/config.yml`.
 
@@ -23,11 +23,13 @@ n8n uses the GitHub node (or GitHub API HTTP requests) to create, update, or del
 **Trigger:** HR system webhook (new employee record created)
 
 **n8n workflow:**
+
 1. HTTP Trigger receives new employee data
 2. Code node formats a `content/team/{slug}.yml` file
 3. GitHub node creates the file on `main` (deterministic data, low risk)
 
 **File written:**
+
 ```yaml
 name: Sam Okonkwo
 slug: sam-okonkwo
@@ -49,12 +51,14 @@ active: true
 **Trigger:** Review platform webhook (new review received)
 
 **n8n workflow:**
+
 1. HTTP Trigger receives review data
 2. Code node formats a `content/testimonials/{slug}.yml` file with `published: false`
 3. GitHub node creates the file on a `content/review-drafts` branch
 4. GitHub node opens a PR for editorial approval
 
 **File written:**
+
 ```yaml
 name: Chris Tanaka
 slug: chris-tanaka-2026-04
@@ -78,6 +82,7 @@ published: false
 **Trigger:** RSS feed item published, or internal knowledge base article created
 
 **n8n workflow:**
+
 1. RSS/Feed Trigger detects new item
 2. AI node (optional) generates a draft summary or adapts the content
 3. Code node formats a `content/articles/{slug}.md` file with `draft: true`
@@ -85,6 +90,7 @@ published: false
 5. GitHub node opens a PR — editorial team reviews before merging to main
 
 **File written:**
+
 ```markdown
 ---
 title: Industry Update — Q2 2026
@@ -108,6 +114,7 @@ image_alt: ''
 **Trigger:** Scheduled (e.g., weekly)
 
 **n8n workflow:**
+
 1. Schedule Trigger fires weekly
 2. HTTP Request node fetches `/sitemap.xml`
 3. Code node extracts all URLs
@@ -123,6 +130,7 @@ image_alt: ''
 **Trigger:** Google Sheets row updated (if a services collection is added)
 
 **n8n workflow:**
+
 1. Google Sheets Trigger detects a row change
 2. Code node formats a `content/services/{slug}.yml` file
 3. GitHub node creates or updates the file on `main`
@@ -142,9 +150,9 @@ image_alt: ''
 
 ## Branch strategy for n8n content writes
 
-| Content type | Recommended write target |
-|-------------|-------------------------|
-| Deterministic data sync (team, services) | Direct to `main` |
-| AI-generated copy (articles, descriptions) | Branch + PR |
-| Collected user content (testimonials, reviews) | `published: false` + branch + PR |
-| Removals or destructive changes | Branch + PR unless explicitly approved |
+| Content type                                   | Recommended write target               |
+| ---------------------------------------------- | -------------------------------------- |
+| Deterministic data sync (team, services)       | Direct to `main`                       |
+| AI-generated copy (articles, descriptions)     | Branch + PR                            |
+| Collected user content (testimonials, reviews) | `published: false` + branch + PR       |
+| Removals or destructive changes                | Branch + PR unless explicitly approved |

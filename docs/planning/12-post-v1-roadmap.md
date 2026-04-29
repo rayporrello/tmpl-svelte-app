@@ -23,10 +23,10 @@ Empty ADRs are forbidden — if a topic isn't worth writing 3 paragraphs of rati
 
 ### Tightly tied to Phase 5 (runtime data)
 
-| Topic                      | Why it matters                                                                                          | First question to settle                                                                    |
-| -------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| **Phase 5 — runtime data** | Postgres + Drizzle + `/readyz` + automation event emitter + HMAC signing + dead-letter table            | Which project triggers it? (Don't build it speculatively.) See `runtime-event-contract.md`. |
-| **Better Auth**            | Gated content, member areas, admin dashboards. Only needed when a project goes beyond a marketing site. | Same trigger question as Phase 5 — wait until a project needs auth, then scope.             |
+| Topic                      | Why it matters                                                                                          | First question to settle                                                                                     |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Phase 5 — runtime data** | Postgres + Drizzle + `/readyz` + automation event emitter + HMAC signing + dead-letter table            | Which project triggers it? (Don't build it speculatively.) See `docs/automations/runtime-event-contract.md`. |
+| **Better Auth**            | Gated content, member areas, admin dashboards. Only needed when a project goes beyond a marketing site. | Same trigger question as Phase 5 — wait until a project needs auth, then scope.                              |
 
 ### Independent of Phase 5 (can land any time)
 
