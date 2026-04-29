@@ -220,6 +220,9 @@ If any check fails:
 Take a backup before any destructive operation (database migration, configuration change, restore from older backup).
 
 ```bash
+# Prune expired runtime records first in scheduled production maintenance
+bun run privacy:prune -- --apply
+
 # Back up database and uploads
 bun run backup:all
 
@@ -232,7 +235,9 @@ bash scripts/restore-db.sh backups/db/db-<timestamp>.pgdump --confirm
 
 Backups are stored in `backups/` (gitignored). Copy them off-host — a backup on the same server as the app is not a real backup.
 
-Full procedures: [docs/operations/backups.md](../operations/backups.md) · [docs/operations/restore.md](../operations/restore.md)
+Do not auto-prune inside backup scripts. Retention windows belong to the project, so scheduled jobs should call `privacy:prune` explicitly before backup after the operator has reviewed a dry-run.
+
+Full procedures: [docs/operations/backups.md](../operations/backups.md) · [docs/operations/restore.md](../operations/restore.md) · [docs/privacy/data-retention.md](../privacy/data-retention.md)
 
 ---
 

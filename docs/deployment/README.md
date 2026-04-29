@@ -6,12 +6,13 @@ Documentation for deploying sites built from this template. The deployment model
 
 ## What is documented here
 
-| File                                                 | Status   | Purpose                                                                                  |
-| ---------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------- |
-| [secrets.md](secrets.md)                             | Complete | SOPS + age secrets workflow — encrypting, committing, and rendering secrets              |
-| [runbook.md](runbook.md)                             | Complete | Step-by-step deploy guide: bootstrap, rolling deploy, rollback by SHA, post-deploy smoke |
-| [../operations/backups.md](../operations/backups.md) | Complete | Backup procedures for database and uploads; off-host storage options                     |
-| [../operations/restore.md](../operations/restore.md) | Complete | Restore guide: database, uploads, test restore, production safety                        |
+| File                                                         | Status   | Purpose                                                                                  |
+| ------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------------------- |
+| [secrets.md](secrets.md)                                     | Complete | SOPS + age secrets workflow — encrypting, committing, and rendering secrets              |
+| [runbook.md](runbook.md)                                     | Complete | Step-by-step deploy guide: bootstrap, rolling deploy, rollback by SHA, post-deploy smoke |
+| [../operations/backups.md](../operations/backups.md)         | Complete | Backup procedures for database and uploads; off-host storage options                     |
+| [../operations/restore.md](../operations/restore.md)         | Complete | Restore guide: database, uploads, test restore, production safety                        |
+| [../privacy/data-retention.md](../privacy/data-retention.md) | Complete | Runtime data retention policy and pruning workflow                                       |
 
 ---
 
@@ -83,3 +84,4 @@ This is not a Vercel/Netlify/cloud-platform deployment. The template is designed
 - [ADR-018](../planning/adrs/ADR-018-production-runtime-and-deployment-contract.md) — production runtime contract
 - [docs/operations/backups.md](../operations/backups.md) — backup procedures
 - [docs/operations/restore.md](../operations/restore.md) — restore guide
+- [docs/privacy/data-retention.md](../privacy/data-retention.md) — runtime data retention and pruning

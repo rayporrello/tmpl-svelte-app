@@ -16,6 +16,7 @@ How to restore a Postgres database or uploads archive from a backup. Read this *
    bun run backup:verify -- <backup-file>
    ```
 4. **Stop the application if necessary.** For database restores, the app can remain running if you're comfortable with it reading inconsistent data during the restore window. For a clean restore, stop it first.
+5. **Check privacy impact.** A database restore can reintroduce contact submissions or automation records that were pruned or manually deleted after the backup was taken.
 
 ---
 
@@ -187,7 +188,15 @@ For code rollbacks, the Quadlet SHA-based rollback (typically <5 seconds) is fas
    curl -fsS https://<domain>/readyz
    ```
 3. Verify application behavior manually — spot-check critical pages and data.
-4. If restoring on production: notify stakeholders of the recovery window and any data gap.
+4. Re-run retention pruning:
+   ```bash
+   bun run privacy:prune
+   bun run privacy:prune -- --apply
+   ```
+5. If any user deletion request was fulfilled after the restored backup was taken, re-apply that deletion before normal operation resumes.
+6. If restoring on production: notify stakeholders of the recovery window and any data gap.
+
+Backups retained only for disaster recovery should not be used as an alternate live data source. If a deletion request has been fulfilled in live systems, keep older backup copies beyond normal use until they age out on the documented backup schedule.
 
 ---
 

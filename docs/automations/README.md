@@ -51,7 +51,8 @@ Form/action code saves to Postgres, then emits a typed webhook event to n8n. n8n
 - `emitLeadCreated()` at `src/lib/server/automation/events.ts` — typed `lead.created` event with HMAC signing
 - `resolveEmailProvider()` at `src/lib/server/forms/providers/index.ts` — picks Postmark or console based on env
 - An in-memory token-bucket rate limiter at `src/lib/server/forms/rate-limit.ts` (gated by `RATE_LIMIT_ENABLED`)
-- `automation_dead_letters` table for failed webhook events
+- `automation_events` table for minimized delivery state
+- `automation_dead_letters` table for failed webhook diagnostics without storing full payloads
 
 **Failure handling:**
 
@@ -60,6 +61,8 @@ Form/action code saves to Postgres, then emits a typed webhook event to n8n. n8n
 | DB insert   | Returns error to user — submission not recorded                 |
 | Email send  | Logged, user still sees success — lead is not lost              |
 | n8n webhook | Dead-lettered to `automation_dead_letters` — form is unaffected |
+
+Dead letters intentionally store `event_id`, `event_type`, and `error` only. They do not store the full webhook payload, because `lead.created` payloads can contain names and email addresses. Retention defaults are documented in [docs/privacy/data-retention.md](../privacy/data-retention.md).
 
 **To activate n8n:**
 

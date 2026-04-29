@@ -298,6 +298,18 @@ Analytics is disabled by default. Enable in production only by setting env vars.
 bun run check:analytics  # validate analytics config
 ```
 
+## Privacy and retention
+
+Full docs: [docs/privacy/data-retention.md](docs/privacy/data-retention.md)
+
+Runtime PII retention defaults live in `src/lib/server/privacy/retention.ts`.
+
+**Agent rules:**
+- Keep `automation_dead_letters` free of full webhook payloads.
+- Run `bun run privacy:prune` as a dry-run before `bun run privacy:prune -- --apply`.
+- Run pruning before scheduled production database backups, but do not auto-run pruning from backup scripts or app startup.
+- Do not delete pending/processing automation events unless an operator passes `--include-stale-pending-days=N`.
+
 ## What not to do
 
 - Do not add Tailwind, shadcn, or any pre-built component library.

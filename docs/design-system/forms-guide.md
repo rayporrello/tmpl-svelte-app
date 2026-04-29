@@ -54,10 +54,12 @@ N8N_WEBHOOK_SECRET=a-long-random-string
 ```
 
 The contact form emits a signed `lead.created` event after every successful submission.
-If n8n is unreachable, the event is written to `automation_dead_letters`. The form
-always succeeds once the DB insert completes.
+If n8n is unreachable, minimized delivery state is written to `automation_events` and
+diagnostic metadata is written to `automation_dead_letters` without storing the full
+contact payload. The form always succeeds once the DB insert completes.
 
 See [docs/automations/README.md](../automations/README.md) for n8n workflow setup.
+See [docs/privacy/data-retention.md](../privacy/data-retention.md) for retention defaults.
 
 ---
 

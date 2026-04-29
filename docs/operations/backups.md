@@ -19,6 +19,9 @@ Backup procedures for Postgres databases and file uploads. Sites built from this
 ## Quick start
 
 ```bash
+# Optional but recommended before scheduled production backups:
+bun run privacy:prune -- --apply
+
 # Back up everything
 bun run backup:all
 
@@ -47,6 +50,8 @@ set -a && source .env && set +a
 bun run backup:db
 ```
 
+For scheduled production jobs, run `bun run privacy:prune -- --apply` before `bun run backup:db` or `bun run backup:all`. The backup scripts do not prune automatically because retention windows are a project decision, but pruning first prevents expired PII from being copied into fresh backups.
+
 ---
 
 ## Backup output
@@ -66,7 +71,7 @@ Timestamps are UTC (`YYYYMMDDTHHMMSSz`). Each run creates a new file — old fil
 
 ### Pruning old backups
 
-There is no automatic retention policy. Prune manually:
+There is no automatic backup retention policy. Prune manually or via your scheduler:
 
 ```bash
 # Remove database backups older than 30 days
@@ -76,6 +81,8 @@ find backups/db/ -name '*.pgdump' -mtime +30 -delete
 find backups/uploads/ -name '*.tar.gz' -mtime +30 -delete
 find backups/uploads/ -name '*.sha256' -mtime +30 -delete
 ```
+
+Choose backup retention alongside the live data retention policy in [docs/privacy/data-retention.md](../privacy/data-retention.md). Backups can contain deleted contact submissions until they age out, so keep backup windows no longer than your recovery needs justify.
 
 ---
 
@@ -88,6 +95,8 @@ find backups/uploads/ -name '*.sha256' -mtime +30 -delete
 - Is the most flexible format for disaster recovery
 
 The backup file contains a complete snapshot of all tables, sequences, constraints, and indexes. It does **not** include the `CREATE DATABASE` statement — you restore into an existing (empty) database.
+
+Database backups may contain personal data from `contact_submissions` and historical automation records. Store them with the same care as production data and restrict access to operators who need restore access.
 
 ### Verifying a database backup
 
@@ -182,6 +191,8 @@ Before going live, confirm:
 - [ ] A restore to a temporary database has been tested (see above)
 - [ ] Off-host backup destination is configured and backups are being copied there
 - [ ] A cron job or scheduled task runs backups automatically (daily minimum)
+- [ ] The scheduled job runs `bun run privacy:prune -- --apply` before creating fresh database backups
+- [ ] Backup retention has been chosen and documented for the project
 - [ ] You have tested the full restore path at least once — see [restore.md](restore.md)
 
 ---

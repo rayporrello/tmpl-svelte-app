@@ -21,7 +21,10 @@ const payload: LeadCreatedPayload = {
 function makeMockDb() {
 	const mockValues = vi.fn().mockResolvedValue([]);
 	const mockInsert = vi.fn().mockReturnValue({ values: mockValues });
-	return { db: { insert: mockInsert }, mockInsert, mockValues };
+	const mockWhere = vi.fn().mockResolvedValue([]);
+	const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+	const mockUpdate = vi.fn().mockReturnValue({ set: mockSet });
+	return { db: { insert: mockInsert, update: mockUpdate }, mockInsert, mockValues, mockUpdate };
 }
 
 describe('emitLeadCreated()', () => {
@@ -93,7 +96,11 @@ describe('emitLeadCreated()', () => {
 		await emitLeadCreated(payload, db as never);
 
 		expect(mockInsert).toHaveBeenCalled();
-		expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'lead.created' }));
+		const deadLetterValues = mockValues.mock.calls.at(-1)?.[0];
+		expect(deadLetterValues).toEqual(
+			expect.objectContaining({ eventType: 'lead.created', eventId: expect.any(String) })
+		);
+		expect(deadLetterValues).not.toHaveProperty('payload');
 	});
 
 	it('writes a dead-letter record on non-ok webhook response', async () => {
@@ -113,6 +120,11 @@ describe('emitLeadCreated()', () => {
 		const brokenDb = {
 			insert: vi.fn().mockReturnValue({
 				values: vi.fn().mockRejectedValue(new Error('db error')),
+			}),
+			update: vi.fn().mockReturnValue({
+				set: vi.fn().mockReturnValue({
+					where: vi.fn().mockRejectedValue(new Error('db error')),
+				}),
 			}),
 		};
 

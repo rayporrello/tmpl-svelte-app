@@ -242,6 +242,25 @@ Server conversions: [docs/analytics/server-conversions.md](docs/analytics/server
 
 ---
 
+## Privacy and retention rules
+
+Full reference: [docs/privacy/data-retention.md](docs/privacy/data-retention.md)
+
+### Always
+
+- Keep retention defaults in `src/lib/server/privacy/retention.ts` and update the privacy docs in the same change
+- Run `bun run privacy:prune` as a dry-run before using `bun run privacy:prune -- --apply`
+- Run privacy pruning before scheduled database backups in production maintenance
+- Keep `automation_dead_letters` free of full webhook payloads; store only event type, nullable event reference, error text, and timestamps
+
+### Never
+
+- Do not store names, emails, message bodies, or raw webhook payloads in `automation_dead_letters`
+- Do not auto-run pruning from backup scripts, app startup, public endpoints, or request handlers
+- Do not delete pending/processing automation events unless an operator passes `--include-stale-pending-days=N`
+
+---
+
 ## SEO rules
 
 Full reference: [docs/seo/README.md](docs/seo/README.md)  

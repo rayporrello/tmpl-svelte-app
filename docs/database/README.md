@@ -32,6 +32,14 @@ Starter tables live in [src/lib/server/db/schema.ts](../../src/lib/server/db/sch
 
 Extend the schema by adding tables to `schema.ts` and running `bun run db:generate`.
 
+The runtime tables include pruning indexes for privacy retention:
+
+- `contact_submissions(created_at)`
+- `automation_events(status, created_at)`
+- `automation_dead_letters(created_at)`
+
+Default retention windows live in `src/lib/server/privacy/retention.ts` and are documented in [docs/privacy/data-retention.md](../privacy/data-retention.md). Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` to delete expired rows.
+
 ---
 
 ## Local setup
@@ -65,13 +73,14 @@ Extend the schema by adding tables to `schema.ts` and running `bun run db:genera
 
 ## Scripts
 
-| Script                | Effect                                                          |
-| --------------------- | --------------------------------------------------------------- |
-| `bun run db:generate` | Generate a new migration file from schema changes               |
-| `bun run db:migrate`  | Apply pending migrations to the database                        |
-| `bun run db:push`     | Push schema changes directly (dev only — skips migration files) |
-| `bun run db:studio`   | Open Drizzle Studio at `http://127.0.0.1:4983`                  |
-| `bun run db:check`    | Check for schema drift between schema.ts and the DB             |
+| Script                  | Effect                                                            |
+| ----------------------- | ----------------------------------------------------------------- |
+| `bun run db:generate`   | Generate a new migration file from schema changes                 |
+| `bun run db:migrate`    | Apply pending migrations to the database                          |
+| `bun run db:push`       | Push schema changes directly (dev only — skips migration files)   |
+| `bun run db:studio`     | Open Drizzle Studio at `http://127.0.0.1:4983`                    |
+| `bun run db:check`      | Check for schema drift between schema.ts and the DB               |
+| `bun run privacy:prune` | Dry-run expired runtime-data pruning; pass `-- --apply` to delete |
 
 `db:push` is useful for rapid iteration in development. Use `db:generate` + `db:migrate` for any change that needs to be tracked and deployed.
 
@@ -101,6 +110,7 @@ Before going live:
 - [ ] The Postgres user has `CONNECT`, `SELECT`, `INSERT`, `UPDATE`, `DELETE` on application tables — not superuser
 - [ ] `/readyz` returns 200 with the production URL
 - [ ] A backup schedule is configured (see [docs/deployment/runbook.md](../deployment/runbook.md))
+- [ ] Retention policy reviewed and `bun run privacy:prune` dry-run checked against production counts
 
 ---
 
