@@ -55,7 +55,7 @@ form-action 'self';
 base-uri 'self'
 ```
 
-**`style-src 'unsafe-inline'`** — Required because SvelteKit injects component styles as inline style attributes in SSR output. A nonce upgrade is deferred to Phase 5.
+**`style-src 'unsafe-inline'`** — Required because SvelteKit injects component styles as inline style attributes in SSR output. A nonce upgrade is deferred indefinitely (see ADR-018 §"Out of Scope") — commit fully or stay on `unsafe-inline`; half-built scaffolding is the worst option.
 
 **`frame-ancestors 'none'`** — More robust than `X-Frame-Options: DENY` (applies in more contexts). Both are set; redundancy is intentional.
 
@@ -112,7 +112,7 @@ Extension is intentionally a code change, not a config value — it makes the CS
 
 ### Accepted tradeoffs
 
-- `'unsafe-inline'` in `style-src` is necessary for SvelteKit SSR. Removing it requires nonce injection, which is a non-trivial change deferred to Phase 5.
+- `'unsafe-inline'` in `style-src` is necessary for SvelteKit SSR. Removing it requires nonce injection, which is a non-trivial change deferred indefinitely (ADR-018 §"Out of Scope").
 - `/admin` CSP is more permissive. This is a deliberate per-route exception, not a blanket weakening.
 - CSP report-uri / report-to is not wired — reporting infrastructure is per-project and out of scope for the base template.
 

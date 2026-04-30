@@ -66,7 +66,7 @@ Every release of this template must respond to `GET /healthz` with HTTP 200 and 
 
 The Containerfile `HEALTHCHECK` directive, Quadlet `HealthCmd`, and the CI smoke step all verify this endpoint. It is contractual — breaking it breaks deployment pipelines.
 
-`/readyz` (Postgres connectivity probe) is explicitly out of scope until Phase 5. See ADR-016.
+`/readyz` (Postgres connectivity probe) is shipped at `src/routes/readyz/+server.ts` and returns 200/503 based on `checkDbHealth()`. Use `/healthz` for liveness and `/readyz` for orchestration readiness — Caddy's upstream health check uses `/healthz`; load balancer or Kubernetes-style readiness probes should use `/readyz`. See ADR-016 for the tier model.
 
 ---
 
