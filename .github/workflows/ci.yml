@@ -264,7 +264,9 @@ jobs:
 
   # ── launch ────────────────────────────────────────────────────────────────────
   # Runs only on tag pushes. Verifies no placeholder values remain.
-  # Expected to fail on a fresh template clone until bun run init:site is run (Batch B).
+  # Auto-skips on the template repo itself (placeholders intact in site.ts).
+  # Run `bun run init:site` in a project clone before tagging that project's
+  # release for validate:launch to exercise.
 
   launch:
     name: Launch validation
@@ -277,12 +279,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect template state
+        id: state
+        run: |
+          if grep -qE "name: 'Your Site Name'|url: 'https://example.com'" src/lib/config/site.ts; then
+            echo "::notice::Tag is on the template repo (site.ts placeholders are still present). Launch validation only runs on project tags after \`bun run init:site\` has replaced placeholders. Skipping validate:launch."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Bun
+        if: steps.state.outputs.skip != 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: package.json
 
       - name: Cache Bun install
+        if: steps.state.outputs.skip != 'true'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.bun/install/cache
@@ -291,9 +305,11 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Install dependencies
+        if: steps.state.outputs.skip != 'true'
         run: bun install --frozen-lockfile
 
       - name: Run validate:launch
+        if: steps.state.outputs.skip != 'true'
         run: bun run validate:launch
         env:
           # Stubs so env validation passes; check:launch reports structural errors.
