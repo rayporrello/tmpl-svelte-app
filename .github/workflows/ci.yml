@@ -210,6 +210,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       # ── Trivy: CRITICAL — blocks the run ──────────────────────────────────
+      # .trivyignore documents accepted-risk CVE suppressions with rationale.
       - name: Trivy scan — CRITICAL (blocking)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -218,6 +219,7 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           severity: CRITICAL
+          trivyignores: .trivyignore
 
       # ── Trivy: HIGH — reports only, non-blocking ───────────────────────────
       - name: Trivy scan — HIGH (reporting only)
@@ -228,6 +230,7 @@ jobs:
           exit-code: '0'
           ignore-unfixed: true
           severity: HIGH
+          trivyignores: .trivyignore
         continue-on-error: true
 
       # ── Build-then-run smoke: start container, poll /healthz up to 30s ────

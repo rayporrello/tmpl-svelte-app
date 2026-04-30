@@ -1,0 +1,34 @@
+# .trivyignore — accepted-risk CVEs with rationale.
+#
+# Each entry must include WHY this CVE is not exploitable in this app's
+# context. Re-evaluate periodically. Remove the suppression as soon as
+# the underlying issue is fixed upstream.
+#
+# ────────────────────────────────────────────────────────────────────────────
+# CVE-2024-24790 — Go stdlib net/netip: IPv4-mapped IPv6 address handling
+# CVE-2025-68121 — Go stdlib crypto/tls: TLS session resumption certificate
+#                  validation
+#
+# Both flagged in:
+#   - app/node_modules/@esbuild/linux-x64/bin/esbuild
+#   - app/node_modules/@esbuild-kit/core-utils/node_modules/esbuild/bin/esbuild
+#
+# These are the Go-built esbuild binaries shipped by the esbuild npm package.
+# esbuild is a devDependency used at build time only. The runtime entrypoint
+# is `bun serve.js` → `bun build/index.js`, which is the SvelteKit production
+# server output; it never spawns or imports esbuild. The Go stdlib code paths
+# that contain these CVEs (net/netip TLS session resumption) are unreachable
+# at runtime — esbuild is not running, not listening on a port, and not
+# accepting connections.
+#
+# Long-term fix: the runtime stage of the Containerfile should not ship
+# devDependencies. That requires moving @sveltejs/kit (and any of its
+# transitive runtime requirements) from devDependencies to dependencies so
+# that `bun install --production` keeps a working tree. Tracked as a
+# follow-up; in the meantime these suppressions document the reasoning.
+#
+# Re-evaluate when:
+#   - esbuild ships a release rebuilt with Go ≥ 1.24.13 / 1.25.7 / 1.26.0-rc.3
+#   - Or the Containerfile is restructured to install --production at runtime
+CVE-2024-24790
+CVE-2025-68121

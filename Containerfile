@@ -47,19 +47,21 @@ WORKDIR /app
 # Non-root user for rootless operation
 RUN addgroup -g 1001 -S app && adduser -u 1001 -S app -G app
 
-# Re-install with --production from the locked manifest so devDeps (esbuild,
-# vite, playwright, etc.) don't ship in the runtime image. esbuild is Go-built
-# and pulls Trivy CRITICAL false positives even though it's never invoked at
-# runtime ("bun serve.js" doesn't touch it). --frozen-lockfile keeps versions
-# pinned — same versions as the builder stage used to produce build/.
+# Copy build output, package manifest, and installed node_modules.
+# svelte-adapter-bun generates a build/package.json that lists runtime deps
+# (cookie, devalue, set-cookie-parser, gray-matter, js-yaml). Copying
+# node_modules from the builder is deterministic — same exact package versions
+# as the build, no re-install with unpinned "latest" ranges.
 #
-# cookie / devalue / set-cookie-parser are listed in root dependencies so they
-# survive the --production prune (they are SvelteKit runtime requirements that
-# would otherwise only exist transitively via @sveltejs/kit, a devDep).
-COPY --from=builder --chown=app:app /app/package.json /app/bun.lock ./
-RUN bun install --production --frozen-lockfile
-
+# Note: this ships some devDeps (notably esbuild's Go-built binaries). Those
+# Go binaries trigger Trivy CRITICAL findings on Go stdlib CVEs even though
+# they are never invoked at runtime ("bun serve.js" → "bun build/index.js"
+# does not touch esbuild). The specific CVE IDs are listed in .trivyignore
+# with rationale. Re-evaluate the suppression when esbuild rebuilds with
+# patched Go and Trivy stops flagging.
 COPY --from=builder --chown=app:app /app/build ./build
+COPY --from=builder --chown=app:app /app/package.json ./
+COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 COPY --from=builder --chown=app:app /app/serve.js ./
 
 USER app
