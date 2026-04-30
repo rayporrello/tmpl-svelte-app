@@ -13,6 +13,29 @@
     <!-- CSS variables can't be read here, so this must be a raw hex value per project -->
     <meta name="theme-color" content="#0B1120" />
 
+    <!-- Speculation Rules — Chrome/Edge prerender same-origin pages on hover/pointerdown.
+         Excludes admin (Sveltia CMS), forms (state), API routes, and externally-marked links.
+         Browsers without support ignore this block silently. -->
+    <script type="speculationrules">
+      {
+        "prerender": [
+          {
+            "where": {
+              "and": [
+                { "href_matches": "/*" },
+                { "not": { "href_matches": "/admin/*" } },
+                { "not": { "href_matches": "/contact*" } },
+                { "not": { "href_matches": "/api/*" } },
+                { "not": { "selector_matches": "[rel~=external]" } },
+                { "not": { "selector_matches": "[rel~=nofollow]" } }
+              ]
+            },
+            "eagerness": "moderate"
+          }
+        ]
+      }
+    </script>
+
     %sveltekit.head%
 
     <!-- Anti-FOUC Theme Initialization

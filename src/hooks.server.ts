@@ -17,6 +17,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 	response.headers.set('Content-Security-Policy', buildCsp(event.url));
+	// HSTS defense-in-depth: Caddy is canonical (deploy/Caddyfile.example) but
+	// this app may be deployed behind a different proxy (CF Tunnel, etc.).
+	if (event.url.protocol === 'https:') {
+		response.headers.set(
+			'Strict-Transport-Security',
+			'max-age=31536000; includeSubDomains; preload'
+		);
+	}
 	return response;
 };
 

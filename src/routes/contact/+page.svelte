@@ -37,6 +37,19 @@
 		{/if}
 
 		<form class="form" method="POST" use:enhance>
+			<div class="honeypot" aria-hidden="true">
+				<label>
+					Website
+					<input
+						type="text"
+						name="website"
+						tabindex="-1"
+						autocomplete="off"
+						bind:value={$form.website}
+					/>
+				</label>
+			</div>
+
 			{#if $errors._errors}
 				<div class="form-message" data-variant="danger">
 					{$errors._errors.join(', ')}
@@ -132,5 +145,13 @@
 
 	.form {
 		margin-block-start: var(--space-6);
+	}
+
+	.honeypot {
+		position: absolute;
+		left: -9999px;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
 	}
 </style>

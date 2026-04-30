@@ -4,7 +4,7 @@ MAINTAINER NOTE — added 2026-04-27
 This file is a one-shot LLM briefing for template-maintainer threads. It is a snapshot, not a contract — sections will drift as the template evolves. Trust the live repo over any specific claim here.
 
 Known drift as of this note:
-- The file-structure tree below still lists `06-agent-operating-model.md`, `ADR-003-sveltia-for-content.md`, `ADR-006-agent-operating-model.md`, and `docs/automations/runtime-event-contract.md`. Those files have been deleted or moved. The agent-operating-model rationale lives in `AGENTS.md`; the Sveltia decision lives in `ADR-014`; the runtime event spec moved to `docs/planning/runtime-event-contract.md`.
+- The file-structure tree below still lists `06-agent-operating-model.md`, `ADR-003-sveltia-for-content.md`, and `ADR-006-agent-operating-model.md`. Those files have been deleted or moved. The agent-operating-model rationale lives in `AGENTS.md`; the Sveltia decision lives in `ADR-014`; the runtime event contract lives in `docs/automations/runtime-event-contract.md`.
 - The numbered planning sequence has gaps (no `05`, no `06`) — that's intentional, see `docs/planning/README.md`.
 - For the current v1.0.0 readiness state, read `docs/planning/11-template-build-backlog.md` (top section) and `docs/planning/12-post-v1-roadmap.md`.
 
@@ -298,7 +298,7 @@ Completed build phases (as of April 2026):
 
 Remaining template work:
 
-- Phase 5 runtime data: Postgres + Drizzle activation, /readyz with DB connectivity, automation event emitter, HMAC signing, lead.created and newsletter.subscribed event wiring, dead-letter table for failed n8n events. (See backlog and ADR roadmap; deferred until Postgres is active.)
+- Phase 5 runtime data: Postgres + Drizzle activation, /readyz with DB connectivity, automation event emitter, HMAC signing, lead.created and newsletter.subscribed event wiring, dead-letter table for failed automation events.
 - Phase 7 architecture/operations docs: optional; deferred to Phase 5+ when runtime data lands.
 - Phase 8 final validation pass: container build, Lighthouse/perf check, full doc-vs-implementation audit before tagging a v1 release.
 

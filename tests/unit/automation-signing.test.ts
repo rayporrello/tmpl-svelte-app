@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { signWebhookPayload } from '$lib/server/automation/signing';
+import { WEBHOOK_SIGNATURE_HEADER, signWebhookPayload } from '$lib/server/automation/signing';
 
 describe('signWebhookPayload()', () => {
+	it('exports the shared webhook signature header name', () => {
+		expect(WEBHOOK_SIGNATURE_HEADER).toBe('X-Webhook-Signature');
+	});
+
 	it('produces a 64-character hex string', () => {
 		expect(signWebhookPayload('hello', 'secret')).toMatch(/^[0-9a-f]{64}$/);
 	});

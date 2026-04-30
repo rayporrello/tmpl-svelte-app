@@ -217,10 +217,15 @@ If any check fails:
 
 ## Backup and Restore
 
+### Manual / pre-destructive snapshot
+
 Take a backup before any destructive operation (database migration, configuration change, restore from older backup).
 
 ```bash
-# Back up database and uploads
+# Prune expired runtime records first in scheduled production maintenance
+bun run privacy:prune -- --apply
+
+# Back up database and uploads (auto-pushes off-host when BACKUP_REMOTE is set)
 bun run backup:all
 
 # Verify most recent backup
@@ -230,9 +235,57 @@ bun run backup:verify
 bash scripts/restore-db.sh backups/db/db-<timestamp>.pgdump --confirm
 ```
 
-Backups are stored in `backups/` (gitignored). Copy them off-host — a backup on the same server as the app is not a real backup.
+Backups are stored in `backups/` (gitignored). Without an off-host destination they're co-located with the app — see below.
 
-Full procedures: [docs/operations/backups.md](../operations/backups.md) · [docs/operations/restore.md](../operations/restore.md)
+### Scheduled off-host backups (turnkey path)
+
+The template ships a turnkey rclone + systemd timer + Healthchecks.io path. After deploy, set up once per host:
+
+```bash
+# 1. Install rclone and configure a remote
+curl https://rclone.org/install.sh | sudo bash
+rclone config   # for Cloudflare R2: choose Amazon S3 → Cloudflare R2
+
+# 2. Install postgres client (for pg_dump)
+sudo dnf install postgresql
+
+# 3. Add backup secrets to secrets.yaml, render
+sops secrets.yaml   # add BACKUP_REMOTE and BACKUP_HEALTHCHECK_URL
+bun run secrets:render production
+
+# 4. Install the systemd units (init:site already replaced <project> placeholders)
+cp deploy/systemd/backup.service ~/.config/systemd/user/<project>-backup.service
+cp deploy/systemd/backup.timer   ~/.config/systemd/user/<project>-backup.timer
+systemctl --user daemon-reload
+systemctl --user enable --now <project>-backup.timer
+
+# 5. Verify
+systemctl --user list-timers | grep <project>-backup
+systemctl --user start <project>-backup.service     # manual fire to test rclone + Healthchecks
+journalctl --user -u <project>-backup.service -f
+```
+
+The unit fires daily at 03:00 (with 0–5 min jitter), runs `privacy:prune --apply`, then `backup:all`, which auto-pushes to `BACKUP_REMOTE`. Healthchecks pings `<url>/start`, `<url>` on success, `<url>/fail` on error.
+
+Do not auto-prune inside backup scripts. Retention windows belong to the project, so scheduled jobs should call `privacy:prune` explicitly before backup — the shipped systemd service does this in the right order.
+
+Full procedures: [docs/operations/backups.md](../operations/backups.md) · [docs/operations/restore.md](../operations/restore.md) · [docs/privacy/data-retention.md](../privacy/data-retention.md)
+
+---
+
+## Graceful shutdown
+
+The container's entrypoint is `bun serve.js`, not `bun build/index.js` directly. `serve.js` (at the repo root) registers `SIGTERM` and `SIGINT` handlers that delay `process.exit(0)` by `SHUTDOWN_TIMEOUT_MS` (default 10000ms) so in-flight HTTP responses can finish before the process exits.
+
+This matters during rolling restarts: `systemctl --user restart <project>-web` sends SIGTERM. Without the wrapper, `svelte-adapter-bun`'s `Bun.serve()` exits immediately and truncates active responses — including Postgres queries that were mid-flight, which can leak connections from the postgres-js pool until the next idle reaping.
+
+Tuning `SHUTDOWN_TIMEOUT_MS`:
+
+- Short-running marketing pages: keep at 10000ms (default).
+- Long-polling endpoints or slow upstream calls: raise to match your worst-case request latency. The Quadlet's `Restart=on-failure` plus Caddy's `health_uri /healthz` (default `health_interval 10s`) routes traffic away within the same window.
+- Local development: `bun run dev` does not use this wrapper — the Vite dev server has its own HMR shutdown.
+
+If you ever need to bypass the wrapper for debugging, run `bun build/index.js` directly inside the container (`podman exec -it <container> bun build/index.js`). Do not change the `Containerfile` `CMD` — see ADR-018.
 
 ---
 

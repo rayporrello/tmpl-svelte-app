@@ -19,6 +19,9 @@ Backup procedures for Postgres databases and file uploads. Sites built from this
 ## Quick start
 
 ```bash
+# Optional but recommended before scheduled production backups:
+bun run privacy:prune -- --apply
+
 # Back up everything
 bun run backup:all
 
@@ -47,6 +50,8 @@ set -a && source .env && set +a
 bun run backup:db
 ```
 
+For scheduled production jobs, run `bun run privacy:prune -- --apply` before `bun run backup:db` or `bun run backup:all`. The backup scripts do not prune automatically because retention windows are a project decision, but pruning first prevents expired PII from being copied into fresh backups.
+
 ---
 
 ## Backup output
@@ -66,7 +71,7 @@ Timestamps are UTC (`YYYYMMDDTHHMMSSz`). Each run creates a new file — old fil
 
 ### Pruning old backups
 
-There is no automatic retention policy. Prune manually:
+There is no automatic backup retention policy. Prune manually or via your scheduler:
 
 ```bash
 # Remove database backups older than 30 days
@@ -76,6 +81,8 @@ find backups/db/ -name '*.pgdump' -mtime +30 -delete
 find backups/uploads/ -name '*.tar.gz' -mtime +30 -delete
 find backups/uploads/ -name '*.sha256' -mtime +30 -delete
 ```
+
+Choose backup retention alongside the live data retention policy in [docs/privacy/data-retention.md](../privacy/data-retention.md). Backups can contain deleted contact submissions until they age out, so keep backup windows no longer than your recovery needs justify.
 
 ---
 
@@ -88,6 +95,8 @@ find backups/uploads/ -name '*.sha256' -mtime +30 -delete
 - Is the most flexible format for disaster recovery
 
 The backup file contains a complete snapshot of all tables, sequences, constraints, and indexes. It does **not** include the `CREATE DATABASE` statement — you restore into an existing (empty) database.
+
+Database backups may contain personal data from `contact_submissions` and historical automation records. Store them with the same care as production data and restrict access to operators who need restore access.
 
 ### Verifying a database backup
 
@@ -136,38 +145,70 @@ ls /tmp/uploads-restore-test/uploads/
 
 **A backup stored only on the same server as the application is not a real backup.** If the server fails, both the application data and the backup are lost simultaneously.
 
-Production backups must be copied off-host. Options (choose one):
+### Turnkey path (recommended)
 
-### rsync to a second server
+The template ships an opinionated default: rclone + a systemd timer + Healthchecks.io pings. Set two env vars and enable a timer; nightly off-host sync runs from there.
+
+**One-time host setup:**
 
 ```bash
-# From the backup server or via cron on the app server:
-rsync -avz --progress backups/ backup-user@backup-host:/path/to/site-backups/
+# 1. Install rclone (any S3-compatible: Cloudflare R2, Backblaze B2, AWS S3, etc.)
+curl https://rclone.org/install.sh | sudo bash
+
+# 2. Configure the remote interactively. For Cloudflare R2, choose
+#    "Amazon S3 Compliant Storage Providers" → "Cloudflare R2".
+rclone config
+
+# 3. Install the postgres client (for pg_dump):
+sudo dnf install postgresql   # Fedora/RHEL
+# sudo apt install postgresql-client   # Debian/Ubuntu
 ```
 
-### S3-compatible storage (Cloudflare R2, Backblaze B2, AWS S3)
+**Per-project setup:**
+
+1. Set both env vars in your rendered `~/secrets/<project>.prod.env` (via SOPS in `secrets.yaml`):
+
+   ```yaml
+   BACKUP_REMOTE: 'r2:my-bucket/my-site-backups'
+   BACKUP_HEALTHCHECK_URL: 'https://hc-ping.com/<uuid>'
+   ```
+
+2. Copy the systemd units (after `bun run init:site` replaces `<project>` placeholders):
+
+   ```bash
+   cp deploy/systemd/backup.service ~/.config/systemd/user/<project>-backup.service
+   cp deploy/systemd/backup.timer ~/.config/systemd/user/<project>-backup.timer
+   systemctl --user daemon-reload
+   systemctl --user enable --now <project>-backup.timer
+   ```
+
+3. Verify:
+
+   ```bash
+   # Confirm the timer is scheduled
+   systemctl --user list-timers | grep <project>-backup
+
+   # Manual run (also tests the rclone config + Healthchecks ping)
+   systemctl --user start <project>-backup.service
+   journalctl --user -u <project>-backup.service -f
+   ```
+
+When `BACKUP_REMOTE` is set, `bun run backup:all` automatically runs `backup:push` after the local backups complete. When `BACKUP_HEALTHCHECK_URL` is set, `backup:push` pings `<url>/start`, `<url>` on success, `<url>/fail` on error.
+
+### Manual options (if you skip the turnkey path)
+
+If you don't want rclone + systemd, copy backups elsewhere yourself:
 
 ```bash
-# Using rclone (https://rclone.org) — supports all S3-compatible providers
-rclone copy backups/ remote:bucket-name/site-backups/
+# rsync to a second server
+rsync -avz --progress backups/ backup-user@backup-host:/path/to/site-backups/
 
-# Or with the AWS CLI (compatible with R2 and B2):
+# Or AWS CLI to any S3-compatible target (R2, B2, S3)
 aws s3 sync backups/ s3://bucket-name/site-backups/ \
   --endpoint-url https://your-account.r2.cloudflarestorage.com
 ```
 
-### Automating off-host sync
-
-Add off-host sync as a final step in a cron job or after `bun run backup:all`. Example cron (run daily at 3 AM):
-
-```
-0 3 * * * cd /path/to/site && \
-  set -a && source .env && set +a && \
-  bun run backup:all && \
-  rclone copy backups/ remote:bucket/site-backups/
-```
-
-Off-host sync is **not** implemented in these scripts by default — it depends on your infrastructure provider and credentials. The scripts handle the local backup half; you own the transfer.
+Schedule via cron, a different timer, or your CI — it's outside the scripts. Without something scheduled, backups don't actually run on a clock.
 
 ---
 
@@ -180,8 +221,11 @@ Before going live, confirm:
 - [ ] `bun run backup:db` runs successfully
 - [ ] `bun run backup:verify` passes
 - [ ] A restore to a temporary database has been tested (see above)
-- [ ] Off-host backup destination is configured and backups are being copied there
-- [ ] A cron job or scheduled task runs backups automatically (daily minimum)
+- [ ] Off-host backup destination is configured (recommended: `BACKUP_REMOTE` set + rclone configured) and a successful push has been observed
+- [ ] A scheduled task runs backups automatically (recommended: `<project>-backup.timer` enabled; daily minimum)
+- [ ] The scheduled job runs `bun run privacy:prune -- --apply` before creating fresh database backups (the shipped systemd service does this)
+- [ ] `BACKUP_HEALTHCHECK_URL` (or equivalent monitor) is set so silent failures alert
+- [ ] Backup retention has been chosen and documented for the project
 - [ ] You have tested the full restore path at least once — see [restore.md](restore.md)
 
 ---

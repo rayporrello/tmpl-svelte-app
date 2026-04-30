@@ -20,6 +20,13 @@ export const actions: Actions = {
 		const form = await superValidate(event.request, valibot(contactSchema));
 		if (!form.valid) return fail(400, { form });
 
+		// Honeypot — bots fill `website`; real users can't see it. Silent
+		// success keeps bots from learning they've been caught.
+		if (form.data.website && form.data.website.length > 0) {
+			logger.info('Contact form honeypot trip', { requestId: event.locals.requestId });
+			return message(form, "Message sent! We'll get back to you soon.");
+		}
+
 		// Rate limit — keyed by IP. No-op unless RATE_LIMIT_ENABLED=true.
 		// Single-node guard; buckets reset on restart. See rate-limit.ts.
 		let clientKey = 'contact:unknown';
@@ -84,8 +91,8 @@ export const actions: Actions = {
 			// Submission is saved — continue to success response
 		}
 
-		// 3. Emit n8n event. Fire-and-forget: errors are dead-lettered internally.
-		//    n8n unavailability never makes the contact form fail after the DB save.
+		// 3. Emit automation event. Fire-and-forget: delivery failures are
+		//    dead-lettered internally and never make the contact form fail.
 		void emitLeadCreated({
 			submissionId,
 			name: form.data.name,

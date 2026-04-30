@@ -126,3 +126,5 @@ Server analytics events **must not** contain:
 - Any field whose value originates from user-controlled input and could identify an individual
 
 Use opaque identifiers (`event_id`, internal record IDs) and aggregation-safe metadata (`form_name`, `product_category`) only.
+
+Server analytics retention is controlled by the analytics provider. The local `privacy:prune` command only prunes Postgres runtime tables such as `contact_submissions`, `automation_events`, and `automation_dead_letters`; see [docs/privacy/data-retention.md](../privacy/data-retention.md).

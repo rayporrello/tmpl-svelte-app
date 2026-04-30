@@ -37,7 +37,8 @@ function buildDirectives(isAdmin: boolean): CspDirectives {
 		],
 
 		// 'unsafe-inline' is required because SvelteKit injects styles as inline
-		// style attributes during SSR. Nonce upgrade is deferred to Phase 5.
+		// style attributes during SSR. Nonce upgrade is deferred indefinitely
+		// per ADR-018 §"Out of Scope" — commit fully or stay on 'unsafe-inline'.
 		'style-src': ["'self'", "'unsafe-inline'"],
 
 		// Connect (fetch, XHR, WebSocket). Analytics hosts added when enabled.

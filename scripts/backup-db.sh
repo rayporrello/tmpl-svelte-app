@@ -49,6 +49,10 @@ trap 'rm -f "$BACKUP_FILE"; echo "Backup failed — partial file removed." >&2' 
 
 echo "Backing up database → ${BACKUP_FILE}"
 
+# Scheduled production jobs should run `bun run privacy:prune -- --apply`
+# before this backup step, so expired PII is not copied into fresh backups.
+# This script does not auto-prune; retention is an explicit operator choice.
+
 # Custom format: compressed, supports selective restore with pg_restore.
 # --no-password: fail instead of prompting (we expect credentials in DATABASE_URL).
 pg_dump \

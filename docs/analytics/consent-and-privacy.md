@@ -41,6 +41,8 @@ updateConsent(FULL_CONSENT);
 
 Even without a banner, you should review your Privacy Policy and confirm it covers your analytics tools.
 
+Analytics consent is separate from operational data retention. Contact form submissions and automation records live in Postgres and are covered by [docs/privacy/data-retention.md](../privacy/data-retention.md).
+
 ---
 
 ## When you probably DO need a consent banner
@@ -99,3 +101,11 @@ Cloudflare Web Analytics does not use cookies, `localStorage`, fingerprinting, o
 `captureAttribution()` uses `localStorage` to store UTM parameters and click IDs. This may require disclosure (and possibly consent) under some privacy regulations if it is used for ad retargeting. For pure marketing analytics without ad targeting, it is typically considered analytics-class data.
 
 If your project uses ad platform click IDs (gclid, fbclid) and your users are in a consent jurisdiction, review whether attribution capture falls within your consent scope.
+
+---
+
+## Retention notes
+
+If GA4 is enabled, review the GA4 property's data retention settings during launch. Keep analytics events free of PII: no names, emails, phone numbers, IP addresses, or contact message bodies.
+
+The template's `privacy:prune` command only prunes the local Postgres runtime tables. It does not delete data from GTM, GA4, Cloudflare Web Analytics, email providers, CRMs, or n8n.

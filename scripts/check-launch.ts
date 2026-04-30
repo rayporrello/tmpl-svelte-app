@@ -4,9 +4,9 @@
  * before a site goes live.
  *
  * Rules:
- *   - No placeholder strings in config files (site.ts, config.yml, site.webmanifest)
+ *   - No launch-blocking placeholders in config, deploy, and env example files
  *   - og-default.png must NOT be the template placeholder (hash check)
- *   - Production URL must be HTTPS, not localhost/example/127.0.0.1
+ *   - Production URLs must be HTTPS, not localhost/example/127.0.0.1
  *
  * Does NOT make network requests. Post-deploy reachability is in docs/deployment/runbook.md.
  *
@@ -34,13 +34,21 @@ const FORBIDDEN_STRINGS = [
 	'[Year]',
 ];
 
-// Files to scan for forbidden placeholder strings.
-const CONFIG_FILES: Array<{ path: string; label: string }> = [
-	{ path: 'src/lib/config/site.ts', label: 'site config' },
-	{ path: 'src/app.html', label: 'app shell' },
-	{ path: 'src/routes/+layout.svelte', label: 'root layout' },
-	{ path: 'static/admin/config.yml', label: 'CMS config' },
-	{ path: 'static/site.webmanifest', label: 'web manifest' },
+const DEPLOY_FORBIDDEN_STRINGS = [...FORBIDDEN_STRINGS, '<owner>', '<name>', '<project>'];
+
+type ScanKind = 'src-static' | 'deploy' | 'env-example';
+
+const SCANNED_FILES: Array<{ path: string; label: string; kind: ScanKind }> = [
+	{ path: 'src/lib/config/site.ts', label: 'site config', kind: 'src-static' },
+	{ path: 'src/app.html', label: 'app shell', kind: 'src-static' },
+	{ path: 'src/routes/+layout.svelte', label: 'root layout', kind: 'src-static' },
+	{ path: 'static/admin/config.yml', label: 'CMS config', kind: 'src-static' },
+	{ path: 'static/site.webmanifest', label: 'web manifest', kind: 'src-static' },
+	{ path: 'deploy/Caddyfile.example', label: 'Caddyfile example', kind: 'deploy' },
+	{ path: 'deploy/quadlets/web.container', label: 'web Quadlet', kind: 'deploy' },
+	{ path: 'deploy/quadlets/web.network', label: 'network Quadlet', kind: 'deploy' },
+	{ path: '.env.example', label: 'local env example', kind: 'env-example' },
+	{ path: 'deploy/env.example', label: 'deploy env example', kind: 'env-example' },
 ];
 
 // Required environment variables — sourced from src/lib/server/env.ts schemas.
@@ -50,17 +58,68 @@ const REQUIRED_ENV_VARS = [...REQUIRED_PUBLIC_ENV_VARS, ...REQUIRED_PRIVATE_ENV_
 const errors: string[] = [];
 const warnings: string[] = [];
 
+function hasForbiddenHostname(hostname: string): boolean {
+	return FORBIDDEN_DOMAINS.some(
+		(forbidden) =>
+			hostname === forbidden || hostname.endsWith(`.${forbidden}`) || hostname.endsWith('.local')
+	);
+}
+
+function validateProductionUrl(value: string, label: string): void {
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		errors.push(`${label} "${value}" is not a valid URL`);
+		return;
+	}
+
+	if (parsed.protocol !== 'https:') {
+		errors.push(`${label} "${value}" must use HTTPS — got "${parsed.protocol}"`);
+	}
+
+	if (hasForbiddenHostname(parsed.hostname)) {
+		errors.push(
+			`${label} "${value}" uses a forbidden hostname "${parsed.hostname}" — must be a real production domain`
+		);
+	}
+}
+
 // ── 1. Placeholder string scan ────────────────────────────────────────────────
 
-for (const { path, label } of CONFIG_FILES) {
+for (const { path, label, kind } of SCANNED_FILES) {
 	if (!existsSync(path)) {
 		warnings.push(`${label}: file not found at ${path} — skipping placeholder scan`);
 		continue;
 	}
 	const content = readFileSync(path, 'utf-8');
-	for (const needle of FORBIDDEN_STRINGS) {
+	const forbiddenStrings = kind === 'deploy' ? DEPLOY_FORBIDDEN_STRINGS : FORBIDDEN_STRINGS;
+	for (const needle of kind === 'env-example' ? [] : forbiddenStrings) {
 		if (content.includes(needle)) {
 			errors.push(`${label} (${path}) contains placeholder: "${needle}"`);
+		}
+	}
+
+	if (kind === 'deploy') {
+		for (const line of content.split(/\r?\n/)) {
+			if (/^\s*Image=.*example\.com/.test(line)) {
+				errors.push(`${label} (${path}) contains example.com in Image= line`);
+			}
+			if (/^\s*(?:www\.)?[a-z0-9.-]*example\.com[a-z0-9.-]*\s*\{/.test(line)) {
+				errors.push(`${label} (${path}) contains example.com in a domain block`);
+			}
+		}
+		if (content.includes('Replace example.com with the real domain before use.')) {
+			errors.push(`${label} (${path}) contains the placeholder Caddy header`);
+		}
+	}
+
+	if (kind === 'env-example') {
+		for (const envVar of ['ORIGIN', 'PUBLIC_SITE_URL']) {
+			const pattern = new RegExp(`^${envVar}=https://example\\.com\\s*$`, 'm');
+			if (pattern.test(content)) {
+				errors.push(`${label} (${path}) contains placeholder ${envVar}=https://example.com`);
+			}
 		}
 	}
 }
@@ -81,43 +140,20 @@ if (existsSync('static/og-default.png')) {
 
 // ── 3. Production URL validation ──────────────────────────────────────────────
 
-const prodUrl = site.url;
-
-if (!prodUrl) {
+if (!site.url) {
 	errors.push('site.url is empty — set a production URL in src/lib/config/site.ts');
 } else {
-	let parsed: URL | null = null;
-	try {
-		parsed = new URL(prodUrl);
-	} catch {
-		errors.push(`site.url "${prodUrl}" is not a valid URL`);
-	}
-
-	if (parsed) {
-		if (parsed.protocol !== 'https:') {
-			errors.push(`site.url "${prodUrl}" must use HTTPS — got "${parsed.protocol}"`);
-		}
-		const hostname = parsed.hostname;
-		for (const forbidden of FORBIDDEN_DOMAINS) {
-			if (
-				hostname === forbidden ||
-				hostname.endsWith(`.${forbidden}`) ||
-				hostname.endsWith('.local')
-			) {
-				errors.push(
-					`site.url "${prodUrl}" uses a forbidden hostname "${hostname}" — must be a real production domain`
-				);
-				break;
-			}
-		}
-	}
+	validateProductionUrl(site.url, 'site.url');
 }
 
 // ── 4. Required env vars (sourced from src/lib/server/env.ts schemas) ────────
 
 for (const envVar of REQUIRED_ENV_VARS) {
-	if (!process.env[envVar]) {
+	const value = process.env[envVar];
+	if (!value) {
 		warnings.push(`Environment variable ${envVar} is not set — required for production`);
+	} else if (envVar === 'ORIGIN' || envVar === 'PUBLIC_SITE_URL') {
+		validateProductionUrl(value, `Environment variable ${envVar}`);
 	}
 }
 

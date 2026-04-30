@@ -218,12 +218,12 @@ tmpl-svelte-app/
 
 These are planned but not active in the base template:
 
-| Module             | Activation trigger                                        |
-| ------------------ | --------------------------------------------------------- |
-| Postgres + Drizzle | Add `DATABASE_URL`, create schema, run `drizzle-kit push` |
-| n8n webhooks       | Add `N8N_WEBHOOK_URL` env var, enable workflow in n8n     |
-| Postmark           | Add `POSTMARK_API_TOKEN`, implement mail helper           |
-| Better Auth        | Follow auth module docs; update `+layout.svelte`          |
+| Module              | Activation trigger                                                    |
+| ------------------- | --------------------------------------------------------------------- |
+| Postgres + Drizzle  | Add `DATABASE_URL`, create schema, run `drizzle-kit push`             |
+| Automation webhooks | Set `AUTOMATION_PROVIDER`, configure the selected provider URL/secret |
+| Postmark            | Add `POSTMARK_API_TOKEN`, implement mail helper                       |
+| Better Auth         | Follow auth module docs; update `+layout.svelte`                      |
 
 ## Styleguide route
 

@@ -7,6 +7,7 @@
 `src/routes/+error.svelte` renders a clean, accessible error page for all unhandled SvelteKit errors.
 
 **Rules:**
+
 - Never display stack traces, internal error messages, or database errors to the browser.
 - Use calm, human language. "Something went wrong. Please try again." is better than "Internal Server Error."
 - Include a link back to `/`.
@@ -26,22 +27,28 @@ import { logger } from '$lib/server/logger';
 
 logger.info('Form submitted', { requestId, route: '/contact' });
 logger.warn('Webhook delivery failed', { requestId, url: webhookUrl });
-logger.error('Database query failed', { requestId, route: '/api/leads', errorType: 'ConnectionError', errorMessage: 'timeout' });
+logger.error('Database query failed', {
+	requestId,
+	route: '/api/leads',
+	errorType: 'ConnectionError',
+	errorMessage: 'timeout',
+});
 ```
 
 All output is JSON. Example:
 
 ```json
 {
-  "timestamp": "2026-04-27T12:00:00.000Z",
-  "level": "info",
-  "message": "Form submitted",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000",
-  "route": "/contact"
+	"timestamp": "2026-04-27T12:00:00.000Z",
+	"level": "info",
+	"message": "Form submitted",
+	"requestId": "550e8400-e29b-41d4-a716-446655440000",
+	"route": "/contact"
 }
 ```
 
 **What not to log:**
+
 - Passwords, tokens, secrets, authorization headers, cookies — automatically redacted by the logger
 - Raw request bodies
 - Full form submission payloads (log only sanitized summaries or outcome)
@@ -55,18 +62,18 @@ The logger redacts these keys case-insensitively: `password`, `token`, `secret`,
 
 `src/lib/server/request-id.ts` reads `x-request-id` from incoming request headers and falls back to `crypto.randomUUID()`.
 
-`src/hooks.server.ts` attaches the request ID to `event.locals.requestId` on every request. Pass it to the logger and to outbound n8n webhook payloads:
+`src/hooks.server.ts` attaches the request ID to `event.locals.requestId` on every request. Pass it to the logger and to outbound automation payloads:
 
 ```ts
 // In a +page.server.ts or API route
 export const POST: RequestHandler = async ({ request, locals }) => {
-  const { requestId } = locals;
-  // ... handle request
-  logger.info('Lead created', { requestId, route: '/contact' });
+	const { requestId } = locals;
+	// ... handle request
+	logger.info('Lead created', { requestId, route: '/contact' });
 };
 ```
 
-When n8n is enabled, include `request_id` in the webhook payload so that a Tier 2/3 site can correlate n8n execution logs with server logs.
+When an HTTP automation provider is enabled, include `request_id` in the webhook payload so that a Tier 2/3 site can correlate receiver logs with server logs.
 
 ---
 
@@ -74,20 +81,20 @@ When n8n is enabled, include `request_id` in the webhook payload so that a Tier 
 
 `src/lib/server/safe-error.ts` normalizes thrown errors into two parts:
 
-| Part | Purpose |
-|------|---------|
-| `publicMessage` | Safe, generic string returned to the browser |
-| `diagnostic` | `errorType` + `errorMessage` for server-side logging only |
+| Part            | Purpose                                                   |
+| --------------- | --------------------------------------------------------- |
+| `publicMessage` | Safe, generic string returned to the browser              |
+| `diagnostic`    | `errorType` + `errorMessage` for server-side logging only |
 
 ```ts
 import { toSafeError } from '$lib/server/safe-error';
 
 try {
-  await doSomething();
+	await doSomething();
 } catch (err) {
-  const safe = toSafeError(err);
-  logger.error('Operation failed', { requestId, ...safe.diagnostic });
-  return fail(500, { message: safe.publicMessage });
+	const safe = toSafeError(err);
+	logger.error('Operation failed', { requestId, ...safe.diagnostic });
+	return fail(500, { message: safe.publicMessage });
 }
 ```
 
@@ -108,11 +115,11 @@ When using Superforms:
 // In a +page.server.ts form action
 const { requestId } = event.locals;
 try {
-  await processForm(data);
+	await processForm(data);
 } catch (err) {
-  const safe = toSafeError(err);
-  logger.error('Form action failed', { requestId, route: event.url.pathname, ...safe.diagnostic });
-  return fail(500, { message: safe.publicMessage });
+	const safe = toSafeError(err);
+	logger.error('Form action failed', { requestId, route: event.url.pathname, ...safe.diagnostic });
+	return fail(500, { message: safe.publicMessage });
 }
 ```
 
@@ -120,10 +127,10 @@ try {
 
 ## /healthz vs /readyz
 
-| Endpoint | Tier | Checks | Purpose |
-|----------|------|--------|---------|
-| `/healthz` | All tiers | Process is alive | Container liveness probe; uptime monitors |
-| `/readyz` | Tier 2+ | Postgres, Redis, etc. | Container readiness probe; load balancer |
+| Endpoint   | Tier      | Checks                | Purpose                                   |
+| ---------- | --------- | --------------------- | ----------------------------------------- |
+| `/healthz` | All tiers | Process is alive      | Container liveness probe; uptime monitors |
+| `/readyz`  | Tier 2+   | Postgres, Redis, etc. | Container readiness probe; load balancer  |
 
 **`/healthz`** is included in the base template. It returns immediately with a JSON response indicating that the app process is running.
 

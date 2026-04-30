@@ -9,6 +9,7 @@ Database-backed SvelteKit website template. Targets websites, landing pages, con
 - Global button utilities (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-sm`, `.btn-lg`)
 - `forms.css` visual form primitives + Superforms + Valibot pre-installed; contact form live at `/contact`
 - **Postgres + Drizzle** — default data layer; starter schema (`contact_submissions`, `automation_events`, `automation_dead_letters`); Drizzle Kit migration workflow
+- **Privacy retention** — dry-run-first `privacy:prune` command for contact submissions and automation records
 - **Health endpoints** — `/healthz` (process check) and `/readyz` (Postgres connectivity probe, returns 503 if DB unreachable)
 - **Built-in SEO system** — central site config, SEO component, schema helpers, sitemap, robots.txt, llms.txt, validation
 - **Articles system** — `/articles` index + `/articles/[slug]` with sanitized Markdown rendering (three trust tiers)
@@ -21,7 +22,7 @@ Database-backed SvelteKit website template. Targets websites, landing pages, con
 - **Production runtime contract** — Containerfile (multi-stage, non-root, HEALTHCHECK), Podman Quadlet templates, Caddyfile example
 - **CI** — GitHub Actions workflow with validate / image / launch jobs, Trivy CRITICAL gating, smoke tests, GHCR push
 - **Tests** — Vitest unit tests + Playwright e2e smoke (with axe accessibility checks) wired into `bun run validate`
-- **Ergonomics** — Lefthook pre-commit (prettier + eslint --fix on staged files), interactive `bun run init:site`
+- **Ergonomics** — Lefthook pre-commit (prettier + eslint --fix on staged files), interactive or stdin-driven `bun run init:site`
 - Agent-readable operating rules (`AGENTS.md`, `CLAUDE.md.template`)
 
 ## Design system
@@ -101,9 +102,10 @@ bun run db:migrate    # apply pending migrations
 bun run db:push       # push schema directly (dev only)
 bun run db:studio     # open Drizzle Studio
 bun run db:check      # check for schema drift
+bun run privacy:prune # dry-run expired PII/runtime record pruning
 ```
 
-Full docs: [docs/database/README.md](docs/database/README.md)
+Full docs: [docs/database/README.md](docs/database/README.md) · [docs/privacy/data-retention.md](docs/privacy/data-retention.md)
 
 ## Automation readiness
 
@@ -122,6 +124,42 @@ See **[docs/getting-started.md](docs/getting-started.md)** for the full step-by-
 - Swapping `tokens.css` for your brand colors, fonts, and shape
 - Registering routes, updating CMS config, and activating dormant modules
 - Deploying via container and running `bun run validate:launch` before go-live
+
+`init:site` asks these ten prompts in order: package name, site name,
+production URL, default meta description, GitHub owner, GitHub repository name,
+support contact email, project slug, production domain, and PWA short name.
+It is idempotent; running it twice with the same answers is a no-op. It does
+not update `src/app.html`.
+
+For deterministic non-interactive setup, feed answers through stdin:
+
+```ts
+const answers = `my-cool-site
+Acme Studio
+https://acme-studio.dev
+Portrait and brand photography for independent makers.
+acme-org
+my-cool-site
+hello@acme-studio.dev
+my-cool-site
+acme-studio.dev
+Acme
+`;
+
+const proc = Bun.spawn(['bun', 'run', 'init:site'], {
+	stdin: 'pipe',
+	stdout: 'inherit',
+	stderr: 'inherit',
+});
+
+proc.stdin.write(answers);
+proc.stdin.end();
+process.exit(await proc.exited);
+```
+
+After init, `bun run validate:launch` still fails until `static/og-default.png`
+is replaced with a real 1200×630 OG image. That is intentional: the default OG
+image is a manual launch asset.
 
 ## Bun-first workflow
 
@@ -142,7 +180,7 @@ bun run check:seo            # validate SEO config
 bun run check:cms            # validate static/admin/config.yml
 bun run check:content        # validate content/ files
 bun run check:assets         # verify favicon / og-default / manifest defaults exist
-bun run init:site            # interactive site initializer (rewrites 10 files)
+bun run init:site            # interactive/stdin site initializer (rewrites 10 files)
 bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)
@@ -233,13 +271,14 @@ The full optional module registry lives at **[docs/modules/README.md](docs/modul
 
 ### Active seams (configured but inert until env vars are set)
 
-| Module          | Activation                                                                                                                                                                    |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contact form    | Already live at `/contact`; saves to `contact_submissions` and logs email to stdout by default. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md).   |
-| Postmark email  | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL`; `resolveEmailProvider()` switches automatically.                                                   |
-| n8n webhooks    | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. See [docs/automations/README.md](docs/automations/README.md).                                                                   |
-| Analytics + GTM | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                   |
-| Cookie consent  | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md). |
+| Module          | Activation                                                                                                                                                                              |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contact form    | Already live at `/contact`; saves to `contact_submissions` and logs email to stdout by default. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md).             |
+| Postmark email  | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL`; `resolveEmailProvider()` switches automatically.                                                             |
+| n8n webhooks    | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. See [docs/automations/README.md](docs/automations/README.md).                                                                             |
+| Privacy pruning | Run `bun run privacy:prune` for dry-run counts and `bun run privacy:prune -- --apply` from scheduled maintenance. See [docs/privacy/data-retention.md](docs/privacy/data-retention.md). |
+| Analytics + GTM | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                             |
+| Cookie consent  | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md).           |
 
 ### Not installed — add per project
 

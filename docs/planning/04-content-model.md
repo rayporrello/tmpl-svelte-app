@@ -32,37 +32,37 @@ Editorial content (blog posts, landing page copy) may include SEO-relevant data 
   - It is backed up nightly to Cloudflare R2.
 - **Why this way:** Relational data requires transactional integrity, rapid querying, and continuous mutation that Git cannot provide.
 
-## 3. Automation Data (n8n-Backed)
+## 3. Automation Data (Provider-Backed)
 
-n8n is an **optional, external** automation operator. It is not a package dependency in the SvelteKit app. The site must function correctly whether or not n8n is running.
+Runtime automation is provider-agnostic. n8n is the default optional external operator, but the SvelteKit app emits a generic event contract that can also go to Make, Zapier, a custom webhook receiver, console logging, or noop.
 
-n8n interacts with the template through two interfaces:
+Automation interacts with the template through two interfaces:
 
 ### 3a. Content automations (Git-backed)
 
 - **What it is:** Automated workflows that create or update files in `content/` — the same files that Sveltia CMS manages.
-- **The Tool:** n8n (self-hosted in Podman), using its GitHub node or HTTP Request node to call the GitHub API.
+- **The Tool:** Any automation operator that can write through the GitHub API. n8n is the documented default example.
 - **How it works:**
-  - An external trigger (HR system, review platform, monitoring tool) fires a webhook into n8n.
-  - n8n formats a content file (YAML or Markdown) following the collection schema in `static/admin/config.yml`.
-  - n8n commits the file to the GitHub repository via the GitHub API.
+  - An external trigger (HR system, review platform, monitoring tool) fires into the automation provider.
+  - The provider formats a content file (YAML or Markdown) following the collection schema in `static/admin/config.yml`.
+  - The provider commits the file to the GitHub repository via the GitHub API.
   - CI rebuilds the site automatically.
 - **Key rule:** Content automation writes must follow the exact schema defined in `static/admin/config.yml`. AI-generated content must default to `draft: true` or `published: false`. See [docs/automations/content-automation-contract.md](../automations/content-automation-contract.md).
 
-### 3b. Runtime automations (webhook-based, Phase 5)
+### 3b. Runtime automations (webhook-based)
 
 - **What it is:** Background jobs, third-party API integrations, automated email sequences triggered by user actions.
-- **The Tool:** n8n (in Podman).
+- **The Tool:** `AutomationProvider` selected by `AUTOMATION_PROVIDER`.
 - **How it works:**
-  - SvelteKit server actions save to Postgres, then emit a typed webhook event to n8n (non-blocking).
-  - n8n handles downstream tasks (email, CRM update, Slack alert, etc.).
-  - n8n stores its own execution logs in its internal database.
+  - SvelteKit server actions save to Postgres, then emit a typed automation event (non-blocking from the user's perspective).
+  - The selected provider handles downstream tasks (email, CRM update, Slack alert, etc.).
+  - External providers store their own execution logs outside the SvelteKit app.
   - Webhook delivery failures must not break user-facing form submissions.
-- **Not yet implemented.** Phase 5 will add the webhook emitter and typed event shape. See [docs/planning/runtime-event-contract.md](runtime-event-contract.md).
+- **Implemented contract:** See [docs/automations/runtime-event-contract.md](../automations/runtime-event-contract.md).
 
 ## Content safety rules
 
-These rules apply to all content managed by Sveltia CMS, n8n automations, or direct developer edits.
+These rules apply to all content managed by Sveltia CMS, automations, or direct developer edits.
 
 - **YAML frontmatter is the default** for all Sveltia-managed Markdown collections. Do not use `toml-frontmatter` unless explicitly approved.
 - **ISO 8601 datetime with timezone is canonical** for all stored date values. Example: `2026-04-27T12:00:00Z`. Date-only values (`2026-04-27`) are acceptable for calendar-day fields.

@@ -39,7 +39,7 @@ Starting a new web project from scratch means re-solving the same problems every
 
 - Contact form pattern (Superforms + Valibot + EmailProvider seam + rate limiter at `src/routes/contact-example/`) — write submissions to `contact_submissions` table when activated
 - Postmark transactional email provider (`src/lib/server/forms/providers/postmark.example.ts`)
-- n8n integration env contract (`N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`) — use `automation_events` table for outbound event tracking
+- Provider-agnostic automation env contract (`AUTOMATION_PROVIDER`, generic webhook vars, and n8n provider vars) — use `automation_events` table for outbound event tracking
 - Analytics spine: GTM + GA4 + Cloudflare Web Analytics + server conversion events (set `PUBLIC_ANALYTICS_ENABLED=true` in production — see `docs/analytics/README.md`)
 
 **Planned, not yet implemented:**

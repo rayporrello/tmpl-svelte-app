@@ -15,7 +15,11 @@ export const contactSchema = v.object({
 		v.string(),
 		v.minLength(10, 'Message must be at least 10 characters'),
 		v.maxLength(2000, 'Message must be 2000 characters or fewer')
-	)
+	),
+	// Honeypot — bots fill this; real users never see it (visually hidden,
+	// off tab order, aria-hidden). The action returns silent success on any
+	// non-empty value. See routes/contact/+page.server.ts.
+	website: v.optional(v.string(), ''),
 });
 
 export type ContactInput = v.InferInput<typeof contactSchema>;

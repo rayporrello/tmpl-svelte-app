@@ -36,24 +36,43 @@ fi
 
 echo ""
 
+# ── Off-host push (when BACKUP_REMOTE is set) ─────────────────────────────────
+
+PUSH_STATUS="SKIPPED"
+if [[ -n "${BACKUP_REMOTE:-}" ]]; then
+  echo "=== Off-host push ==="
+  if bash "${SCRIPT_DIR}/backup-push.sh"; then
+    PUSH_STATUS="OK"
+  else
+    PUSH_STATUS="FAILED"
+    PASS=false
+  fi
+  echo ""
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────────────
 
 echo "=== Backup summary ==="
 echo "  Database: ${DB_STATUS}"
 echo "  Uploads:  ${UPLOADS_STATUS}"
+echo "  Push:     ${PUSH_STATUS}"
 echo ""
 
 if [[ "$PASS" == "true" ]]; then
   echo "All backups completed."
   echo ""
   echo "Verify with:   bun run backup:verify"
-  echo ""
-  echo "─────────────────────────────────────────────────────────────────"
-  echo "  OFF-HOST REMINDER"
-  echo "  Backups stored only on this server are not real backups."
-  echo "  Copy backups/ to a separate location before relying on them."
-  echo "  See docs/operations/backups.md for off-host options."
-  echo "─────────────────────────────────────────────────────────────────"
+
+  if [[ "$PUSH_STATUS" == "SKIPPED" ]]; then
+    echo ""
+    echo "─────────────────────────────────────────────────────────────────"
+    echo "  OFF-HOST REMINDER"
+    echo "  Backups stored only on this server are not real backups."
+    echo "  Set BACKUP_REMOTE to enable automatic off-host push, or copy"
+    echo "  backups/ to a separate location manually before relying on them."
+    echo "  See docs/operations/backups.md for setup."
+    echo "─────────────────────────────────────────────────────────────────"
+  fi
 else
   echo "One or more backups FAILED. Check output above." >&2
   exit 1

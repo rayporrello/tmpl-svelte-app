@@ -76,6 +76,14 @@ GA4_MEASUREMENT_PROTOCOL_API_SECRET=your-secret
 
 ---
 
+## Privacy and retention
+
+Analytics data is separate from operational website data. The contact form stores leads in Postgres, and automation delivery records are pruned by `bun run privacy:prune`; see [docs/privacy/data-retention.md](../privacy/data-retention.md).
+
+When enabling GA4, review the GA4 property retention controls and keep User-ID, custom dimensions, and event parameters free of PII. Server conversion events should use opaque IDs and aggregation-safe metadata only.
+
+---
+
 ## Further reading
 
 - [gtm-ga4-setup.md](gtm-ga4-setup.md) — step-by-step GTM + GA4 configuration

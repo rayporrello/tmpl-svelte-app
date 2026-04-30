@@ -242,6 +242,25 @@ Server conversions: [docs/analytics/server-conversions.md](docs/analytics/server
 
 ---
 
+## Privacy and retention rules
+
+Full reference: [docs/privacy/data-retention.md](docs/privacy/data-retention.md)
+
+### Always
+
+- Keep retention defaults in `src/lib/server/privacy/retention.ts` and update the privacy docs in the same change
+- Run `bun run privacy:prune` as a dry-run before using `bun run privacy:prune -- --apply`
+- Run privacy pruning before scheduled database backups in production maintenance
+- Keep `automation_dead_letters` free of full webhook payloads; store only event type, nullable event reference, error text, and timestamps
+
+### Never
+
+- Do not store names, emails, message bodies, or raw webhook payloads in `automation_dead_letters`
+- Do not auto-run pruning from backup scripts, app startup, public endpoints, or request handlers
+- Do not delete pending/processing automation events unless an operator passes `--include-stale-pending-days=N`
+
+---
+
 ## SEO rules
 
 Full reference: [docs/seo/README.md](docs/seo/README.md)  
@@ -273,16 +292,16 @@ Decision: [ADR-019](docs/planning/adrs/ADR-019-security-headers-and-csp-baseline
 
 ### Header ownership split
 
-| Header                      | Owner            | Where set                                     |
-| --------------------------- | ---------------- | --------------------------------------------- |
-| `Content-Security-Policy`   | **App**          | `src/lib/server/csp.ts` via `hooks.server.ts` |
-| `X-Content-Type-Options`    | **App**          | `src/hooks.server.ts`                         |
-| `Referrer-Policy`           | **App**          | `src/hooks.server.ts`                         |
-| `X-Frame-Options`           | **App**          | `src/hooks.server.ts`                         |
-| `Permissions-Policy`        | **App**          | `src/hooks.server.ts`                         |
-| `Strict-Transport-Security` | **Edge (Caddy)** | `deploy/Caddyfile.example`                    |
+| Header                      | Owner          | Where set                                                                                                                       |
+| --------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy`   | **App**        | `src/lib/server/csp.ts` via `hooks.server.ts`                                                                                   |
+| `X-Content-Type-Options`    | **App**        | `src/hooks.server.ts`                                                                                                           |
+| `Referrer-Policy`           | **App**        | `src/hooks.server.ts`                                                                                                           |
+| `X-Frame-Options`           | **App**        | `src/hooks.server.ts`                                                                                                           |
+| `Permissions-Policy`        | **App**        | `src/hooks.server.ts`                                                                                                           |
+| `Strict-Transport-Security` | **Edge + App** | `deploy/Caddyfile.example` (canonical) and `src/hooks.server.ts` (defense-in-depth, gated on `event.url.protocol === 'https:'`) |
 
-Do NOT set HSTS, compression, or access logging headers in the app. Those are Caddy's responsibility.
+HSTS is dual-written so the header is preserved if the app is ever deployed behind a non-Caddy proxy (Cloudflare Tunnel, Fly proxy, etc.). Both copies use identical max-age/includeSubDomains/preload values; Caddy's wins on the wire when both are present. Do NOT set compression or access logging headers in the app — those remain Caddy-only.
 
 ### CSP extension points
 
@@ -615,8 +634,8 @@ All six steps are required — partial completion breaks the content contract:
 4. User-facing errors must be safe, calm, and non-diagnostic — use `toSafeError` from `src/lib/server/safe-error.ts`.
 5. Do not add Sentry, OpenTelemetry, Grafana, Prometheus, Loki, or other observability dependencies without explicit approval.
 6. Do not add `/readyz` checks until real runtime dependencies exist (Phase 5 minimum).
-7. When adding an n8n-triggered feature, document workflow name, payload shape, retry behavior, failure behavior, and idempotency key.
-8. n8n workflows that mutate data or send external messages must have finite retry behavior and a manual recovery path.
+7. When adding an automation-triggered feature, document provider, payload shape, retry behavior, failure behavior, and idempotency key.
+8. Automation workflows that mutate data or send external messages must have finite retry behavior and a manual recovery path.
 9. Do not implement "self-healing" behavior that mutates production data without explicit approval.
 
 See [docs/observability/README.md](docs/observability/README.md) for the full tier model and rules.
@@ -649,26 +668,26 @@ See [docs/cms/content-safety.md](docs/cms/content-safety.md) and [docs/cms/svelt
 
 ---
 
-## n8n automation posture
+## Automation provider posture
 
 Full reference: [docs/automations/README.md](docs/automations/README.md)
 
 ### Hard rules
 
-- **Do not add n8n to `package.json`** — n8n is an external operator, not an app dependency
+- **Do not add n8n to `package.json`** — n8n is the default external operator, not an app dependency
 - **Do not import n8n packages** in any SvelteKit module
-- **The site must work without n8n** — any webhook code must check `N8N_WEBHOOK_URL` and skip silently if unset
-- **Do not make webhook calls blocking** — use fire-and-forget; never let n8n downtime break a form submission
+- **The site must work without an automation receiver** — HTTP providers with no URL must skip cleanly
+- **Do not make webhook calls blocking** — use fire-and-forget from user-facing actions; never let automation downtime break a form submission
 - **Content automation files must match the CMS schema** — follow `static/admin/config.yml`; do not invent fields
 - **AI-generated content defaults to draft** — `draft: true` for articles, `published: false` for testimonials
 - **Do not commit webhook URLs or secrets** — use `.env.example` for variable names only; real values go in `secrets.yaml`
-- **Production webhooks must be signed** — HMAC-SHA256 with `N8N_WEBHOOK_SECRET`
+- **Production HTTP webhooks must be signed** — HMAC-SHA256 in `X-Webhook-Signature`
 
 ### Two automation categories
 
 ```
-Content automations → n8n writes to content/ via GitHub API
-Runtime automations → SvelteKit server action → Postgres → non-blocking webhook → n8n
+Content automations → automation provider writes to content/ via GitHub API
+Runtime automations → SvelteKit server action → Postgres → non-blocking provider delivery
 ```
 
 Content automation writes must pass the same schema validation as a human Sveltia CMS edit. They are not a separate path.
@@ -696,4 +715,4 @@ Verify against [docs/planning/08-quality-gates.md](docs/planning/08-quality-gate
 - All form controls pass the forms gates
 - CMS fields in `config.yml` match `types.ts` interfaces
 - No n8n package in `package.json`
-- `N8N_WEBHOOK_URL` is in `.env.example` with an empty value
+- `AUTOMATION_PROVIDER`, generic webhook vars, and n8n provider vars are documented in `.env.example`

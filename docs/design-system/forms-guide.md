@@ -9,21 +9,26 @@ live, indexable, and wired to Postgres from day one. No rename or activation ste
 
 - Valid submissions are saved to `contact_submissions` in Postgres.
 - Email notifications are logged to stdout via the console provider.
-- n8n events are skipped cleanly (no `N8N_WEBHOOK_URL` configured).
+- Automation delivery is skipped cleanly (default n8n provider with no `N8N_WEBHOOK_URL` configured).
 - Rate limiting is disabled (set `RATE_LIMIT_ENABLED=true` to enable).
 
 **Action flow:**
 
 ```
 validate (Superforms + Valibot)
+  → honeypot check                 ← silent 200 success if `website` field is non-empty
   → rate limit check
   → DB insert (contact_submissions) ← must succeed; failure returns error to user
   → send email                      ← failure is logged; user still sees success
-  → emit lead.created to n8n        ← fire-and-forget; failure is dead-lettered
+  → emit lead.created automation    ← fire-and-forget; failure is dead-lettered
   → return success
 ```
 
-The DB insert always happens first. Email and n8n failures never erase a saved submission.
+The DB insert always happens first. Email and automation delivery failures never erase a saved submission.
+
+**Honeypot — bot defense by default.** The schema (`src/lib/forms/contact.schema.ts`) includes an optional `website` field that real users never see — it's positioned off-screen via CSS, has `tabindex="-1"`, `autocomplete="off"`, and lives inside `aria-hidden="true"` markup. Bots scanning for common contact-form fields fill it in; the action returns the same success message it returns for legit submissions, but skips DB persistence, email, and automation events. Silent success keeps bots from learning they've been caught and tuning around the trap.
+
+To copy this pattern into a new form: add an optional empty-string field to the schema, render a hidden DOM input bound to `$form.<field>`, and early-`return message(form, "<success copy>")` in the action when the value is non-empty.
 
 ---
 
@@ -46,18 +51,24 @@ change is needed. The provider implementation is in `postmark.ts`.
 
 ---
 
-### To trigger n8n — add webhook env vars
+### To trigger automations — choose a provider
 
 ```
+AUTOMATION_PROVIDER=n8n
 N8N_WEBHOOK_URL=https://your-n8n.com/webhook/YOUR_TRIGGER_ID
 N8N_WEBHOOK_SECRET=a-long-random-string
 ```
 
 The contact form emits a signed `lead.created` event after every successful submission.
-If n8n is unreachable, the event is written to `automation_dead_letters`. The form
-always succeeds once the DB insert completes.
+If the HTTP provider is unreachable, minimized delivery state is written to `automation_events` and
+diagnostic metadata is written to `automation_dead_letters` without storing the full
+contact payload. The form always succeeds once the DB insert completes.
 
-See [docs/automations/README.md](../automations/README.md) for n8n workflow setup.
+Set `AUTOMATION_PROVIDER=webhook` with `AUTOMATION_WEBHOOK_URL` and
+`AUTOMATION_WEBHOOK_SECRET` for Make, Zapier, or a custom receiver.
+
+See [docs/automations/README.md](../automations/README.md) for provider setup.
+See [docs/privacy/data-retention.md](../privacy/data-retention.md) for retention defaults.
 
 ---
 

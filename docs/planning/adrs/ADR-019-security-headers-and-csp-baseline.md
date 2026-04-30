@@ -9,6 +9,7 @@
 ## Context
 
 Batch A (ADR-018) established four cheap security headers inline in `src/hooks.server.ts`:
+
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `X-Frame-Options: DENY`
@@ -22,18 +23,18 @@ CSP was explicitly deferred to Batch B to keep A1 scope tight and because CSP re
 
 ### App vs edge header ownership
 
-| Header | Owner | Reason |
-|--------|-------|--------|
-| `Content-Security-Policy` | **App** (`hooks.server.ts`) | Per-route variation; needs access to `site.ts` config |
-| `X-Content-Type-Options` | **App** | Set in A1; cheap, always appropriate |
-| `Referrer-Policy` | **App** | Set in A1 |
-| `X-Frame-Options` | **App** | Set in A1 |
-| `Permissions-Policy` | **App** | Set in A1 |
-| `Strict-Transport-Security` | **Edge (Caddy)** | Requires TLS to be meaningful; set in `Caddyfile.example` |
-| Compression (`gzip`, `zstd`) | **Edge (Caddy)** | Caddy handles it; do not duplicate in app |
-| Access logs | **Edge (Caddy)** | Journald via Caddy stdout |
+| Header                       | Owner                       | Reason                                                                                                                                                                                                     |
+| ---------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy`    | **App** (`hooks.server.ts`) | Per-route variation; needs access to `site.ts` config                                                                                                                                                      |
+| `X-Content-Type-Options`     | **App**                     | Set in A1; cheap, always appropriate                                                                                                                                                                       |
+| `Referrer-Policy`            | **App**                     | Set in A1                                                                                                                                                                                                  |
+| `X-Frame-Options`            | **App**                     | Set in A1                                                                                                                                                                                                  |
+| `Permissions-Policy`         | **App**                     | Set in A1                                                                                                                                                                                                  |
+| `Strict-Transport-Security`  | **Edge + App (dual-write)** | Caddy is canonical. App also sets it (gated on `event.url.protocol === 'https:'`) so HSTS survives if the container is ever deployed behind a non-Caddy proxy (Cloudflare Tunnel, Fly proxy, sibling app). |
+| Compression (`gzip`, `zstd`) | **Edge (Caddy)**            | Caddy handles it; do not duplicate in app                                                                                                                                                                  |
+| Access logs                  | **Edge (Caddy)**            | Journald via Caddy stdout                                                                                                                                                                                  |
 
-The `deploy/Caddyfile.example` comment echoes this: "Caddy owns TLS, HSTS, compression, access logging. The app owns CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy."
+Both HSTS writes use the same max-age/includeSubDomains/preload values, so duplication is benign — Caddy's overrides on the wire. The `deploy/Caddyfile.example` comment is updated to match: "Caddy is canonical; app provides defense-in-depth so HSTS is preserved if deployed behind a different proxy."
 
 ### CSP module
 
@@ -54,7 +55,7 @@ form-action 'self';
 base-uri 'self'
 ```
 
-**`style-src 'unsafe-inline'`** — Required because SvelteKit injects component styles as inline style attributes in SSR output. A nonce upgrade is deferred to Phase 5.
+**`style-src 'unsafe-inline'`** — Required because SvelteKit injects component styles as inline style attributes in SSR output. A nonce upgrade is deferred indefinitely (see ADR-018 §"Out of Scope") — commit fully or stay on `unsafe-inline`; half-built scaffolding is the worst option.
 
 **`frame-ancestors 'none'`** — More robust than `X-Frame-Options: DENY` (applies in more contexts). Both are set; redundancy is intentional.
 
@@ -74,6 +75,7 @@ connect-src 'self' https://api.github.com https://unpkg.com;
 ```
 
 This is acceptable because:
+
 - `/admin` is protected by GitHub OAuth (Sveltia CMS backend)
 - The admin is not indexed (`noindex`) and not reachable by unauthenticated users in production
 - `'unsafe-inline'` and `'unsafe-eval'` are scoped to `/admin` only, not the public-facing site
@@ -84,16 +86,16 @@ This is acceptable because:
 
 When a project adds a feature that requires wider CSP, extend `csp.ts` at these documented points:
 
-| Feature | Directive | Example value |
-|---------|-----------|---------------|
-| Analytics (Plausible) | `connect-src`, `script-src` | `https://plausible.io` |
-| Analytics (Umami) | `connect-src`, `script-src` | `https://cloud.umami.is` |
-| External fonts (self-hosted CDN) | `font-src` | `https://cdn.example.com` |
-| CMS media CDN | `img-src` | `https://cdn.example.com` |
-| External image CDN | `img-src` | `https://images.example.com` |
-| Email form action (Postmark, etc.) | `form-action` | `https://api.postmarkapp.com` |
-| n8n webhook endpoint | `connect-src` | `https://n8n.example.com` |
-| Embedded videos (YouTube) | `frame-src` | `https://www.youtube.com` |
+| Feature                            | Directive                   | Example value                 |
+| ---------------------------------- | --------------------------- | ----------------------------- |
+| Analytics (Plausible)              | `connect-src`, `script-src` | `https://plausible.io`        |
+| Analytics (Umami)                  | `connect-src`, `script-src` | `https://cloud.umami.is`      |
+| External fonts (self-hosted CDN)   | `font-src`                  | `https://cdn.example.com`     |
+| CMS media CDN                      | `img-src`                   | `https://cdn.example.com`     |
+| External image CDN                 | `img-src`                   | `https://images.example.com`  |
+| Email form action (Postmark, etc.) | `form-action`               | `https://api.postmarkapp.com` |
+| n8n webhook endpoint               | `connect-src`               | `https://n8n.example.com`     |
+| Embedded videos (YouTube)          | `frame-src`                 | `https://www.youtube.com`     |
 
 Extension is intentionally a code change, not a config value — it makes the CSP surface visible in version control rather than buried in environment variables.
 
@@ -110,7 +112,7 @@ Extension is intentionally a code change, not a config value — it makes the CS
 
 ### Accepted tradeoffs
 
-- `'unsafe-inline'` in `style-src` is necessary for SvelteKit SSR. Removing it requires nonce injection, which is a non-trivial change deferred to Phase 5.
+- `'unsafe-inline'` in `style-src` is necessary for SvelteKit SSR. Removing it requires nonce injection, which is a non-trivial change deferred indefinitely (ADR-018 §"Out of Scope").
 - `/admin` CSP is more permissive. This is a deliberate per-route exception, not a blanket weakening.
 - CSP report-uri / report-to is not wired — reporting infrastructure is per-project and out of scope for the base template.
 
@@ -121,6 +123,7 @@ Extension is intentionally a code change, not a config value — it makes the CS
 ### `sequence()` introduction for CSP
 
 Rejected for the base template. Adding `sequence()` to compose `requestIdHandle → cspHandle → safeErrorHandle` would be appropriate if:
+
 - CSP needed separate lifecycle (e.g., reading from a database per request)
 - A logging handler with its own state was added
 - Auth middleware needed to run as an independent concern

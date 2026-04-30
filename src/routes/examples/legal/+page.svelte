@@ -6,6 +6,7 @@
 		{ id: 'overview', title: 'Overview' },
 		{ id: 'data-we-collect', title: 'Data we collect' },
 		{ id: 'how-we-use-it', title: 'How we use it' },
+		{ id: 'retention', title: 'Retention' },
 		{ id: 'sharing', title: 'Sharing with third parties' },
 		{ id: 'cookies', title: 'Cookies and analytics' },
 		{ id: 'your-rights', title: 'Your rights' },
@@ -69,6 +70,15 @@
 					Form submissions are routed to our team inbox and an automation tool we use to track
 					follow-ups. Technical data is used to operate the site safely (rate-limiting, security).
 					Analytics events help us understand which pages people read.
+				</p>
+			</section>
+
+			<section id="retention">
+				<h2>Retention</h2>
+				<p>
+					We keep contact form submissions only as long as needed to respond and handle follow-up.
+					Operational automation records and backups are retained on a separate schedule. Replace
+					this paragraph with your project's actual retention windows before launch.
 				</p>
 			</section>
 

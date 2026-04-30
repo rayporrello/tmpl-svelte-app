@@ -29,12 +29,60 @@ bun run check:content            # validate Markdown / YAML files under content/
 bun run check:content-diff       # detect destructive content changes (release-grade)
 bun run check:assets             # verify favicon / og-default / manifest defaults exist
 bun run check:launch             # verify production env (ORIGIN/PUBLIC_SITE_URL look like real HTTPS)
-bun run init:site                # interactive site initializer (rewrites 10 files)
+bun run check:init-site          # acceptance-test init:site on a temp copy
+bun run init:site                # interactive/stdin site initializer (rewrites 10 files)
 bun run secrets:render           # decrypt secrets.yaml → .env (requires SOPS + age)
 bun run secrets:check            # verify no plaintext secrets are tracked
 bun run validate                 # PR-grade: check → seo → cms → content → assets → images → build → unit → e2e
 bun run validate:launch          # release-grade: validate + check:launch + check:content-diff
 ```
+
+### init:site prompt order
+
+`bun run init:site` prompts in this order:
+
+1. Package name (`package.json` `"name"`)
+2. Site name (shown in titles and OG tags)
+3. Production URL (HTTPS, no trailing slash)
+4. Default meta description (≤155 chars)
+5. GitHub owner (username or org)
+6. GitHub repository name
+7. Support contact email (shown on error pages)
+8. Project slug (used for container/Quadlet names)
+9. Production domain (for Caddyfile)
+10. PWA short name (≤12 chars, for `site.webmanifest`)
+
+For deterministic non-interactive runs, feed the same answers through stdin:
+
+```ts
+const answers = `my-cool-site
+Acme Studio
+https://acme-studio.dev
+Portrait and brand photography for independent makers.
+acme-org
+my-cool-site
+hello@acme-studio.dev
+my-cool-site
+acme-studio.dev
+Acme
+`;
+
+const proc = Bun.spawn(['bun', 'run', 'init:site'], {
+	stdin: 'pipe',
+	stdout: 'inherit',
+	stderr: 'inherit',
+});
+
+proc.stdin.write(answers);
+proc.stdin.end();
+process.exit(await proc.exited);
+```
+
+`init:site` is idempotent: running it twice with the same answers produces no
+file changes. It does not update `src/app.html`. `validate:launch` still fails
+after init until `static/og-default.png` is replaced with a real 1200×630 OG
+image; that is intentional because the default OG image is a manual launch
+asset.
 
 ### Updating dependencies
 
@@ -131,6 +179,29 @@ Both git commands should produce empty output.
 
 CI runs `validate` on every push and `validate:launch` on tags. See [.github/workflows/ci.yml](../.github/workflows/ci.yml).
 
+## Acceptance test for init:site
+
+`bun run check:init-site` copies only git-tracked files to a temp directory under
+`/tmp/tmpl-svelte-app-XXXX`, runs `init:site` with deterministic stdin, and
+proves the initializer can customize a template without mutating the host
+working tree.
+
+It verifies:
+
+1. The host repo's tracked-file hash is unchanged before and after the test.
+2. The ten templated files receive the deterministic project values.
+3. Running `init:site` twice with the same answers is byte-for-byte idempotent.
+4. `check:launch` fails with only the manual `static/og-default.png` placeholder.
+5. After a temp-only deterministic OG replacement, `check:assets` and `check:launch` pass.
+
+On failure, the script keeps the temp copy and prints its path plus a focused
+diff for the offending file. Debug in the printed `/tmp/tmpl-svelte-app-XXXX`
+directory, then fix the real source file in the repo.
+
+This is a template-maintenance test. Passing `check:init-site` means the
+synthetic initializer flow works; it does not mean a real project is launch-ready.
+Run `bun run validate:launch` on the real project for launch readiness.
+
 ---
 
 ## Adapter: svelte-adapter-bun
@@ -185,18 +256,18 @@ When renaming a CMS field:
 
 ## Reviewing automation workflows before enabling on a new site
 
-Before enabling an n8n content automation on a new site:
+Before enabling a content automation on a new site:
 
 1. Test the workflow on a branch (not `main`) — verify the generated file matches the CMS schema
 2. Run `bun run build` with the generated file present — build must exit 0
 3. Confirm AI-generated content uses `draft: true` or `published: false`
-4. Confirm the GitHub token used by n8n has minimum required permissions (`Contents: write` only)
-5. Confirm `N8N_WEBHOOK_SECRET` is set and the webhook signature is verified in n8n
+4. Confirm the GitHub token used by the automation provider has minimum required permissions (`Contents: write` only)
+5. Confirm the selected provider secret is set and the webhook signature is verified by the receiver
 6. Document the workflow in the project's CLAUDE.md under "Project-specific rules"
 
-Before enabling a runtime webhook automation (Phase 5):
+Before enabling a runtime webhook automation:
 
 1. Confirm the server action does not `await` the webhook call
-2. Test with `N8N_WEBHOOK_URL` unset — form submission must still succeed
-3. Test with n8n returning a 500 — form submission must still succeed
-4. Confirm the webhook call uses HMAC signing with `N8N_WEBHOOK_SECRET`
+2. Test with the selected HTTP automation provider URL unset — form submission must still succeed
+3. Test with the receiver returning a 500 — form submission must still succeed
+4. Confirm the webhook call uses HMAC signing with the selected provider secret

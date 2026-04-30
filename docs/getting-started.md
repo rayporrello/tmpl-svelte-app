@@ -44,24 +44,56 @@ agents behave in the project — fill it in before inviting any AI assistant.
 
 ## Step 3 — Run init:site
 
-`init:site` is an interactive script that rewrites placeholder values across
-ten files at once. Run it once per project and commit the result.
+`init:site` rewrites project placeholders across ten files at once. Run it once
+per project and commit the result.
 
 ```bash
 bun run init:site
 ```
 
-It prompts for:
+It prompts in this order:
 
-- **Project name** — used in `package.json`, `README.md`, and `site.webmanifest`
-- **Site domain** — the production `https://` URL (used in CSP, sitemap, robots)
-- **Site title** and **description** — the default SEO metadata
-- **Organisation name** — used in JSON-LD schemas
-- **GitHub repo** — `owner/repo` format (used by Sveltia CMS backend)
-- **Contact email** — shown on error pages
-- **Deployment hostname** — your server's hostname (used in Caddyfile and Quadlets)
+1. Package name (`package.json` `"name"`)
+2. Site name (shown in titles and OG tags)
+3. Production URL (HTTPS, no trailing slash)
+4. Default meta description (≤155 chars)
+5. GitHub owner (username or org)
+6. GitHub repository name
+7. Support contact email (shown on error pages)
+8. Project slug (used for container/Quadlet names)
+9. Production domain (for Caddyfile)
+10. PWA short name (≤12 chars, for `site.webmanifest`)
 
-Re-running `init:site` with the same answers is safe — it converges without duplicating content.
+For non-interactive setup, feed the same answers through stdin:
+
+```ts
+const answers = `my-cool-site
+Acme Studio
+https://acme-studio.dev
+Portrait and brand photography for independent makers.
+acme-org
+my-cool-site
+hello@acme-studio.dev
+my-cool-site
+acme-studio.dev
+Acme
+`;
+
+const proc = Bun.spawn(['bun', 'run', 'init:site'], {
+	stdin: 'pipe',
+	stdout: 'inherit',
+	stderr: 'inherit',
+});
+
+proc.stdin.write(answers);
+proc.stdin.end();
+process.exit(await proc.exited);
+```
+
+Re-running `init:site` with the same answers is a no-op: the files converge to
+the same bytes. After init, `bun run validate:launch` will still fail until you
+replace `static/og-default.png` with a real 1200×630 OG image. That failure is
+intentional because the share image is a manual brand asset.
 
 ---
 
@@ -165,6 +197,8 @@ with real copy. The home route loads this file at build time — no database nee
 
    This applies the starter schema (`contact_submissions`, `automation_events`, `automation_dead_letters`).
 
+   Runtime tables have default privacy retention windows. Review [docs/privacy/data-retention.md](privacy/data-retention.md), then use `bun run privacy:prune` for a dry-run before enabling scheduled pruning.
+
 4. **Verify:**
    ```bash
    curl http://127.0.0.1:3000/readyz   # after starting the dev server
@@ -179,18 +213,20 @@ See [docs/database/README.md](database/README.md) for the full setup guide, scri
 
 The full optional module registry is at **[docs/modules/README.md](modules/README.md)**. Every module is dormant by default — no runtime cost unless activated.
 
-The contact form works immediately — it saves to Postgres, logs emails to stdout, and skips n8n gracefully. Configure the modules below to extend it.
+The contact form works immediately — it saves to Postgres, logs emails to stdout, and skips outbound automation gracefully. Configure the modules below to extend it.
 
-| Module                    | How to activate                                                                                                                                                                                                  |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md).                                                                 |
-| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                                        |
-| **n8n webhooks**          | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. The contact form emits signed `lead.created` events. Failed deliveries are dead-lettered. See [docs/automations/README.md](automations/README.md).                 |
-| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true`. In-process only; replace with Redis-backed limiter for multi-instance deployments.                                                                                                |
-| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                                         |
-| **Cookie consent**        | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Required when using GTM/GA4/ad tags with EU or CCPA-jurisdiction users. See [docs/modules/cookie-consent.md](modules/cookie-consent.md). |
-| **Better Auth**           | Per-project only — not in base template. See [docs/modules/better-auth.md](modules/better-auth.md).                                                                                                              |
-| **Search (Pagefind)**     | Install `pagefind`, pre-render content routes, add `/search` route. See [docs/modules/pagefind.md](modules/pagefind.md).                                                                                         |
+| Module                    | How to activate                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md).                                                                                                                                                                                                                                                    |
+| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                                                                                                                                                                                                                           |
+| **Automations**           | Set `AUTOMATION_PROVIDER` to `n8n`, `webhook`, `console`, or `noop`. n8n is the default and uses `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. Failed HTTP deliveries are dead-lettered. See [docs/automations/README.md](automations/README.md).                                                                                                                                                       |
+| **Privacy pruning**       | Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` from scheduled maintenance after reviewing the retention policy. See [docs/privacy/data-retention.md](privacy/data-retention.md).                                                                                                                                                                                  |
+| **Off-host backups**      | One-time per host: `curl https://rclone.org/install.sh \| sudo bash` + `rclone config`. Per-project: set `BACKUP_REMOTE` and `BACKUP_HEALTHCHECK_URL` in `secrets.yaml`, then `cp deploy/systemd/backup.{service,timer} ~/.config/systemd/user/<project>-backup.{service,timer}` + `systemctl --user enable --now <project>-backup.timer`. See [docs/operations/backups.md](operations/backups.md). |
+| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true` for the in-process bucket. Single-node only — for durable/multi-node, add a Cloudflare WAF rule or `mholt/caddy-ratelimit` (snippets in `deploy/Caddyfile.example`).                                                                                                                                                                                                  |
+| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                                                                                                                                                                                                                            |
+| **Cookie consent**        | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Required when using GTM/GA4/ad tags with EU or CCPA-jurisdiction users. See [docs/modules/cookie-consent.md](modules/cookie-consent.md).                                                                                                                                                                                    |
+| **Better Auth**           | Per-project only — not in base template. See [docs/modules/better-auth.md](modules/better-auth.md).                                                                                                                                                                                                                                                                                                 |
+| **Search (Pagefind)**     | Install `pagefind`, pre-render content routes, add `/search` route. See [docs/modules/pagefind.md](modules/pagefind.md).                                                                                                                                                                                                                                                                            |
 
 ---
 
