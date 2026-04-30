@@ -131,7 +131,9 @@ jobs:
               deploy/env.example|\
               deploy/Caddyfile.example|\
               deploy/quadlets/web.container|\
-              deploy/quadlets/web.network)
+              deploy/quadlets/web.network|\
+              deploy/systemd/backup.service|\
+              deploy/systemd/backup.timer)
                 SHOULD_RUN=true
                 ;;
             esac

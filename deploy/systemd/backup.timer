@@ -1,0 +1,28 @@
+# deploy/systemd/backup.timer — fires backup.service nightly
+#
+# Usage:
+#   1. Run `bun run init:site` to replace <project> placeholders.
+#   2. Copy to ~/.config/systemd/user/<project>-backup.timer
+#   3. systemctl --user daemon-reload
+#   4. systemctl --user enable --now <project>-backup.timer
+#
+# Status / next-fire:
+#   systemctl --user list-timers | grep <project>-backup
+#
+# Adjust OnCalendar to change the schedule.
+# OnCalendar reference: man systemd.time
+
+[Unit]
+Description=Nightly backup timer — <project>
+
+[Timer]
+# Daily at 03:00 local time, with a 0–5 minute random jitter so multiple
+# sites on the same host don't fire simultaneously.
+OnCalendar=*-*-* 03:00:00
+RandomizedDelaySec=300
+# If the host was off at the scheduled time, fire on next boot.
+Persistent=true
+Unit=<project>-backup.service
+
+[Install]
+WantedBy=timers.target

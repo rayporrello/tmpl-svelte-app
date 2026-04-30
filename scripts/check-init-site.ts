@@ -46,6 +46,8 @@ const TARGET_FILES = [
 	'deploy/Caddyfile.example',
 	'deploy/quadlets/web.container',
 	'deploy/quadlets/web.network',
+	'deploy/systemd/backup.service',
+	'deploy/systemd/backup.timer',
 ];
 
 const EXPECTED_STRINGS: Record<string, string[]> = {
@@ -74,6 +76,15 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 		'HostName=my-cool-site-web',
 	],
 	'deploy/quadlets/web.network': ['Description=Project network — my-cool-site'],
+	'deploy/systemd/backup.service': [
+		'Description=Nightly backup (database + uploads) — my-cool-site',
+		'WorkingDirectory=%h/my-cool-site',
+		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
+	],
+	'deploy/systemd/backup.timer': [
+		'Description=Nightly backup timer — my-cool-site',
+		'Unit=my-cool-site-backup.service',
+	],
 };
 
 const FORBIDDEN_AFTER_INIT = [

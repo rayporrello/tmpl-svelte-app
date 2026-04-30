@@ -281,6 +281,28 @@ function rewriteQuadletNetwork(content: string, project: string): string {
 	return out;
 }
 
+// Handles both deploy/systemd/backup.service and backup.timer.
+// Replaces <project> placeholders and updates already-customised name fields
+// so re-running init:site with a new project slug is idempotent.
+function rewriteBackupSystemd(content: string, project: string): string {
+	let out = content;
+	out = out.replace(/<project>/g, project);
+	out = out.replace(
+		/^(Description=Nightly backup .+? — )(.+)$/m,
+		(_, prefix) => `${prefix}${project}`
+	);
+	out = out.replace(/^(WorkingDirectory=%h\/)([^\s]+)$/m, (_, prefix) => `${prefix}${project}`);
+	out = out.replace(
+		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/m,
+		(_, prefix, _name, suffix) => `${prefix}${project}${suffix}`
+	);
+	out = out.replace(
+		/^(Unit=)([^\s]+?)(-backup\.service)$/m,
+		(_, prefix, _name, suffix) => `${prefix}${project}${suffix}`
+	);
+	return out;
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -299,6 +321,8 @@ async function main() {
 	const caddyfile = readFile('deploy/Caddyfile.example');
 	const quadlet = readFile('deploy/quadlets/web.container');
 	const quadletNetwork = readFile('deploy/quadlets/web.network');
+	const backupService = readFile('deploy/systemd/backup.service');
+	const backupTimer = readFile('deploy/systemd/backup.timer');
 
 	// Extract current values as defaults
 	const currentPackageName = extractJsonField(pkgJson, 'name');
@@ -410,11 +434,22 @@ async function main() {
 		if (updated !== quadletNetwork) writeFile('deploy/quadlets/web.network', updated);
 	}
 
+	if (backupService) {
+		const updated = rewriteBackupSystemd(backupService, project);
+		if (updated !== backupService) writeFile('deploy/systemd/backup.service', updated);
+	}
+
+	if (backupTimer) {
+		const updated = rewriteBackupSystemd(backupTimer, project);
+		if (updated !== backupTimer) writeFile('deploy/systemd/backup.timer', updated);
+	}
+
 	console.log('\n✓  init:site complete. Files updated:');
 	console.log('   package.json, src/lib/config/site.ts, static/admin/config.yml');
 	console.log('   static/site.webmanifest, README.md, .env.example, deploy/env.example');
 	console.log('   deploy/Caddyfile.example, deploy/quadlets/web.container');
 	console.log('   deploy/quadlets/web.network');
+	console.log('   deploy/systemd/backup.service, deploy/systemd/backup.timer');
 	console.log('\nNext steps:');
 	console.log('  1. Replace static/og-default.png with a real 1200×630 OG image');
 	console.log('  2. Run: bun run validate');

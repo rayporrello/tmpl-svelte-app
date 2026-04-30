@@ -47,6 +47,7 @@
 		"backup:db": "bash scripts/backup-db.sh",
 		"backup:uploads": "bash scripts/backup-uploads.sh",
 		"backup:all": "bash scripts/backup-all.sh",
+		"backup:push": "bash scripts/backup-push.sh",
 		"backup:verify": "bash scripts/verify-backup.sh",
 		"restore:db": "bash scripts/restore-db.sh",
 		"prepare": "lefthook install"

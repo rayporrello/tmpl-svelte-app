@@ -1,0 +1,40 @@
+# deploy/systemd/backup.service — nightly backup job for <project>
+#
+# Plain systemd user unit (not a Quadlet — backups run on the host with
+# pg_dump, tar, and rclone). Runs privacy:prune, then backup:all, which
+# auto-pushes off-host when BACKUP_REMOTE is set.
+#
+# Usage:
+#   1. Run `bun run init:site` to replace <project> placeholders.
+#   2. Copy to ~/.config/systemd/user/<project>-backup.service
+#      Copy deploy/systemd/backup.timer to ~/.config/systemd/user/<project>-backup.timer
+#   3. systemctl --user daemon-reload
+#   4. systemctl --user enable --now <project>-backup.timer
+#
+# Manual run:
+#   systemctl --user start <project>-backup.service
+#
+# Logs:
+#   journalctl --user -u <project>-backup.service -f
+#
+# Prerequisites on the host:
+#   - bun (default install path: ~/.bun/bin/bun)
+#   - postgresql client (pg_dump): sudo dnf install postgresql
+#   - rclone, configured with the remote you reference in BACKUP_REMOTE
+#   - rendered env file at %h/secrets/<project>.prod.env
+#
+# If your bun is installed somewhere other than ~/.bun/bin, edit ExecStart paths.
+
+[Unit]
+Description=Nightly backup (database + uploads) — <project>
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/<project>
+EnvironmentFile=%h/secrets/<project>.prod.env
+# privacy-prune first so expired PII is not copied into fresh backups.
+ExecStart=%h/.bun/bin/bun run privacy:prune -- --apply
+ExecStart=%h/.bun/bin/bun run backup:all
+StandardOutput=journal
+StandardError=journal
