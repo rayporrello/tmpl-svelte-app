@@ -20,6 +20,13 @@ export const actions: Actions = {
 		const form = await superValidate(event.request, valibot(contactSchema));
 		if (!form.valid) return fail(400, { form });
 
+		// Honeypot — bots fill `website`; real users can't see it. Silent
+		// success keeps bots from learning they've been caught.
+		if (form.data.website && form.data.website.length > 0) {
+			logger.info('Contact form honeypot trip', { requestId: event.locals.requestId });
+			return message(form, "Message sent! We'll get back to you soon.");
+		}
+
 		// Rate limit — keyed by IP. No-op unless RATE_LIMIT_ENABLED=true.
 		// Single-node guard; buckets reset on restart. See rate-limit.ts.
 		let clientKey = 'contact:unknown';

@@ -4,8 +4,11 @@
 # See docs/deployment/runbook.md for the full deployment procedure.
 #
 # Security header ownership (ADR-018, ADR-019):
-#   Caddy owns:  TLS, HSTS, compression, access logging
+#   Caddy owns:  TLS, compression, access logging
 #   App owns:    CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy
+#   Both set:    HSTS — Caddy is canonical; app provides defense-in-depth so
+#                HSTS is preserved if deployed behind a different proxy
+#                (Cloudflare Tunnel, Fly proxy, etc.).
 #   Do NOT duplicate app-owned headers here — the app already sets them.
 
 example.com {

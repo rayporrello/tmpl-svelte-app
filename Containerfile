@@ -55,6 +55,7 @@ RUN addgroup -g 1001 -S app && adduser -u 1001 -S app -G app
 COPY --from=builder --chown=app:app /app/build ./build
 COPY --from=builder --chown=app:app /app/package.json ./
 COPY --from=builder --chown=app:app /app/node_modules ./node_modules
+COPY --from=builder --chown=app:app /app/serve.js ./
 
 USER app
 
@@ -65,4 +66,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3000/healthz || exit 1
 
-CMD ["bun", "build/index.js"]
+# serve.js wraps build/index.js with SIGTERM/SIGINT handlers so in-flight
+# requests aren't truncated on Quadlet rolling restart. Tune drain window
+# with SHUTDOWN_TIMEOUT_MS (default 10000ms).
+CMD ["bun", "serve.js"]
