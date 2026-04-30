@@ -292,16 +292,16 @@ Decision: [ADR-019](docs/planning/adrs/ADR-019-security-headers-and-csp-baseline
 
 ### Header ownership split
 
-| Header                      | Owner            | Where set                                     |
-| --------------------------- | ---------------- | --------------------------------------------- |
-| `Content-Security-Policy`   | **App**          | `src/lib/server/csp.ts` via `hooks.server.ts` |
-| `X-Content-Type-Options`    | **App**          | `src/hooks.server.ts`                         |
-| `Referrer-Policy`           | **App**          | `src/hooks.server.ts`                         |
-| `X-Frame-Options`           | **App**          | `src/hooks.server.ts`                         |
-| `Permissions-Policy`        | **App**          | `src/hooks.server.ts`                         |
-| `Strict-Transport-Security` | **Edge (Caddy)** | `deploy/Caddyfile.example`                    |
+| Header                      | Owner          | Where set                                                                                                                       |
+| --------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy`   | **App**        | `src/lib/server/csp.ts` via `hooks.server.ts`                                                                                   |
+| `X-Content-Type-Options`    | **App**        | `src/hooks.server.ts`                                                                                                           |
+| `Referrer-Policy`           | **App**        | `src/hooks.server.ts`                                                                                                           |
+| `X-Frame-Options`           | **App**        | `src/hooks.server.ts`                                                                                                           |
+| `Permissions-Policy`        | **App**        | `src/hooks.server.ts`                                                                                                           |
+| `Strict-Transport-Security` | **Edge + App** | `deploy/Caddyfile.example` (canonical) and `src/hooks.server.ts` (defense-in-depth, gated on `event.url.protocol === 'https:'`) |
 
-Do NOT set HSTS, compression, or access logging headers in the app. Those are Caddy's responsibility.
+HSTS is dual-written so the header is preserved if the app is ever deployed behind a non-Caddy proxy (Cloudflare Tunnel, Fly proxy, etc.). Both copies use identical max-age/includeSubDomains/preload values; Caddy's wins on the wire when both are present. Do NOT set compression or access logging headers in the app — those remain Caddy-only.
 
 ### CSP extension points
 

@@ -18,6 +18,14 @@ Postgres + Drizzle is the default data layer for this template. Every project bu
 - The `postgres` client is initialized lazily when `$lib/server/db/index` is first imported.
 - No actual TCP connection is made until the first query.
 
+**Pool configuration** (in `src/lib/server/db/index.ts`):
+
+- `idle_timeout: 30` — close idle connections after 30 seconds so a hung client doesn't keep a slot.
+- `connect_timeout: 10` — fail fast on connection attempts; surfaces DB outages instead of hanging requests.
+- `max` — left at the postgres-js default (10), which is appropriate for a single-instance marketing site. Tune upward if you add high-traffic routes or run multiple worker processes.
+
+A `statement_timeout` is intentionally not set client-side — enforce it on the Postgres role with `ALTER ROLE site_user SET statement_timeout = '5s'` for portable enforcement across all clients.
+
 ---
 
 ## Schema
@@ -109,7 +117,7 @@ Before going live:
 - [ ] `bun run db:migrate` has been run against the production database
 - [ ] The Postgres user has `CONNECT`, `SELECT`, `INSERT`, `UPDATE`, `DELETE` on application tables — not superuser
 - [ ] `/readyz` returns 200 with the production URL
-- [ ] A backup schedule is configured (see [docs/deployment/runbook.md](../deployment/runbook.md))
+- [ ] A backup schedule is configured — turnkey path documented in [docs/operations/backups.md](../operations/backups.md) (rclone + systemd timer + Healthchecks)
 - [ ] Retention policy reviewed and `bun run privacy:prune` dry-run checked against production counts
 
 ---

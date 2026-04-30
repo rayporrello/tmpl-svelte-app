@@ -166,7 +166,7 @@ Full guide: `docs/deployment/secrets.md`
 - [ ] Logs include `requestId` where practical (injected by `src/hooks.server.ts`)
 - [ ] Logs do not include secrets, tokens, cookies, or raw sensitive form payloads
 - [ ] Form actions return safe user-facing errors via `toSafeError()` — no stack traces to browser
-- [ ] `/readyz` is **deferred until Phase 5** (Postgres). With no backing service, a `/readyz` route would be identical to `/healthz` and add nothing. Tier 2+ sites must implement it once Postgres is active so orchestrators can drain traffic during DB unavailability.
+- [x] `/readyz` returns 200 when Postgres is reachable and 503 when not (`src/routes/readyz/+server.ts`, `src/lib/server/db/health.ts`). Use this for orchestration readiness probes; keep `/healthz` for liveness only.
 - [ ] n8n-enabled sites have a central Error Workflow configured
 - [ ] n8n-enabled sites document retry and failure behavior for each workflow
 - [ ] automation-enabled sites pass `request_id` into webhook payloads

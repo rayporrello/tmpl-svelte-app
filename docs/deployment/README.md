@@ -18,14 +18,17 @@ Documentation for deploying sites built from this template. The deployment model
 
 ## Deployment artifacts
 
-| Artifact                        | Location           | Purpose                                                   |
-| ------------------------------- | ------------------ | --------------------------------------------------------- |
-| `Containerfile`                 | repo root          | Multi-stage Bun runtime image (builder + lean runtime)    |
-| `Containerfile.node.example`    | repo root          | Escape-hatch recipe for adapter-node swap (not CI-tested) |
-| `deploy/env.example`            | `deploy/`          | Runtime env var reference for container / Quadlet         |
-| `deploy/quadlets/web.container` | `deploy/quadlets/` | Systemd user unit via Podman Quadlet                      |
-| `deploy/quadlets/web.network`   | `deploy/quadlets/` | Project-local Podman network                              |
-| `deploy/Caddyfile.example`      | `deploy/`          | Caddy reverse proxy with TLS, HSTS, compression           |
+| Artifact                        | Location           | Purpose                                                                                                  |
+| ------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `Containerfile`                 | repo root          | Multi-stage Bun runtime image (builder + lean runtime)                                                   |
+| `Containerfile.node.example`    | repo root          | Escape-hatch recipe for adapter-node swap (not CI-tested)                                                |
+| `serve.js`                      | repo root          | SIGTERM-aware entrypoint that wraps `build/index.js` for graceful Quadlet restarts                       |
+| `deploy/env.example`            | `deploy/`          | Runtime env var reference for container / Quadlet                                                        |
+| `deploy/quadlets/web.container` | `deploy/quadlets/` | Systemd user unit via Podman Quadlet                                                                     |
+| `deploy/quadlets/web.network`   | `deploy/quadlets/` | Project-local Podman network                                                                             |
+| `deploy/systemd/backup.service` | `deploy/systemd/`  | Plain systemd user unit — runs `privacy:prune` then `backup:all` (with off-host push)                    |
+| `deploy/systemd/backup.timer`   | `deploy/systemd/`  | Daily 03:00 timer (with jitter) that fires `backup.service`                                              |
+| `deploy/Caddyfile.example`      | `deploy/`          | Caddy reverse proxy with TLS, HSTS, compression, optional rate-limit and immutable-asset header snippets |
 
 ---
 

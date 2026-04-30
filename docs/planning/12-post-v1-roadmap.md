@@ -21,37 +21,36 @@ Empty ADRs are forbidden — if a topic isn't worth writing 3 paragraphs of rati
 
 ## Open topics (each needs a dedicated thread)
 
-### Tightly tied to Phase 5 (runtime data)
-
-| Topic                      | Why it matters                                                                                          | First question to settle                                                                                     |
-| -------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Phase 5 — runtime data** | Postgres + Drizzle + `/readyz` + automation event emitter + HMAC signing + dead-letter table            | Which project triggers it? (Don't build it speculatively.) See `docs/automations/runtime-event-contract.md`. |
-| **Better Auth**            | Gated content, member areas, admin dashboards. Only needed when a project goes beyond a marketing site. | Same trigger question as Phase 5 — wait until a project needs auth, then scope.                              |
-
-### Independent of Phase 5 (can land any time)
+### Application-shape topics
 
 | Topic                                  | Why it matters                                                                                                                    | First question to settle                                                                              |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Lighthouse CI gate**                 | Replaces the honor-system perf gates in `08-quality-gates.md`. Catches perf regressions before merge.                             | What budgets? (Perf ≥ 90 mobile is the existing target; a11y/SEO/best-practices ≥ 95 is typical.)     |
-| **Backup automation**                  | `static/uploads/` is the only mutable file state today. Without scheduled off-host backups it's a single-disk-failure risk.       | Storage target (R2 vs B2 vs S3), schedule (nightly is standard), monitor (Healthchecks.io vs n8n).    |
+| **Better Auth**                        | Gated content, member areas, admin dashboards. Only needed when a project goes beyond a marketing site.                           | Wait until a project needs auth, then scope.                                                          |
 | **i18n / localisation**                | Marketing sites often need multi-locale; structurally hard to retrofit. Even an explicit "English-only" decision is worth an ADR. | `@inlang/paraglide-sveltekit` as dormant module, or hard "no" with rationale?                         |
-| **Analytics / RUM**                    | Every site needs _something_. Template ships nothing today.                                                                       | Plausible vs Umami vs PostHog vs nothing-by-default. Self-hosted matches the template's posture.      |
-| **Cookie consent / privacy banner**    | EU/GDPR exposure is real for any public site.                                                                                     | Dormant module (which library?) or explicit per-project responsibility?                               |
 | **Newsletter subscription pattern**    | Mirror of contact form — same Superforms + EmailProvider + rate-limit shape. One more dormant route at `/subscribe-example`.      | Provider (Buttondown vs Resend vs ConvertKit) — does the template pick one or stay provider-agnostic? |
 | **Site search**                        | `/articles` has no search. Pagefind is build-time and tiny.                                                                       | Pagefind as dormant, or punt entirely until a project asks?                                           |
 | **Per-article OG image generation**    | Currently one static `og-default.png`. Per-article previews dramatically improve link-share CTR.                                  | Build-time (Satori prerender) vs runtime route (`@vercel/og`-style). Build-time fits adapter-bun.     |
-| **Visual regression testing**          | Catches CSS/design drift. Playwright is already in the stack — `toHaveScreenshot()` is one config flag away.                      | Where do baselines live (in-repo vs external)? Acceptable diff threshold?                             |
 | **Page archetypes / examples gallery** | `/styleguide` shows tokens and primitives. No example "About" / "Pricing" / "Blog post" pages to copy from.                       | Optional `examples/` route group, or separate template?                                               |
 | **Edge image storage (R2 tier)**       | ADR-009 calls Tier 3 "optional" but never implements. Worth a documented activation recipe.                                       | Stays optional — what's the recipe?                                                                   |
-| **PWA / service worker**               | `site.webmanifest` ships; no service worker. Worth an explicit "no, not by default" ADR.                                          | Confirm the "no" or scope a minimal opt-in.                                                           |
+
+### Quality / observability topics
+
+| Topic                               | Why it matters                                                                                               | First question to settle                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| **Lighthouse CI gate**              | Catches perf regressions before merge. Currently deferred per YAGNI — homepage ships <50KB JS.               | Re-evaluate when a regression makes CI gating worth it. Budgets: Perf ≥ 90 mobile, others ≥ 95.      |
+| **Analytics / RUM**                 | Cloudflare Web Analytics is wired (sanity layer). Per-route LCP/INP/CLS dashboards are not.                  | Plausible vs Umami vs PostHog vs nothing-by-default. Self-hosted matches the template's posture.     |
+| **Cookie consent / privacy banner** | `ConsentBanner` ships dormant. Decide whether to wire by default for analytics-enabled deploys.              | Auto-import in root layout when `PUBLIC_ANALYTICS_ENABLED=true`, or stay per-project responsibility? |
+| **Visual regression testing**       | Catches CSS/design drift. Playwright is already in the stack — `toHaveScreenshot()` is one config flag away. | Where do baselines live (in-repo vs external)? Acceptable diff threshold?                            |
+| **PWA / service worker**            | ADR-020 already says "no by default." Worth revisiting if a project needs offline read.                      | Confirm the "no" stays, or scope a minimal opt-in module.                                            |
 
 ---
 
 ## Decided (closed)
 
-_(Move topics here as ADRs land. Format: `- **Topic** — [ADR-NNN](adrs/ADR-NNN-...md) — one-line outcome`)_
-
-_Empty for now._
+- **Phase 5 — runtime data** — Postgres + Drizzle + `/readyz` + typed automation event emitter (`emitLeadCreated`) + HMAC signing + `automation_dead_letters` all shipped. See [11-template-build-backlog.md](11-template-build-backlog.md) Phase 5 section.
+- **Backup automation** — turnkey path shipped: rclone + systemd `.timer` + Healthchecks.io. See [docs/operations/backups.md](../operations/backups.md).
+- **PWA / service worker (no by default)** — [ADR-020](adrs/ADR-020-pwa-no-by-default.md). Manifest + icons stay; no service worker.
+- **Production hardening (audit pass)** — DB pool config, SIGTERM wrapper (`serve.js`), HSTS dual-write, contact form honeypot, Speculation Rules, `bun audit` advisory step, Caddy rate-limit snippet docs. Recorded in PR #11; see ADR-018 §"Graceful shutdown" and ADR-019 §"App vs edge header ownership".
 
 ---
 

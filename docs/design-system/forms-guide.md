@@ -16,6 +16,7 @@ live, indexable, and wired to Postgres from day one. No rename or activation ste
 
 ```
 validate (Superforms + Valibot)
+  → honeypot check                 ← silent 200 success if `website` field is non-empty
   → rate limit check
   → DB insert (contact_submissions) ← must succeed; failure returns error to user
   → send email                      ← failure is logged; user still sees success
@@ -24,6 +25,10 @@ validate (Superforms + Valibot)
 ```
 
 The DB insert always happens first. Email and automation delivery failures never erase a saved submission.
+
+**Honeypot — bot defense by default.** The schema (`src/lib/forms/contact.schema.ts`) includes an optional `website` field that real users never see — it's positioned off-screen via CSS, has `tabindex="-1"`, `autocomplete="off"`, and lives inside `aria-hidden="true"` markup. Bots scanning for common contact-form fields fill it in; the action returns the same success message it returns for legit submissions, but skips DB persistence, email, and automation events. Silent success keeps bots from learning they've been caught and tuning around the trap.
+
+To copy this pattern into a new form: add an optional empty-string field to the schema, render a hidden DOM input bound to `$form.<field>`, and early-`return message(form, "<success copy>")` in the action when the value is non-empty.
 
 ---
 

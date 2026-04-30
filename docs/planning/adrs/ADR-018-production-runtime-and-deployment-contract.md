@@ -46,6 +46,18 @@ Verified by inspecting `node_modules/svelte-adapter-bun/README.md` (version 0.5.
 
 **Note on `ORIGIN` vs `PROTOCOL_HEADER`/`HOST_HEADER`:** For a reverse-proxy deployment behind Caddy, setting `ORIGIN` explicitly is the simplest and most reliable approach. The header-based alternatives are acceptable but add surface area.
 
+### Graceful shutdown (SIGTERM contract)
+
+The container's `CMD` is `bun serve.js`, not `bun build/index.js` directly. `serve.js` (at the repo root) is a thin wrapper that registers `SIGTERM` and `SIGINT` handlers, then dynamic-imports the adapter's `build/index.js`.
+
+This exists because `svelte-adapter-bun` v0.5.2 calls `Bun.serve()` without registering signal handlers. Without the wrapper, the rolling restart from a Quadlet `systemctl --user restart` truncates in-flight HTTP responses and drops Postgres connections mid-query.
+
+| Variable              | Default | Purpose                                                     |
+| --------------------- | ------- | ----------------------------------------------------------- |
+| `SHUTDOWN_TIMEOUT_MS` | `10000` | Milliseconds to wait after SIGTERM before `process.exit(0)` |
+
+Caddy's `health_uri /healthz` health check (default `health_interval 10s`) routes traffic away from the unhealthy upstream within the same window the wrapper waits, so new requests stop arriving while in-flight responses drain.
+
 ---
 
 ## /healthz Contract
@@ -118,13 +130,17 @@ If `svelte-adapter-bun` becomes unmaintained, breaks on a new Bun version, or fa
 
 ## Out of Scope (explicit deferrals)
 
-- `/readyz` with Postgres connectivity probe — Phase 5
-- Backup automation — Phase 5
-- Dead-letter table for failed automation events — Phase 5
-- Better Auth activation pattern — Phase 5
-- CSP nonce upgrade — Phase 5
+- CSP nonce upgrade — deferred indefinitely; commit fully or stay on `unsafe-inline` for `style-src`
 - Tightening Trivy gate from CRITICAL-only to HIGH — after 3 successful releases
-- Distributed rate limiting — not in template scope
+- Distributed rate limiting — not in template scope; document Cloudflare WAF or `mholt/caddy-ratelimit` per project (snippet in `Caddyfile.example`)
+- Lighthouse CI gating — deferred per YAGNI; manual `bunx unlighthouse <staging-url>` pre-launch is sufficient
+
+**Resolved (no longer deferred):**
+
+- `/readyz` with Postgres connectivity probe — shipped (`src/routes/readyz/+server.ts`)
+- Backup automation — shipped (turnkey: `scripts/backup-{db,uploads,push,all,verify}.sh` + `deploy/systemd/backup.{service,timer}`; see `docs/operations/backups.md`)
+- Dead-letter table for failed automation events — shipped (`automation_dead_letters`)
+- SIGTERM / graceful shutdown — shipped (`serve.js` wrapper; see Graceful Shutdown above)
 
 ---
 
