@@ -75,7 +75,7 @@
 		"postcss-value-parser": "^4.2.0",
 		"prettier": "^3.8.3",
 		"prettier-plugin-svelte": "^3.5.1",
-		"sharp": "^0.33.0",
+		"sharp": "^0.34.5",
 		"svelte": "^5.0.0",
 		"svelte-adapter-bun": "^0.5.2",
 		"svelte-check": "^4.0.0",
