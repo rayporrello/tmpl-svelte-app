@@ -50,7 +50,7 @@
 		"backup:push": "bash scripts/backup-push.sh",
 		"backup:verify": "bash scripts/verify-backup.sh",
 		"restore:db": "bash scripts/restore-db.sh",
-		"prepare": "lefthook install"
+		"prepare": "lefthook install 2>/dev/null || true"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.11.2",
