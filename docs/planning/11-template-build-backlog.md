@@ -2,7 +2,7 @@
 
 ## v1 readiness summary (as of April 2026)
 
-The template is feature-complete for the **database-backed website baseline**. All of Phases 0–4b, 5 (database core), 6, E, F are done. The template ships Postgres + Drizzle as a first-class default — not an optional add-on.
+The template is feature-complete for the **database-backed website baseline**. All of Phases 0–4b, 5 (database + automation event spine), 6, E, F, H are done. The template ships Postgres + Drizzle, the typed automation event emitter, and turnkey off-host backups as first-class defaults — not optional add-ons.
 
 **Ready to use today:**
 
@@ -14,17 +14,17 @@ The template is feature-complete for the **database-backed website baseline**. A
 - Observability spine + security baseline (per-route CSP, Valibot env, request ID + safe error normalization).
 - `/healthz` (process check) and `/readyz` (Postgres connectivity probe) are both live.
 
-**Outstanding before tagging v1.0.0** (in priority order):
+**Outstanding before tagging v1.0.0:**
 
-| #   | Area                                          | Status      | Notes                                                                                                                                                                                                                                                                                                     |
-| --- | --------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Lighthouse CI gate                            | not started | Wire `treosh/lighthouse-ci-action` into `.github/workflows/ci.yml` with perf/a11y/SEO/best-practices budgets. Replaces the honor-system perf gates in `08-quality-gates.md`.                                                                                                                              |
-| 2   | Backup automation                             | not started | Nightly `static/uploads/` snapshot to off-host storage (R2/S3) on a systemd timer with monitor ping (Healthchecks.io / n8n) so silent failures get noticed. Extend to `pg_dump` — Postgres is now active. Dedicated thread.                                                                               |
-| 3   | Automation event emitter                      | not started | Typed automation event emitter (`src/lib/automation/events.ts`) + HMAC signing (`src/lib/automation/signing.ts`). Wire `contact.submitted` from contact form server action into `automation_events` table. Document first n8n workflow (contact form → email notification). See ADR-015 for the contract. |
-| 4   | Decisions on "beyond website baseline" topics | **done**    | Module registry at `docs/modules/README.md`. Pagefind, cookie consent, R2, Better Auth, PWA documented. ADR-020 (PWA no-default) accepted. Consent banner UI added dormant. See Batch H in decision ledger.                                                                                               |
-| 5   | Final docs-vs-implementation audit            | continuous  | Re-run before tagging v1.0.0 to confirm planning docs match reality.                                                                                                                                                                                                                                      |
+| #   | Area                                          | Status       | Notes                                                                                                                                                                                                                                                                                                                                                                                             |
+| --- | --------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Lighthouse CI gate                            | **deferred** | YAGNI for the v1 baseline: homepage ships <50KB JS and the site is a content/marketing template. Manual `bunx unlighthouse <staging-url>` pre-launch is sufficient. Re-evaluate when a project regression makes CI gating worth it. The honor-system perf gate in `08-quality-gates.md` stays.                                                                                                    |
+| 2   | Backup automation                             | **done**     | Turnkey path lives in `scripts/backup-{db,uploads,push,all,verify}.sh` + `deploy/systemd/backup.{service,timer}` + `docs/operations/backups.md`. Set `BACKUP_REMOTE` (rclone spec) and `BACKUP_HEALTHCHECK_URL` in `secrets.yaml`, copy the systemd units, and `systemctl --user enable --now <project>-backup.timer`. `bun run backup:all` auto-pushes off-host when `BACKUP_REMOTE` is set.     |
+| 3   | Automation event emitter                      | **done**     | `src/lib/server/automation/events.ts`, `signing.ts`, `automation-provider.ts`, and `providers/` ship. Contact form action calls `emitLeadCreated` and writes to `automation_events` and `automation_dead_letters`. HMAC signing is wired. First n8n workflow (contact form → email) and others documented in `docs/automations/n8n-patterns.md`. See ADR-015.                                     |
+| 4   | Decisions on "beyond website baseline" topics | **done**     | Module registry at `docs/modules/README.md`. Pagefind, cookie consent, R2, Better Auth, PWA documented. ADR-020 (PWA no-default) accepted. Consent banner UI added dormant. See Batch H in decision ledger.                                                                                                                                                                                       |
+| 5   | Final docs-vs-implementation audit            | **done**     | Production hardening + perf wins + CI hygiene landed (DB pool config, SIGTERM wrapper, HSTS dual-write, contact-form honeypot, Speculation Rules, `bun audit` advisory step, Caddy rate-limit snippet docs). Two adapter-side items confirmed already handled: `Cache-Control: immutable` for `/_app/immutable/*` and the `prefers-reduced-motion` universal kill switch in `animations.css:153`. |
 
-Per-project activation (Sveltia OAuth, brand swap, route registration) is **not** v1 work — those are deliberately left for the consumer of the template.
+**Ready to tag v1.0.0.** Per-project activation (Sveltia OAuth, brand swap, route registration, `rclone config`, R2 credentials) is **not** v1 work — those are deliberately left for the consumer of the template.
 
 ---
 
@@ -130,12 +130,12 @@ Per-project activation (Sveltia OAuth, brand swap, route registration) is **not*
 - [x] Wire contact-example as noindex in src/lib/seo/routes.ts — D
 - [x] Update CSP form-action and connect-src extension comments (src/lib/server/csp.ts) — D
 - [x] Update forms-guide.md with activation walkthrough and provider swap instructions — D
-- [ ] Implement typed automation event emitter (`src/lib/automation/events.ts` — non-blocking webhook)
-- [ ] Implement HMAC signing (`src/lib/automation/signing.ts`)
-- [ ] Add `lead.created` event emission from contact form server action
-- [ ] Add `newsletter.subscribed` event emission from newsletter form server action
-- [ ] Document first n8n workflow (contact form → email notification)
-- [ ] Add backup docs
+- [x] Implement typed automation event emitter (`src/lib/server/automation/events.ts` — non-blocking webhook)
+- [x] Implement HMAC signing (`src/lib/server/automation/signing.ts`)
+- [x] Add `lead.created` event emission from contact form server action (`emitLeadCreated`)
+- [ ] Add `newsletter.subscribed` event emission — deferred (no newsletter form in baseline; add per-project when needed)
+- [x] Document first n8n workflow (contact form → email notification — `docs/automations/n8n-patterns.md`)
+- [x] Add backup docs (`docs/operations/backups.md`) and turnkey off-host path (rclone + systemd timer + Healthchecks)
 
 ## Phase 6 — Deployment
 
@@ -201,9 +201,9 @@ Per-project activation (Sveltia OAuth, brand swap, route registration) is **not*
 - [x] Run lint (`bun run lint` — ESLint flat config; lefthook runs on staged files pre-commit)
 - [x] Run formatting (`bun run format` — Prettier; lefthook auto-formats on commit)
 - [x] Run accessibility checks (`@axe-core/playwright` in tests/e2e/smoke.spec.ts; gates on zero violations)
-- [ ] Run Lighthouse/perf check (manual; not yet wired into CI — run before launch via `validate:launch`)
+- [ ] Run Lighthouse/perf check (manual; intentionally not in CI — run before launch via `bunx unlighthouse <staging-url>`)
 - [x] Verify container build (CI image job builds Containerfile and runs Trivy CRITICAL scan)
-- [ ] Verify docs match implementation (re-audit before tagging v1)
+- [x] Verify docs match implementation (audit pass landed in PR #11; re-run if drift accumulates before tagging)
 - [x] Verify styleguide route renders all documented classes without errors (e2e smoke + axe pass)
 
 ## Phase E — Ergonomics / polish (Batch E)
