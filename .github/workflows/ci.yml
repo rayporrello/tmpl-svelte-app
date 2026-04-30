@@ -52,6 +52,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # bun audit reports advisories from the npm registry against bun.lock.
+      # Currently advisory-only (matching the Trivy HIGH pattern). Tighten to
+      # gating once we've seen a clean run or two.
+      - name: bun audit (advisory)
+        run: bun audit
+        continue-on-error: true
+
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
