@@ -1,0 +1,7 @@
+backend:
+  name: github
+  repo: acme/ready-to-launch-site
+  branch: main
+
+media_folder: static/uploads
+public_folder: /uploads

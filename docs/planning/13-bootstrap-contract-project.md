@@ -753,4 +753,5 @@ an ADR.
 - `docs/template-maintenance.md` — current validation lifecycle.
 - `AGENTS.md` — agent operating rules.
 - ADR-018 (production runtime contract) — Podman/Caddy/Quadlet baseline.
-- ADR-021 (this project) — to be authored during Phase 4.
+- ADR-021 (this project) — accepted; see
+  [ADR-021](adrs/ADR-021-local-bootstrap-contract.md).

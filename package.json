@@ -20,6 +20,7 @@
 		"format:check": "prettier --check .",
 		"images:optimize": "bun run scripts/optimize-images.js",
 		"bootstrap": "bun scripts/bootstrap.ts",
+		"doctor": "bun scripts/doctor.ts",
 		"check:db": "bun run scripts/check-db-health.ts",
 		"check:seo": "bun run scripts/check-seo.ts",
 		"seo:check": "bun run check:seo",

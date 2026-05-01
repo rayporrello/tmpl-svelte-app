@@ -1,0 +1,288 @@
+import { createHash } from 'node:crypto';
+import {
+	cpSync,
+	existsSync,
+	lstatSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	type Dirent,
+	writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { BootstrapScriptError } from '../../scripts/lib/errors';
+import {
+	main,
+	parseArgs,
+	runDoctor,
+	type DoctorCheck,
+	type RunDoctorOptions,
+} from '../../scripts/doctor';
+
+const FIXTURE_ROOT = fileURLToPath(new URL('../fixtures/doctor', import.meta.url));
+
+let tempDirs: string[] = [];
+
+afterEach(() => {
+	for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
+	tempDirs = [];
+});
+
+function fixturePath(name: string): string {
+	return join(FIXTURE_ROOT, name);
+}
+
+function copyFixture(name: string): string {
+	const destination = mkdtempSync(join(tmpdir(), `doctor-${name}-`));
+	tempDirs.push(destination);
+	cpSync(fixturePath(name), destination, { recursive: true });
+	const fixtureEnv = join(destination, 'env.json');
+	if (existsSync(fixtureEnv)) {
+		const parsed = JSON.parse(readFileSync(fixtureEnv, 'utf8')) as Record<string, string>;
+		const content =
+			parsed.__raw ??
+			`${Object.entries(parsed)
+				.map(([key, value]) => `${key}=${value}`)
+				.join('\n')}\n`;
+		writeFileSync(join(destination, '.env'), content, 'utf8');
+	}
+	return destination;
+}
+
+function memoryStream() {
+	let output = '';
+	return {
+		stream: { write: (chunk: string) => (output += chunk) },
+		get output() {
+			return output;
+		},
+	};
+}
+
+function walkFiles(root: string, current = root): string[] {
+	return readdirSync(current, { withFileTypes: true }).flatMap((entry: Dirent) => {
+		const path = join(current, entry.name);
+		if (entry.isDirectory()) return walkFiles(root, path);
+		return [relative(root, path).replace(/\\/g, '/')];
+	});
+}
+
+function hashTree(root: string): string {
+	const hash = createHash('sha256');
+	for (const file of walkFiles(root).sort()) {
+		const path = join(root, file);
+		const stat = lstatSync(path);
+		hash.update(file);
+		hash.update('\0');
+		hash.update(stat.isSymbolicLink() ? 'symlink' : 'file');
+		hash.update('\0');
+		hash.update(readFileSync(path));
+		hash.update('\0');
+	}
+	return hash.digest('hex');
+}
+
+function passingRuntimeProbe(): Promise<DoctorCheck[]> {
+	return Promise.resolve([
+		{
+			id: 'doctor-migrations-applied',
+			status: 'pass',
+			label: 'Migrations are applied',
+			detail: '2/2 migrations recorded',
+			severity: 'required',
+			hint: null,
+		},
+		{
+			id: 'doctor-starter-tables',
+			status: 'pass',
+			label: 'Starter tables exist',
+			detail: '3 starter tables found',
+			severity: 'required',
+			hint: null,
+		},
+	]);
+}
+
+function makeRunner(
+	options: {
+		dirty?: boolean;
+		containerRuntime?: boolean;
+		checkDbCode?: number;
+		checkDbOutput?: string;
+		validationCode?: number;
+	} = {}
+): Exclude<RunDoctorOptions['runner'], undefined> {
+	return vi.fn(async (command: string, args: readonly string[] = []) => {
+		const joinedArgs = args.join(' ');
+		if (command === 'podman') {
+			return {
+				code: options.containerRuntime === false ? 1 : 0,
+				stdout: options.containerRuntime === false ? '' : 'podman version 5\n',
+				stderr: '',
+				durationMs: 1,
+			};
+		}
+
+		if (command === 'docker') {
+			return { code: 1, stdout: '', stderr: '', durationMs: 1 };
+		}
+
+		if (command === 'git' && joinedArgs === 'status --porcelain') {
+			return {
+				code: 0,
+				stdout: options.dirty ? ' M package.json\n' : '',
+				stderr: '',
+				durationMs: 1,
+			};
+		}
+
+		if (command === 'bun' && joinedArgs === 'run check:db') {
+			return {
+				code: options.checkDbCode ?? 0,
+				stdout:
+					options.checkDbOutput ??
+					'OK   Database connectivity verified\n     host: 127.0.0.1:5432\n',
+				stderr: '',
+				durationMs: 1,
+			};
+		}
+
+		if (command === 'bun' && joinedArgs === '--version') {
+			return { code: 0, stdout: '1.3.9\n', stderr: '', durationMs: 1 };
+		}
+
+		if (command === 'bun' && args[0] === 'run') {
+			const code = options.validationCode ?? 0;
+			return {
+				code,
+				stdout: code === 0 ? `OK ${joinedArgs}\n` : '',
+				stderr: code === 0 ? '' : `FAIL ${joinedArgs}\n`,
+				durationMs: 1,
+			};
+		}
+
+		return { code: 0, stdout: '', stderr: '', durationMs: 1 };
+	});
+}
+
+function findCheck(
+	report: Awaited<ReturnType<typeof runDoctor>>['report'],
+	id: string
+): DoctorCheck {
+	const check = report.sections.flatMap((section) => section.checks).find((item) => item.id === id);
+	if (!check) throw new Error(`Missing doctor check ${id}`);
+	return check;
+}
+
+describe('doctor script', () => {
+	it('reports fresh-bootstrap launch blockers as warnings and exits 0', async () => {
+		const rootDir = copyFixture('fresh-bootstrap');
+		const runner = makeRunner();
+		const result = await runDoctor({
+			rootDir,
+			runner,
+			runtimeProbe: passingRuntimeProbe,
+			now: () => new Date('2026-05-01T18:00:00Z'),
+		});
+
+		expect(result.exitCode, JSON.stringify(result.report, null, 2)).toBe(0);
+		expect(result.report.status).toBe('warn');
+		expect(findCheck(result.report, 'LAUNCH-OG-001').status).toBe('warn');
+		expect(findCheck(result.report, 'LAUNCH-ENV-001').status).toBe('warn');
+		expect(findCheck(result.report, 'LAUNCH-ENV-002').status).toBe('warn');
+		expect(findCheck(result.report, 'LAUNCH-CMS-001').status).toBe('warn');
+		expect(result.report.sections.some((section) => section.id === 'launch-blockers')).toBe(true);
+		expect(runner).toHaveBeenCalledWith(
+			'bun',
+			['run', 'check:db'],
+			expect.objectContaining({ cwd: rootDir, capture: true })
+		);
+	});
+
+	it('reports pass for a ready-to-launch fixture with no failed checks', async () => {
+		const result = await runDoctor({
+			rootDir: copyFixture('ready-to-launch'),
+			runner: makeRunner(),
+			runtimeProbe: passingRuntimeProbe,
+			now: () => new Date('2026-05-01T18:00:00Z'),
+		});
+
+		expect(result.exitCode, JSON.stringify(result.report, null, 2)).toBe(0);
+		expect(result.report.status).toBe('pass');
+		expect(result.report.sections.flatMap((section) => section.checks)).not.toContainEqual(
+			expect.objectContaining({ status: 'fail' })
+		);
+	});
+
+	it('identifies a broken .env as a specific failed check and exits nonzero', async () => {
+		const result = await runDoctor({
+			rootDir: copyFixture('broken-env'),
+			runner: makeRunner(),
+			runtimeProbe: passingRuntimeProbe,
+			now: () => new Date('2026-05-01T18:00:00Z'),
+		});
+
+		expect(result.exitCode, JSON.stringify(result.report, null, 2)).toBe(2);
+		expect(result.report.status).toBe('fail');
+		const envCheck = findCheck(result.report, 'BOOT-ENV-001');
+		expect(envCheck.status).toBe('fail');
+		expect(envCheck.detail).toContain('missing "="');
+		expect(envCheck.hint).toContain('NEXT:');
+	});
+
+	it('prints only the versioned JSON schema when --json is set', async () => {
+		const stdout = memoryStream();
+		const stderr = memoryStream();
+		const code = await main(['--json'], {
+			rootDir: copyFixture('ready-to-launch'),
+			runner: makeRunner(),
+			runtimeProbe: passingRuntimeProbe,
+			now: () => new Date('2026-05-01T18:00:00Z'),
+			stdout: stdout.stream,
+			stderr: stderr.stream,
+		});
+
+		expect(code, stdout.output).toBe(0);
+		expect(stderr.output).toBe('');
+		expect(stdout.output).not.toContain('Doctor status');
+		const parsed = JSON.parse(stdout.output) as Record<string, unknown>;
+		expect(parsed).toMatchObject({
+			schemaVersion: 1,
+			status: 'pass',
+			generatedAt: '2026-05-01T18:00:00.000Z',
+		});
+		expect(Array.isArray(parsed.sections)).toBe(true);
+	});
+
+	it('does not mutate fixture files in human or JSON mode', async () => {
+		const rootDir = copyFixture('ready-to-launch');
+		const before = hashTree(rootDir);
+
+		await runDoctor({
+			rootDir,
+			runner: makeRunner(),
+			runtimeProbe: passingRuntimeProbe,
+			now: () => new Date('2026-05-01T18:00:00Z'),
+		});
+		await main(['--json'], {
+			rootDir,
+			runner: makeRunner(),
+			runtimeProbe: passingRuntimeProbe,
+			now: () => new Date('2026-05-01T18:00:00Z'),
+			stdout: memoryStream().stream,
+			stderr: memoryStream().stream,
+		});
+
+		expect(hashTree(rootDir)).toBe(before);
+	});
+
+	it('has no --fix flag', () => {
+		expect(() => parseArgs(['--fix'])).toThrow(BootstrapScriptError);
+	});
+});
