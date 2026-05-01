@@ -1,0 +1,743 @@
+# Bootstrap Contract — Planned Enhancement Project
+
+> **Status:** spec locked, ready to implement.
+> **Owner:** template maintainer.
+> **Scope:** turn the template's first-run experience from a multi-step
+> documented checklist into a single tested installation contract, with a
+> matching read-only diagnostic command and a launch-readiness gate.
+> **Out of scope:** baseline application auth, browser-based installer,
+> multi-template merge upgrade tooling.
+
+This is a planning document. It is the source of truth for the project's
+**spec and decisions**, not for implemented code. Once code lands, the
+implementation is the truth (per `docs/planning/README.md`); update this doc
+only when a decision actually changes.
+
+---
+
+## 1. Why this project
+
+The current first-run path requires the user to run roughly eight commands in
+the right order, edit two files, and remember which steps are idempotent. That
+is a good checklist but a weak product. The goal is WordPress-tier turnkey for
+local dev: clone, run one command, edit colors and content, ship.
+
+Production launch correctly stays a multi-step gated path. This project does
+not collapse that — it makes the gates explicit and machine-checkable.
+
+The template already has the foundations: Bun-first, Postgres-backed by
+default, `/healthz` and `/readyz`, `init:site`, a PR-grade `validate` and a
+release-grade `validate:launch`. This project layers an installer contract,
+diagnostics, and a launch-blockers manifest on top of those foundations — it
+does not replace them.
+
+---
+
+## 2. Locked architectural model — the four commands
+
+```
+./bootstrap        converge local state to runnable (mutating, idempotent)
+bun run doctor     explain current state (read-only, always)
+bun run validate   prove repo correctness (PR gate)
+bun run launch:check  prove production readiness (release gate; alias of validate:launch)
+```
+
+Rules:
+
+- **Bootstrap mutates, doctor never mutates.** A diagnostic that sometimes
+  fixes things stops being trustworthy. There is no `doctor --fix`.
+- **Skips are observed, not remembered.** Bootstrap reads reality before each
+  step. `.bootstrap.state.json` records what bootstrap _created_ so
+  `reset:dev` knows what it owns; it does not record what is _done_.
+- **Idempotent or it doesn't ship.** Re-running bootstrap on a fully
+  bootstrapped project produces zero file changes and exits 0.
+- **Stable error codes.** Every failure surfaces a `BOOT-*` or `LAUNCH-*` code
+  and a `NEXT:` line. Codes are documented in §8.
+- **Postgres-first.** No SQLite path. No "lite" fallback. The template's
+  contract is Postgres + Drizzle and that contract is non-negotiable.
+
+The local Postgres role created by bootstrap is a **local database owner
+role**, never an "admin user." Application-level admin/user accounts remain a
+per-project concern (Better Auth stays optional, not baseline).
+
+CMS local editing uses Sveltia's **"Work with Local Repository"** browser
+flow. No proxy server, no `local_backend` in `config.yml`. Production CMS
+auth (GitHub token / OAuth) remains a documented launch task.
+
+---
+
+## 3. Locked design decisions
+
+These resolve the open questions raised during planning. They are frozen
+unless an ADR amends them.
+
+### 3.1 Container runtime
+
+| Order | Source                            | Action                                          |
+| ----- | --------------------------------- | ----------------------------------------------- |
+| 1     | Existing reachable `DATABASE_URL` | Use it. No container provisioned.               |
+| 2     | Podman available                  | Provision Podman container.                     |
+| 3     | Docker available                  | Provision Docker container (local dev only).    |
+| 4     | None of the above                 | Fail with `BOOT-PG-001` and a remediation hint. |
+
+Override: `BOOTSTRAP_CONTAINER_RUNTIME=podman|docker|auto`. Default `auto`.
+
+Production deployment artifacts (Containerfile, Quadlet, Caddyfile) remain
+Podman-only. Docker fallback is a developer convenience for local dev only;
+no production code path uses it.
+
+### 3.2 Postgres image
+
+Pinned to a constant in `scripts/lib/postgres-dev.ts`:
+
+```ts
+const POSTGRES_IMAGE = 'docker.io/library/postgres:17-alpine';
+```
+
+No `:latest`. Image tag changes go through this file with an ADR if the major
+version moves.
+
+### 3.3 Dynamic host port
+
+```
+start = 50000 + (hash(slug) % 5000)
+try start, start + 1, start + 2, ... wrapping within [50000, 55000]
+exhaustion → BOOT-PG-003
+```
+
+Allocated port is recorded in `.bootstrap.state.json`. Port 5432 is never
+hardcoded.
+
+### 3.4 SESSION_SECRET
+
+Generated on first bootstrap as 32 random hex bytes. Documented as
+"_generated local secret reserved for future server/session features_,"
+**not** "enables auth." Adding Better Auth or similar later becomes a
+config-only step.
+
+### 3.5 Doctor JSON schema (custom, versioned)
+
+```json
+{
+	"schemaVersion": 1,
+	"status": "pass | warn | fail",
+	"generatedAt": "2026-05-01T18:00:00Z",
+	"sections": [
+		{
+			"id": "environment",
+			"label": "Environment",
+			"checks": [
+				{
+					"id": "BOOT-BUN-001",
+					"status": "pass",
+					"label": "Bun is installed",
+					"detail": "Bun 1.x detected",
+					"severity": "required",
+					"hint": null
+				}
+			]
+		}
+	]
+}
+```
+
+SARIF is intentionally rejected — it is built for static-analysis annotations,
+not environment-readiness reports. Re-evaluate only if GitHub
+code-scanning annotations become a goal.
+
+### 3.6 Source-of-truth precedence
+
+```
+Observed files / runtime state
+  > tracked config (package.json, src/lib/config/site.ts, static/admin/config.yml)
+  > .template/project.json (committed metadata fingerprint)
+  > .bootstrap.state.json (untracked local resource ownership)
+```
+
+`package.json.name` is the source of truth for the project name.
+`.template/project.json` is supplementary metadata only.
+
+---
+
+## 4. Hardening rules (locked corrections to earlier drafts)
+
+These are the spec adjustments that came out of review. They are listed
+explicitly so an implementer cannot accidentally regress to the earlier
+draft.
+
+1. **Phase 0 ships separately from Phase 1.** Formatting baseline is its own
+   PR. Mixing format churn with new code makes review impossible.
+2. **`./bootstrap --dry-run` does not run `bun install`.** The shell wrapper
+   detects `--dry-run` _before_ install and either prints what it would do
+   (when deps are not installed) or hands off to the TS dry-run (when deps
+   are already present). Dry-run never mutates `node_modules/`.
+3. **Bootstrap uses `bun install --frozen-lockfile`.** `bun.lock` is the
+   committed source of truth; bootstrap must not drift it.
+4. **Never overwrite a user-set unreachable `DATABASE_URL`.** Bootstrap may
+   only generate `DATABASE_URL` when one of:
+   - it is missing from `.env`, or
+   - it matches a bootstrap-owned container recorded in
+     `.bootstrap.state.json` _and_ confirmed by container labels, or
+   - the user passes `--replace-db-url` (future flag, not in v1).
+     An unreachable user-set URL fails with `BOOT-DB-002..004`.
+5. **`.bootstrap.state.json` does not update on no-op re-runs.** No
+   `lastRunAt`. Stable fields only:
+   ```json
+   {
+   	"createdAt": "2026-05-01T18:00:00Z",
+   	"createdContainer": "acme-studio-pg",
+   	"createdContainerPort": 55432,
+   	"createdEnvKeys": ["DATABASE_URL", "ORIGIN", "PUBLIC_SITE_URL", "SESSION_SECRET"],
+   	"bootstrapContractVersion": 1
+   }
+   ```
+   No-op means no-op: `git status` clean, `.bootstrap.state.json` byte-identical.
+6. **Bootstrap-owned containers carry labels.** `reset:dev` requires both
+   the recorded name _and_ matching labels before removing anything.
+   ```
+   --label tmpl-svelte-app.bootstrap=true
+   --label tmpl-svelte-app.project-slug=<slug>
+   --label tmpl-svelte-app.contract-version=1
+   ```
+7. **Readiness uses `<runtime> exec <container> pg_isready`.** Host
+   `pg_isready` is not assumed to exist. For external `DATABASE_URL`,
+   readiness is verified by `bun run check:db` (the app's own DB client),
+   not host CLI.
+8. **Generated `DATABASE_URL` uses sanitized identifiers.** Hyphens become
+   underscores for DB and user names; container names keep hyphens.
+   ```
+   slug:      acme-studio
+   db name:   acme_studio
+   db user:   acme_studio_user
+   container: acme-studio-pg
+   DATABASE_URL=postgres://acme_studio_user:<pw>@127.0.0.1:55432/acme_studio
+   ```
+9. **The summary does not claim `/readyz` was curled.** Bootstrap calls
+   `check:db` directly. Output is "_Database connectivity verified_," not
+   "_/readyz health verified_." The Phase 8 CI smoke job is where `/readyz`
+   is actually requested over HTTP.
+10. **`init:site` skip is checked across all init-owned files.**
+    `package.json` alone is not sufficient. The skip set covers the
+    full init-owned file list (see §5.2 protected-file allowlist).
+    `src/app.html` is intentionally not in `init:site`'s scope; it remains
+    a launch blocker tracked by the manifest.
+11. **`check:bootstrap` has both dry-run and mock-provisioner modes.**
+    Dry-run proves planning; mock-provisioner proves mutation behavior
+    (idempotency, allowlist, secret hygiene) in a tempdir without real
+    Podman or real Postgres.
+12. **Launch-blocker code never enters the client bundle.** The dev banner
+    uses a server/client split: script logic lives in
+    `scripts/lib/launch-blockers.ts`, the dev banner reads only what
+    `+layout.server.ts` returns. No filesystem code runs in
+    `+layout.svelte`.
+13. **`secrets:check` runs in `validate`.** Now that bootstrap generates
+    local secrets, the plaintext-leak gate must run on every PR, not only
+    at launch.
+
+---
+
+## 5. Files — what gets created
+
+### 5.1 New files
+
+| Path                                                     | Purpose                                                                                                                                       |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bootstrap` (root, executable bash)                      | Thin wrapper: verify Bun, handle `--dry-run` short-circuit, `bun install --frozen-lockfile`, hand off to `bun run bootstrap`.                 |
+| `scripts/bootstrap.ts`                                   | The orchestrator. Composes the seven steps. ~400 lines.                                                                                       |
+| `scripts/doctor.ts`                                      | Read-only diagnostic. Calls the same primitives as bootstrap, never mutates.                                                                  |
+| `scripts/check-db-health.ts`                             | `bun run check:db` — imports `src/lib/server/db/health.ts`, prints stable result with stable exit codes. Shared by bootstrap, doctor, and CI. |
+| `scripts/check-bootstrap.ts`                             | Dry-run + mock-provisioner harness; runs in CI without Podman.                                                                                |
+| `scripts/check-bootstrap-podman.ts`                      | Real Podman/Docker integration smoke; gated by `BOOTSTRAP_PODMAN=1`.                                                                          |
+| `scripts/check-doctor.ts`                                | Runs doctor against fixtures, asserts exit codes and message contents.                                                                        |
+| `scripts/lib/run.ts`                                     | Subprocess wrapper. Streams output, redacts secrets from logs.                                                                                |
+| `scripts/lib/print.ts`                                   | Status vocabulary: `ok`, `skip`, `run`, `fail(code, msg, hint)`, `summary`.                                                                   |
+| `scripts/lib/env-file.ts`                                | Read/merge/write `.env`. Never overwrites user-set keys.                                                                                      |
+| `scripts/lib/preflight.ts`                               | Bun ≥ 1.1, container runtime detection, dirty-tree warning.                                                                                   |
+| `scripts/lib/postgres-dev.ts`                            | Detect reachable PG, allocate port, start/reuse container with labels, wait for readiness via `<runtime> exec pg_isready`.                    |
+| `scripts/lib/site-state.ts`                              | Inspect repo against the protected-file allowlist; detect placeholders, env presence, container presence/health.                              |
+| `scripts/lib/diagnose-pg.ts`                             | Translate Postgres SQLSTATE codes (`28P01`, `42501`, `3D000`) into one-line fixes.                                                            |
+| `scripts/lib/errors.ts`                                  | The error-code registry (see §8).                                                                                                             |
+| `scripts/lib/launch-blockers.ts`                         | The launch-blockers manifest (see §9).                                                                                                        |
+| `scripts/lib/protected-files.ts`                         | The allowlist of files bootstrap may mutate.                                                                                                  |
+| `src/lib/server/launch-blockers.ts`                      | Server-only re-export consumed by `+layout.server.ts` for the dev banner. Wraps the script-side manifest with a server-safe surface.          |
+| `src/routes/+layout.server.ts`                           | Dev-only setup-warnings computation; production builds tree-shake it.                                                                         |
+| `tests/fixtures/bootstrap/`                              | Fixtures: fresh-template, half-done, already-bootstrapped, broken-env.                                                                        |
+| `docs/planning/adrs/ADR-021-local-bootstrap-contract.md` | Captures the decision. Authored when Phase 4 lands, not earlier.                                                                              |
+
+### 5.2 Protected-file allowlist (`scripts/lib/protected-files.ts`)
+
+Bootstrap may write only to these paths. Anything else aborts with
+`BOOT-GUARD-001`.
+
+```
+.env
+.bootstrap.state.json
+.template/project.json
+package.json                          (init:site-owned)
+src/lib/config/site.ts                (init:site-owned)
+static/admin/config.yml               (init:site-owned)
+static/site.webmanifest               (init:site-owned)
+deploy/Caddyfile.example              (init:site-owned)
+deploy/quadlets/web.container         (init:site-owned)
+content/pages/home.yml                (init:site-owned)
+.github/workflows/ci.yml              (init:site-owned, name only)
+README.md                             (init:site-owned, name only)
+```
+
+`src/app.html` is intentionally excluded; the manifest tracks its placeholder
+state as a launch blocker.
+
+### 5.3 Modified files
+
+| Path                       | Change                                                                                                                                                                                                                                                                            |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `package.json`             | Add `format`, `format:check`, `bootstrap`, `doctor`, `check:db`, `check:bootstrap`, `check:doctor`, `launch:check`, `deploy:preflight`, `backup:check`, `reset:dev`, `seed:dev` scripts. Wire `format:check` and `secrets:check` and `check:bootstrap` (dry-run) into `validate`. |
+| `.prettierignore`          | Ensure exclusions before the format sweep: `node_modules`, `.svelte-kit`, `build`, `dist`, `coverage`, `.env`, `.env.*`, `bun.lock`, `static/admin/sveltia-cms.js`, `drizzle/meta/`.                                                                                              |
+| `.gitignore`               | Add `.bootstrap.state.json`, `.env.backup.*`, `.dev-snapshots/`.                                                                                                                                                                                                                  |
+| `README.md`                | Lead "Using this template" with the four-line bootstrap path. Manual path moves below.                                                                                                                                                                                            |
+| `docs/getting-started.md`  | New top is `git clone → cd → ./bootstrap → bun run dev`. Existing 12 steps move under "Manual setup (understand or override what bootstrap does)."                                                                                                                                |
+| `docs/cms/README.md`       | Document the Sveltia "Work with Local Repository" workflow as the local-dev path. Remove any proxy/`local_backend` references.                                                                                                                                                    |
+| `.github/workflows/ci.yml` | Add `bootstrap-smoke` job on `main` push. Nightly cron for `check:bootstrap-podman`.                                                                                                                                                                                              |
+
+---
+
+## 6. Phase plan
+
+Each phase ships as one PR (or one logical commit). Acceptance criteria are
+listed; if any fail, the phase does not ship.
+
+### Phase 0 — Formatting baseline _(separate PR)_
+
+**Goal:** prettier becomes a silent gate.
+
+**Work**
+
+- Audit `.prettierignore` per §5.3.
+- Add `format:check`. Wire it into `validate` _early_ (before expensive
+  `check`/build/test steps).
+- Run `bun run format` repo-wide. Commit as a single "_Establish prettier
+  formatting baseline_" commit.
+
+**Acceptance**
+
+- A bad-formatted file inserted in a follow-up PR fails `validate` at
+  `format:check`, before any expensive step runs.
+- No code-meaning changes in the baseline commit.
+
+### Phase 1 — Script primitives _(no behavior change)_
+
+**Goal:** ship the helpers behind the orchestrator without exposing user-
+facing commands yet.
+
+**Work**
+
+- Create the `scripts/lib/*` files listed in §5.1.
+- Each helper has unit tests under `tests/unit/`.
+- No `scripts/lib/*` file imports anything under `src/`.
+- Add the error-code registry (§8) and launch-blockers manifest scaffolding
+  (§9). Manifest entries land here as `check: () => Promise<…>` stubs;
+  Phase 7 fills them in.
+
+**Acceptance**
+
+- `bun run validate` passes.
+- No new user-facing scripts in `package.json` yet.
+
+### Phase 2 — `bun run check:db` primitive
+
+**Goal:** a single shared DB-health command callable by bootstrap, doctor,
+and CI.
+
+**Work**
+
+- `scripts/check-db-health.ts` imports `src/lib/server/db/health.ts`, loads
+  `.env` deterministically, prints stable output, exits with stable codes
+  (`BOOT-DB-001..004`).
+- Add `check:db` to `package.json`.
+
+**Acceptance**
+
+- `bun run check:db` returns 0 against a healthy DB.
+- Returns the documented code on each failure mode (verified by
+  `tests/unit/check-db-health.test.ts` with mocked failures).
+
+### Phase 3 — `./bootstrap` orchestrator
+
+**Goal:** the user-facing installer contract.
+
+**Work**
+
+- `bootstrap` (root, executable):
+
+  ```bash
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  command -v bun >/dev/null 2>&1 || {
+    echo "FAIL BOOT-BUN-001 Bun is required."
+    echo "NEXT  Install Bun (https://bun.sh) and re-run ./bootstrap."
+    exit 1
+  }
+
+  # --dry-run must not mutate node_modules/.
+  for arg in "$@"; do
+    if [ "$arg" = "--dry-run" ]; then
+      if [ -d node_modules ]; then
+        exec bun run bootstrap "$@"
+      else
+        echo "DRY-RUN ./bootstrap"
+        echo "  WOULD run: bun install --frozen-lockfile"
+        echo "  WOULD run: bun run bootstrap $*"
+        echo "  Re-run without --dry-run to install dependencies and continue."
+        exit 0
+      fi
+    fi
+  done
+
+  bun install --frozen-lockfile
+  exec bun run bootstrap "$@"
+  ```
+
+- `scripts/bootstrap.ts` composes seven steps (§7).
+- Flags: `--dry-run`, `--ci`, `--yes`, `--answers-file <path>`.
+- `--ci` sources answers from `BOOTSTRAP_*` env vars or `--answers-file`;
+  refuses to prompt; fails fast.
+
+**Acceptance**
+
+- Re-running bootstrap on an already-bootstrapped repo produces zero file
+  changes and exits 0.
+- `--dry-run` exits 0 with no mutations and a complete plan.
+- `--ci` with all `BOOTSTRAP_*` vars set runs end-to-end without prompting.
+- Every failure path includes a `BOOT-*` code and a `NEXT:` line.
+- Generated secrets never appear in stdout/stderr.
+
+### Phase 4 — `bun run doctor`
+
+**Goal:** read-only readiness explanation.
+
+**Work**
+
+- `scripts/doctor.ts` calls the same primitives as bootstrap, in detection
+  mode only.
+- Sections: Environment, Configuration, Runtime, Validation forecast,
+  Launch blockers.
+- `--json` flag emits the schema in §3.5.
+- ADR-021 is authored as part of this phase (the contract is now real).
+
+**Acceptance**
+
+- A test diffs the working tree before/after `bun run doctor`; no changes.
+- Doctor against a fresh fixture reports the expected blockers.
+- `bun run doctor --json` validates against the schema.
+
+### Phase 5 — `check:bootstrap` test harness
+
+**Goal:** make the contract testable in CI without Podman.
+
+**Work**
+
+- Dry-run mode: proves planning, output shape, no mutation.
+- Mock-provisioner mode: tempdir + stubbed PG provisioner, mutates
+  `.env`, simulates migrate + `check:db` success, runs twice and proves
+  byte-for-byte idempotency.
+- `check:bootstrap-podman.ts`: real container start → migrate → cleanup.
+  Gated by `BOOTSTRAP_PODMAN=1`.
+- Add `check:bootstrap` (dry-run + mock-provisioner) to `validate`.
+- Add `secrets:check` to `validate`.
+
+**Acceptance criteria for `check:bootstrap`**
+
+- Fresh fixture converges in dry-run.
+- Mock-provisioner second run: `git diff` empty.
+- `.env` is generated but not tracked.
+- Generated secrets never appear in captured stdout/stderr.
+- Only protected-file allowlist mutates.
+- Failure modes exit nonzero with the documented code.
+- Failure output always contains a `NEXT:` line.
+
+### Phase 6 — Sveltia local-editing docs
+
+**Goal:** correct the local CMS path; no new scripts.
+
+**Work**
+
+- Update `docs/cms/README.md` to document the "Work with Local Repository"
+  flow (Chromium-based browser, open `/admin/index.html`, click "Work with
+  Local Repository," select project root, edit, commit via Git).
+- Remove any proxy or `local_backend` guidance.
+- `static/admin/config.yml` keeps placeholder `backend.repo` for production
+  use; existing `check:cms` continues to block deploys with
+  `local_backend: true`.
+
+**Acceptance**
+
+- Fresh-clone user can edit content via `/admin/index.html` after
+  `bun run dev` without configuring GitHub auth.
+- `bun run check:cms` still passes; no behavior regression.
+
+### Phase 7 — Launch-blockers manifest filled in
+
+**Goal:** centralize launch readiness.
+
+**Work**
+
+- Implement each `check` function in `scripts/lib/launch-blockers.ts` (§9).
+- `bun run launch:check` (alias for `validate:launch`) consumes the manifest.
+- `bun run doctor` consumes the same manifest.
+- The dev banner (Phase 9 extras) consumes the same manifest via the
+  server-only wrapper.
+
+**Acceptance**
+
+- Removing `static/og-default.png` placeholder before launch causes a single
+  `LAUNCH-OG-001` to surface in doctor, validate:launch, and the dev banner.
+- No duplicate logic — exactly one source of truth for each blocker.
+
+### Phase 8 — Docs flip + CI hardening
+
+**Goal:** the bootstrap path becomes the documented default.
+
+**Work**
+
+- README "Using this template" leads with the four-line bootstrap path.
+- `docs/getting-started.md` top is `git clone → cd → ./bootstrap → bun run dev`.
+  Existing 12 steps become "Manual setup (advanced)."
+- `.github/workflows/ci.yml`:
+  - `validate` already includes `format:check`, `check:bootstrap` (dry-run),
+    `secrets:check`.
+  - New `bootstrap-smoke` job (on `main` push only): fresh checkout → CI
+    Postgres service → `./bootstrap --ci` with deterministic
+    `BOOTSTRAP_*` env vars → `bun run build` → start built server → curl
+    `/healthz` and `/readyz` → `bun run validate`.
+  - Nightly cron job runs `check:bootstrap-podman` on a self-hosted runner.
+
+**Acceptance**
+
+- A PR that breaks bootstrap fails CI before merge.
+- A PR that breaks the launch-blockers manifest fails CI before merge.
+
+### Phase 9 — Incremental extras (separate commits, low risk)
+
+These are additive polish. Each ships as its own commit. None block earlier
+phases.
+
+| Script / feature           | Notes                                                                                                                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run launch:check`     | Memorable alias for `validate:launch`. Single-line addition.                                                                                                                                                                          |
+| `bun run deploy:preflight` | Read-only: prod env exists, secrets render, HTTPS origins, Caddyfile/Quadlet/GHCR names align with project, backups configured or explicitly waived. No mutation.                                                                     |
+| `bun run backup:check`     | Verify `pg_dump` runs and restore into a temp DB succeeds. A backup never restored is a theory.                                                                                                                                       |
+| `bun run reset:dev`        | Removes only bootstrap-owned resources (container by name + labels match per §4.6). `.env` moves to `.env.backup.<ts>`. Refuses if `DATABASE_URL` does not match the bootstrap-owned container. `--destroy-env` for the harder reset. |
+| `bun run seed:dev`         | Realistic demo content (3 articles, 2 team, 2 testimonials, 5 contact submissions). Deterministic IDs. `--reset` removes them. **Never auto-run from bootstrap.**                                                                     |
+| First-run dev banner       | `+layout.server.ts` reads `src/lib/server/launch-blockers.ts` (server-only wrapper); `+layout.svelte` renders banner only when `import.meta.env.DEV` and any blocker fires. Production builds tree-shake the server module.           |
+| `.template/project.json`   | Committed metadata fingerprint; bootstrap fills `projectSlug`, `createdFromTemplateAt`, `bootstrapContract` on first run. Read-only thereafter.                                                                                       |
+
+---
+
+## 7. Bootstrap step contract
+
+Each step is a function returning `{ status: 'ok' | 'skip' | 'fail', code?, hint? }`.
+
+| #   | Step               | Skip condition (observed)                                                                                                           | On failure                              |
+| --- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| 1   | Preflight          | —                                                                                                                                   | `BOOT-BUN-001`; warn-only on dirty tree |
+| 2   | Site init          | `package.json.name` differs from template name **and** no init-owned placeholders remain across the full init-owned file set (§5.2) | `BOOT-INIT-001`                         |
+| 3   | `.env` materialize | All required keys present (`DATABASE_URL`, `ORIGIN`, `PUBLIC_SITE_URL`, `SESSION_SECRET`); never overwrites user-set keys           | `BOOT-ENV-001`                          |
+| 4   | Postgres provision | Existing `DATABASE_URL` reachable, OR matches bootstrap-owned container by name + labels and that container is healthy              | `BOOT-PG-001..003`                      |
+| 5   | Migrate            | Always runs (`drizzle-kit migrate` is idempotent — no CLI output parsing)                                                           | `BOOT-MIG-001`                          |
+| 6   | Health verify      | — (always runs `check:db` after migrate)                                                                                            | `BOOT-DB-001..004` via `diagnose-pg.ts` |
+| 7   | Summary            | —                                                                                                                                   | —                                       |
+
+### Generated `.env` (when missing)
+
+For project slug `acme-studio`:
+
+```
+DATABASE_URL=postgres://acme_studio_user:<random-32hex>@127.0.0.1:55432/acme_studio
+ORIGIN=http://127.0.0.1:5173
+PUBLIC_SITE_URL=http://127.0.0.1:5173
+SESSION_SECRET=<random-32hex>
+```
+
+The actual port is the one allocated per §3.3 and recorded in
+`.bootstrap.state.json`.
+
+### Summary block format
+
+```
+What just happened:
+  OK   Dependencies installed
+  OK   Site initialized
+  OK   .env created at <path>
+  OK   Postgres container <slug>-pg running on 127.0.0.1:<port>
+  OK   Migrations applied
+  OK   Database connectivity verified
+
+Next:
+  bun run dev          # start dev server at http://127.0.0.1:5173
+  edit src/lib/styles/tokens.css       # brand colors / fonts
+  edit content/pages/home.yml          # homepage content
+
+CMS local editing:
+  1. Run: bun run dev
+  2. Open: http://127.0.0.1:5173/admin/index.html in a Chromium browser
+  3. Click "Work with Local Repository"
+  4. Select this project folder
+  5. Edit content; commit changes with Git as usual
+
+Launch blockers (run `bun run doctor` for detail):
+  ⚠ static/og-default.png is still the template asset       (LAUNCH-OG-001)
+  ⚠ ORIGIN and PUBLIC_SITE_URL still point to localhost     (LAUNCH-ENV-001/002)
+  ⚠ static/admin/config.yml backend.repo still placeholder  (LAUNCH-CMS-001)
+
+Bootstrap is safe to re-run. State recorded at .bootstrap.state.json.
+```
+
+The "Database connectivity verified" line is deliberate — bootstrap calls
+`check:db` directly. `/readyz` is verified over HTTP only by the Phase 8
+CI smoke job.
+
+---
+
+## 8. Error code registry (`scripts/lib/errors.ts`)
+
+```
+BOOT-BUN-001    Bun missing or below 1.1
+BOOT-ENV-001    .env exists but malformed
+BOOT-INIT-001   init:site failed or left placeholders in init-owned files
+BOOT-PG-001     no reachable Postgres and no container runtime
+BOOT-PG-002     bootstrap-owned container exists but unhealthy / labels mismatch
+BOOT-PG-003     port collision; could not allocate within 50000–55000
+BOOT-DB-001     DATABASE_URL parse failed
+BOOT-DB-002     DB auth failed (Postgres SQLSTATE 28P01)
+BOOT-DB-003     database missing (Postgres SQLSTATE 3D000)
+BOOT-DB-004     schema privilege error (Postgres SQLSTATE 42501)
+BOOT-MIG-001    drizzle-kit migrate failed
+BOOT-GUARD-001  bootstrap attempted to mutate a non-allowlisted file
+
+LAUNCH-OG-001       static/og-default.png is still the template asset
+LAUNCH-SEO-001      site.defaultTitle still placeholder
+LAUNCH-CMS-001      static/admin/config.yml backend.repo still placeholder
+LAUNCH-ENV-001      ORIGIN points to localhost
+LAUNCH-ENV-002      PUBLIC_SITE_URL points to localhost
+LAUNCH-APPHTML-001  src/app.html title still template fallback
+LAUNCH-BACKUP-001   production backup config missing
+LAUNCH-EMAIL-001    contact form still console-only (POSTMARK_SERVER_TOKEN unset)
+```
+
+Codes are stable. Adding a new code is fine; renumbering or removing one is
+a breaking change requiring an ADR.
+
+---
+
+## 9. Launch-blockers manifest (`scripts/lib/launch-blockers.ts`)
+
+```ts
+export type LaunchBlocker = {
+	id: string; // e.g. 'LAUNCH-OG-001'
+	label: string; // human-readable short label
+	severity: 'required' | 'recommended';
+	check: () => Promise<{
+		status: 'pass' | 'warn' | 'fail';
+		detail?: string;
+	}>;
+	fixHint: string; // 'NEXT: …' line content
+	docsPath?: string; // optional doc link
+};
+```
+
+Consumed by:
+
+- `bun run doctor` — renders all blockers grouped by severity.
+- `bun run validate:launch` (a.k.a. `bun run launch:check`) — fails on any
+  `required` blocker with `status: 'fail'`.
+- The dev banner — via the server-only wrapper at
+  `src/lib/server/launch-blockers.ts`.
+- The bootstrap summary — surfaces a short subset (the most likely remaining
+  three) at the end of a successful bootstrap.
+
+No filesystem-heavy script code is ever imported into client components.
+The wrapper at `src/lib/server/launch-blockers.ts` is the only bridge.
+
+---
+
+## 10. Acceptance / done definition
+
+The project is done when **all** of the following are true:
+
+- `git clone … && cd … && ./bootstrap && bun run dev` produces a live local
+  site against a real local Postgres on a fresh machine with only Bun and
+  Podman (or Docker) installed.
+- Re-running `./bootstrap` produces zero file changes.
+- `bun run doctor` against a fresh-bootstrap repo lists the three expected
+  launch blockers (OG image, ORIGIN/PUBLIC_SITE_URL placeholder, CMS
+  `backend.repo` placeholder) and exits with a warn status, not fail.
+- `bun run launch:check` against a properly-initialized project (real OG
+  image, real domain, real CMS repo) exits 0.
+- CI gates every PR with `format:check`, `check:bootstrap` (dry-run +
+  mock-provisioner), `secrets:check`, and the standard `validate` suite.
+- The `bootstrap-smoke` job on `main` push performs a real
+  bootstrap → build → start → `curl /readyz` flow and exits 0.
+- README and `docs/getting-started.md` lead with the bootstrap path; the
+  manual path is preserved as "advanced."
+- ADR-021 is committed and accepted.
+
+---
+
+## 11. PR / commit sequence
+
+```
+1.  Phase 0:  prettier baseline + format:check in validate            (PR #1)
+2.  Phase 1:  scripts/lib primitives + error registry + manifest stub (PR #2)
+3.  Phase 2:  scripts/check-db-health.ts + bun run check:db           (PR #3)
+4.  Phase 3:  ./bootstrap + scripts/bootstrap.ts                      (PR #4)
+5.  Phase 4:  scripts/doctor.ts + bun run doctor + ADR-021            (PR #5)
+6.  Phase 5:  check:bootstrap dry-run + mock-provisioner + secrets    (PR #6)
+7.  Phase 5:  check:bootstrap-podman integration + nightly CI         (PR #7)
+8.  Phase 6:  Sveltia local-repo workflow docs                        (PR #8)
+9.  Phase 7:  launch-blockers manifest filled in                      (PR #9)
+10. Phase 8:  README + getting-started flip; bootstrap-smoke CI job   (PR #10)
+11. Phase 9:  launch:check, deploy:preflight, backup:check            (PR #11+)
+12. Phase 9:  reset:dev, seed:dev, dev banner, .template/project.json (PR #12+)
+```
+
+PRs 1–10 are the contract. PRs 11+ are incremental polish.
+
+**Estimated effort:** PRs 1–10 ≈ 2.5 focused days. PRs 11+ ≈ 1 day spread
+across separate sessions.
+
+---
+
+## 12. Out of scope (deliberately deferred)
+
+These were considered and explicitly punted. Reopening any of them requires
+an ADR.
+
+- **Baseline application auth.** Better Auth stays per-project. The local
+  Postgres role is a database owner role, not a website admin user.
+- **Browser-based installer (`/install` route).** SvelteKit treats
+  `DATABASE_URL` as required at runtime; the app cannot boot in
+  "install-mode." A CLI bootstrap is cleaner and avoids the production
+  exposure problem.
+- **Multi-template merge upgrade tooling (`bun run upgrade`).** The repo's
+  template-update strategy is clone-and-customize, not upstream-managed.
+  A future `bun run template:adopt <feature>` (one-shot, scoped) is the
+  better path; not in this project.
+- **SQLite or any "lite" DB path.** Postgres-first is non-negotiable.
+- **Lighthouse CI / RUM dashboards / Sentry / CodeQL.** Tracked separately
+  in `docs/planning/Do-this-next.md`.
+
+---
+
+## 13. References
+
+- `docs/planning/README.md` — source-of-truth precedence.
+- `docs/planning/01-principles.md` — template principles.
+- `docs/planning/11-template-build-backlog.md` — v1 readiness history.
+- `docs/planning/12-post-v1-roadmap.md` — beyond-baseline parking lot.
+- `docs/getting-started.md` — current first-run path (becomes the manual
+  path in Phase 8).
+- `docs/template-maintenance.md` — current validation lifecycle.
+- `AGENTS.md` — agent operating rules.
+- ADR-018 (production runtime contract) — Podman/Caddy/Quadlet baseline.
+- ADR-021 (this project) — to be authored during Phase 4.
