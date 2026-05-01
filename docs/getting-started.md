@@ -40,6 +40,13 @@ cp CLAUDE.md.template CLAUDE.md
 Fill in every `[PLACEHOLDER]` in `CLAUDE.md`. This file governs how AI coding
 agents behave in the project — fill it in before inviting any AI assistant.
 
+For a worked example showing what a finished, filled-in `CLAUDE.md` looks like
+(every placeholder resolved, project-specific rules added), see
+[CLAUDE.example.md](../CLAUDE.example.md). Refer to it when in doubt about
+section length, level of detail, or what a "filled in" answer looks like — but
+always copy from `CLAUDE.md.template` (the example uses fictional Acme Studio
+values).
+
 ---
 
 ## Step 3 — Run init:site
@@ -163,6 +170,30 @@ backend:
   branch: main
 ```
 
+### Verify CMS access before continuing
+
+```bash
+bun run dev
+# open http://127.0.0.1:5173/admin in a browser
+```
+
+You should see the Sveltia CMS login screen and be able to authenticate against
+the GitHub repo you configured. After signing in, the editor should list the
+collections defined in `config.yml` (Pages, Articles, Team, Testimonials).
+
+If the editor fails to load or auth fails:
+
+- Confirm `backend.repo` is `<owner>/<repo>`, not a URL.
+- Confirm your GitHub account has push access to the repo.
+- Confirm the repo's default branch matches `backend.branch` (usually `main`).
+- For first-run local development only, you can add `local_backend: true` to
+  `config.yml` to bypass GitHub auth — but **remove it before deploying**.
+  This is also enforced by `bun run check:cms`.
+
+Stop here and resolve any failure before moving on. Step 9 edits content the
+CMS will manage; verifying CMS auth first prevents commits that the editor
+won't be able to round-trip.
+
 ---
 
 ## Step 9 — Edit content/pages/home.yml
@@ -176,20 +207,68 @@ with real copy. The home route loads this file at build time — no database nee
 
 `DATABASE_URL` is required. The app will not start without it.
 
-1. **Create a local Postgres database:**
+1. **Make sure Postgres is running.** If you don't already have one running locally, the fastest options are:
 
    ```bash
+   # Option A — Podman (matches the prod runtime; recommended)
+   podman run -d --name site-pg \
+     -e POSTGRES_PASSWORD=devpw -e POSTGRES_DB=site_db -e POSTGRES_USER=site_user \
+     -p 127.0.0.1:5432:5432 \
+     docker.io/library/postgres:17-alpine
+   # DATABASE_URL=postgres://site_user:devpw@127.0.0.1:5432/site_db
+
+   # Option B — Docker Desktop
+   docker run -d --name site-pg \
+     -e POSTGRES_PASSWORD=devpw -e POSTGRES_DB=site_db -e POSTGRES_USER=site_user \
+     -p 127.0.0.1:5432:5432 \
+     postgres:17-alpine
+
+   # Option C — Native install (macOS Homebrew, Debian/Ubuntu apt, Fedora dnf)
+   #   macOS:        brew install postgresql@17 && brew services start postgresql@17
+   #   Debian/Ubuntu: sudo apt install postgresql && sudo systemctl start postgresql
+   #   Fedora:       sudo dnf install postgresql-server && sudo postgresql-setup --initdb && sudo systemctl start postgresql
+   ```
+
+   With Options A and B, the database, user, and password are created by the
+   container at first start — skip step 2 below and jump to step 3.
+
+2. **Create the database and user (native install only):**
+
+   ```bash
+   # Easy path — your shell user already has a Postgres role with CREATEDB
    createdb site_db
    createuser site_user --pwprompt
    psql site_db -c "GRANT ALL ON DATABASE site_db TO site_user;"
    psql site_db -c "GRANT ALL ON SCHEMA public TO site_user;"
    ```
 
-2. **Set `DATABASE_URL` in your environment:**
-   - SOPS workflow (recommended): add to `secrets.yaml`, then `bun run secrets:render`
-   - Direct `.env` workflow: copy `.env.example` to `.env` and fill in `DATABASE_URL`
+   **If `createdb` or `createuser` fails with "role does not exist" or
+   "permission denied":** your shell user is not a Postgres superuser. Run the
+   equivalents through the `postgres` superuser instead:
 
-3. **Run migrations:**
+   ```bash
+   # Linux (Debian/Ubuntu/Fedora) — postgres OS user owns the cluster
+   sudo -u postgres psql <<'SQL'
+   CREATE DATABASE site_db;
+   CREATE USER site_user WITH PASSWORD 'devpw';
+   GRANT ALL ON DATABASE site_db TO site_user;
+   \connect site_db
+   GRANT ALL ON SCHEMA public TO site_user;
+   SQL
+
+   # macOS Homebrew — your shell user is the cluster owner; if `createdb`
+   # still fails, the cluster did not finish initializing:
+   brew services restart postgresql@17
+   ```
+
+3. **Set `DATABASE_URL` in your environment:**
+   - SOPS workflow (recommended for shipping projects): add to `secrets.yaml`,
+     then `bun run secrets:render`. See
+     [docs/deployment/secrets.md](deployment/secrets.md).
+   - Direct `.env` workflow (fastest for local dev): copy `.env.example` to
+     `.env` and fill in `DATABASE_URL`. `.env` is gitignored.
+
+4. **Run migrations:**
 
    ```bash
    bun run db:migrate
@@ -199,11 +278,17 @@ with real copy. The home route loads this file at build time — no database nee
 
    Runtime tables have default privacy retention windows. Review [docs/privacy/data-retention.md](privacy/data-retention.md), then use `bun run privacy:prune` for a dry-run before enabling scheduled pruning.
 
-4. **Verify:**
+5. **Verify:**
+
    ```bash
    curl http://127.0.0.1:3000/readyz   # after starting the dev server
    ```
+
    Should return `{"ok": true, "checks": {"database": {"ok": true}}, ...}`.
+
+   If `/readyz` returns 503 with `database.ok: false`: your `DATABASE_URL` is
+   wrong, the database isn't running, or the user lacks privileges on the
+   `public` schema. The `error` field on the response identifies which.
 
 See [docs/database/README.md](database/README.md) for the full setup guide, scripts reference, and production checklist.
 
@@ -214,6 +299,35 @@ See [docs/database/README.md](database/README.md) for the full setup guide, scri
 The full optional module registry is at **[docs/modules/README.md](modules/README.md)**. Every module is dormant by default — no runtime cost unless activated.
 
 The contact form works immediately — it saves to Postgres, logs emails to stdout, and skips outbound automation gracefully. Configure the modules below to extend it.
+
+### Where each kind of value lives
+
+The table below tells you _what_ to set; this section tells you _where_. The
+template uses three distinct surfaces — pick the right one for each variable:
+
+| Surface                | Use for                                                                                                           | Committed?            |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `secrets.yaml` (SOPS)  | All real secret values (API tokens, webhook secrets, DB passwords, backup credentials) — local **and** production | Yes, encrypted        |
+| `.env` (gitignored)    | Local-dev convenience copy of values rendered by `bun run secrets:render`, or quick local-only overrides          | **No** — never commit |
+| `.env.example`         | The public contract — every required variable name, no real values                                                | Yes                   |
+| Production runtime env | What Quadlet/Caddy/CI inject at runtime; usually rendered from `secrets.yaml` by `push-secrets` style scripts     | No                    |
+
+Rules of thumb:
+
+- If a value is **secret** (token, password, signed-webhook secret), it
+  belongs in `secrets.yaml`. Run `bun run secrets:render` to materialize a
+  local `.env`; CI/prod gets its own rendered env file.
+- If a value is **public** (`PUBLIC_*` vars: site URL, GTM ID, analytics
+  toggles), it can live in `.env` directly — these end up in the client bundle
+  anyway. Do not encrypt public values.
+- If a value is a **boolean toggle** (`AUTOMATION_PROVIDER=n8n`,
+  `RATE_LIMIT_ENABLED=true`), it can live in `.env` for local dev and in your
+  prod env file for production.
+- Add new variable _names_ to `.env.example` (and `secrets.example.yaml` if
+  secret) the same commit you start using them. `bun run secrets:check` will
+  catch plaintext leaks.
+
+Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
 
 | Module                    | How to activate                                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

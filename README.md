@@ -185,7 +185,7 @@ bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)
 bun run db:studio            # open Drizzle Studio
-bun run validate             # PR-grade: check → seo → cms → content → assets → images → build → unit → e2e
+bun run validate             # PR-grade: check → seo → analytics → cms → content → assets → design-system → images → build → unit → e2e
 bun run validate:launch      # release-grade: validate + check:launch + check:content-diff
 ```
 
@@ -317,6 +317,7 @@ CMS writes are treated as untrusted until validated. The scripts catch blank req
 
 - [AGENTS.md](AGENTS.md) — rules for AI coding agents (includes observability and CMS safety rules)
 - [CLAUDE.md.template](CLAUDE.md.template) — template for per-project `CLAUDE.md`
+- [CLAUDE.example.md](CLAUDE.example.md) — filled-in reference copy showing what a finished `CLAUDE.md` looks like
 - [docs/design-system/llm-css-rules.md](docs/design-system/llm-css-rules.md) — paste-ready CSS rules for AI agents
 
 ## What is deliberately not in this template
