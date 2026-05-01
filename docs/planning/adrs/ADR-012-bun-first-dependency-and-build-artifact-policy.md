@@ -16,6 +16,7 @@ This template is **Bun-first**. Bun is the exclusive package manager and script 
 A reusable template ships to many future projects. Inconsistent toolchain choices create maintenance debt: if one session uses npm and another uses bun, the lockfiles diverge, `node_modules` layouts differ, and CI fails unpredictably. A hard, documented rule eliminates that class of problem.
 
 The three other artifact hygiene rules — never commit `node_modules/`, `.svelte-kit/`, or `build/` — exist because each of those directories is:
+
 - Machine-generated, not human-authored
 - Regenerated deterministically from source
 - Large (megabytes to gigabytes)

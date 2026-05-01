@@ -23,6 +23,7 @@ We do not code in production. Ever.
 The template is unified, not bloated. Only what every project needs runs by default.
 
 **Core (always on):**
+
 - SvelteKit / Svelte 5
 - Bun (tooling and runtime)
 - CSS token/design-system baseline (hand-authored custom properties and explicit CSS layers)
@@ -32,6 +33,7 @@ The template is unified, not bloated. Only what every project needs runs by defa
 - Agent-readable operating rules
 
 **Dormant/prepared modules (off by default, ready to activate):**
+
 - Postgres + Drizzle (runtime data)
 - n8n (automation workflows)
 - Postmark or equivalent (transactional email)
@@ -54,7 +56,7 @@ AI agents will be used heavily to scaffold, modify, and maintain projects built 
 
 - `AGENTS.md` defines universal operating rules for AI agents working in any project spawned from this template.
 - `CLAUDE.md.template` ships with the template so each new project establishes its own agent context immediately.
-- Infrastructure decisions link to the `docs/planning/adrs/` folder so agents understand the *why*, not just the *what*.
+- Infrastructure decisions link to the `docs/planning/adrs/` folder so agents understand the _why_, not just the _what_.
 
 ## 6. Sveltia for Content, Postgres for Runtime
 

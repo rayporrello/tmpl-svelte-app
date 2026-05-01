@@ -32,7 +32,7 @@ const WEBP_QUALITY = 82;
 const sources = await glob('**/*.{jpg,jpeg,png,tiff,JPG,JPEG,PNG,TIFF}', {
 	cwd: uploadsDir,
 	absolute: true,
-	nodir: true
+	nodir: true,
 });
 
 if (sources.length === 0) {
@@ -73,6 +73,4 @@ for (const sourcePath of sources) {
 	}
 }
 
-console.log(
-	`optimize-images: done — ${processed} converted, ${skipped} already current.`
-);
+console.log(`optimize-images: done — ${processed} converted, ${skipped} already current.`);

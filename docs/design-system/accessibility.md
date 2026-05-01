@@ -28,8 +28,8 @@ All interactive elements use `:focus-visible` (not `:focus`) so only keyboard-dr
 
 ```css
 :focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
+	outline: 2px solid var(--border-focus);
+	outline-offset: 2px;
 }
 ```
 
@@ -45,11 +45,13 @@ All interactive elements use `:focus-visible` (not `:focus`) so only keyboard-dr
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
 }
 ```
 
@@ -77,11 +79,11 @@ Key rules this template enforces:
 
 The design token system in `src/lib/styles/tokens.css` uses semantic tokens:
 
-| Token | Light | Dark | Notes |
-|-------|-------|------|-------|
-| `--text-primary` | `--brand-dark` (18% L) | `--brand-white` | Highest contrast |
-| `--text-secondary` | `oklch(45% 0.04 260)` | 70% white | ≥ 4.5:1 on brand-light bg |
-| `--text-muted` | `oklch(50% 0.03 260)` | 40% white | Use for decorative / non-essential text only |
+| Token              | Light                  | Dark            | Notes                                        |
+| ------------------ | ---------------------- | --------------- | -------------------------------------------- |
+| `--text-primary`   | `--brand-dark` (18% L) | `--brand-white` | Highest contrast                             |
+| `--text-secondary` | `oklch(45% 0.04 260)`  | 70% white       | ≥ 4.5:1 on brand-light bg                    |
+| `--text-muted`     | `oklch(50% 0.03 260)`  | 40% white       | Use for decorative / non-essential text only |
 
 **Do not use `--text-muted` for informational content** — it is intentionally near the contrast threshold. Reserve it for decorative or supplementary text (e.g. character counts, timestamps where a formatted date is already present).
 

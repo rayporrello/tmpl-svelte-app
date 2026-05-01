@@ -20,9 +20,9 @@ export function organizationSchema(): Record<string, unknown> {
 		url: site.url,
 		logo: {
 			'@type': 'ImageObject',
-			url: buildImageUrl(site.organization.logo)
+			url: buildImageUrl(site.organization.logo),
 		},
-		sameAs: site.organization.sameAs
+		sameAs: site.organization.sameAs,
 	};
 }
 
@@ -36,8 +36,8 @@ export function websiteSchema(): Record<string, unknown> {
 		publisher: {
 			'@type': 'Organization',
 			name: site.organization.name,
-			url: site.url
-		}
+			url: site.url,
+		},
 	};
 }
 
@@ -68,16 +68,16 @@ export function articleSchema(input: ArticleSchemaInput): Record<string, unknown
 		author: {
 			'@type': 'Person',
 			name: input.authorName,
-			...(input.authorUrl ? { url: input.authorUrl } : {})
+			...(input.authorUrl ? { url: input.authorUrl } : {}),
 		},
 		publisher: {
 			'@type': 'Organization',
 			name: site.organization.name,
 			logo: {
 				'@type': 'ImageObject',
-				url: buildImageUrl(site.organization.logo)
-			}
-		}
+				url: buildImageUrl(site.organization.logo),
+			},
+		},
 	};
 }
 
@@ -97,8 +97,8 @@ export function breadcrumbSchema(items: BreadcrumbItem[]): Record<string, unknow
 			'@type': 'ListItem',
 			position: i + 1,
 			name: item.name,
-			item: buildCanonicalUrl(item.path)
-		}))
+			item: buildCanonicalUrl(item.path),
+		})),
 	};
 }
 
@@ -122,7 +122,7 @@ export function personSchema(input: PersonSchemaInput): Record<string, unknown> 
 		...(input.image ? { image: buildImageUrl(input.image) } : {}),
 		...(input.jobTitle ? { jobTitle: input.jobTitle } : {}),
 		...(input.description ? { description: input.description } : {}),
-		...(input.sameAs?.length ? { sameAs: input.sameAs } : {})
+		...(input.sameAs?.length ? { sameAs: input.sameAs } : {}),
 	};
 }
 
@@ -156,11 +156,11 @@ export function localBusinessSchema(input: LocalBusinessSchemaInput): Record<str
 		...(input.telephone ? { telephone: input.telephone } : {}),
 		address: {
 			'@type': 'PostalAddress',
-			...input.address
+			...input.address,
 		},
 		...(input.image ? { image: buildImageUrl(input.image) } : {}),
 		...(input.openingHours?.length ? { openingHours: input.openingHours } : {}),
-		...(input.priceRange ? { priceRange: input.priceRange } : {})
+		...(input.priceRange ? { priceRange: input.priceRange } : {}),
 	};
 }
 
@@ -181,8 +181,8 @@ export function faqSchema(items: FaqItem[]): Record<string, unknown> {
 			name: item.question,
 			acceptedAnswer: {
 				'@type': 'Answer',
-				text: item.answer
-			}
-		}))
+				text: item.answer,
+			},
+		})),
 	};
 }

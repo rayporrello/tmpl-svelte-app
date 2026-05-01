@@ -25,18 +25,18 @@ Key decisions:
 
 ## Implementation
 
-| File | Role |
-|------|------|
-| `src/lib/styles/tokens.css` | Brand file — edit per project |
-| `src/lib/styles/reset.css` | Architecture — do not edit |
-| `src/lib/styles/base.css` | Architecture — do not edit |
-| `src/lib/styles/animations.css` | Architecture — add brand motion below marker |
-| `src/lib/styles/utilities.css` | Architecture — add brand utilities below marker |
-| `src/lib/styles/forms.css` | Architecture — add brand form overrides below marker |
-| `src/app.css` | Entry — imports only, layer declaration |
-| `src/app.html` | HTML shell — update title, theme-color, favicon |
-| `src/routes/+layout.svelte` | Root layout — imports `app.css` |
-| `src/routes/styleguide/+page.svelte` | Design system demo |
+| File                                 | Role                                                 |
+| ------------------------------------ | ---------------------------------------------------- |
+| `src/lib/styles/tokens.css`          | Brand file — edit per project                        |
+| `src/lib/styles/reset.css`           | Architecture — do not edit                           |
+| `src/lib/styles/base.css`            | Architecture — do not edit                           |
+| `src/lib/styles/animations.css`      | Architecture — add brand motion below marker         |
+| `src/lib/styles/utilities.css`       | Architecture — add brand utilities below marker      |
+| `src/lib/styles/forms.css`           | Architecture — add brand form overrides below marker |
+| `src/app.css`                        | Entry — imports only, layer declaration              |
+| `src/app.html`                       | HTML shell — update title, theme-color, favicon      |
+| `src/routes/+layout.svelte`          | Root layout — imports `app.css`                      |
+| `src/routes/styleguide/+page.svelte` | Design system demo                                   |
 
 Real design system documentation: `docs/design-system/`
 

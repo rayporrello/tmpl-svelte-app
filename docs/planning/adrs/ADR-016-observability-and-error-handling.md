@@ -16,6 +16,7 @@ The template must provide error visibility and operational safety for every webs
 - A revenue-critical site with auth and payments needs distributed tracing, SLOs, incident runbooks, and dead-letter handling.
 
 Installing the full enterprise observability stack in every site from this template would:
+
 - Add unnecessary cost and maintenance burden to small sites.
 - Create false confidence (an always-healthy `/readyz` with no real checks).
 - Introduce dependencies that require separate infrastructure to operate.
@@ -30,25 +31,25 @@ Adopt a **tiered observability model** with a lean default base spine.
 
 ### What is locked in the base template
 
-| Feature | File |
-|---------|------|
-| Friendly error page | `src/routes/+error.svelte` |
-| Health endpoint (process liveness only) | `src/routes/healthz/+server.ts` |
-| Structured server logging with redaction | `src/lib/server/logger.ts` |
-| Request ID propagation | `src/lib/server/request-id.ts` |
-| Safe error normalization | `src/lib/server/safe-error.ts` |
-| Shared observability types | `src/lib/observability/types.ts` |
-| Centralized error handler | `src/hooks.server.ts` |
+| Feature                                  | File                             |
+| ---------------------------------------- | -------------------------------- |
+| Friendly error page                      | `src/routes/+error.svelte`       |
+| Health endpoint (process liveness only)  | `src/routes/healthz/+server.ts`  |
+| Structured server logging with redaction | `src/lib/server/logger.ts`       |
+| Request ID propagation                   | `src/lib/server/request-id.ts`   |
+| Safe error normalization                 | `src/lib/server/safe-error.ts`   |
+| Shared observability types               | `src/lib/observability/types.ts` |
+| Centralized error handler                | `src/hooks.server.ts`            |
 
 These are included in every site built from the template, regardless of tier.
 
 ### The three official tiers
 
-| Tier | Site type | Additional tooling |
-|------|-----------|-------------------|
-| **Small** | Static, content, landing | (Base template only) |
-| **Medium** | CMS, forms, Postgres, n8n | Sentry, `/readyz`, n8n Error Workflow, backup verification |
-| **Large** | Revenue-critical, auth, payments | OpenTelemetry, SLOs, incident runbooks, dead-letter tables |
+| Tier       | Site type                        | Additional tooling                                         |
+| ---------- | -------------------------------- | ---------------------------------------------------------- |
+| **Small**  | Static, content, landing         | (Base template only)                                       |
+| **Medium** | CMS, forms, Postgres, n8n        | Sentry, `/readyz`, n8n Error Workflow, backup verification |
+| **Large**  | Revenue-critical, auth, payments | OpenTelemetry, SLOs, incident runbooks, dead-letter tables |
 
 See [docs/observability/tiers.md](../../../docs/observability/tiers.md) for the complete tier model.
 
@@ -61,12 +62,14 @@ n8n workflow naming, payload shape, failure policy, and security posture are doc
 ## Consequences
 
 **Positive:**
+
 - Every site has a minimal safety spine from day one.
 - Small sites do not carry infrastructure they do not need.
 - The seams (request IDs in `event.locals`, typed `WorkflowEventPayload`, structured log context) make it clean to add Tier 2/3 features later.
 - Agent rules prevent ad hoc `console.error` sprawl and secret leakage in logs.
 
 **Negative:**
+
 - Tier 2/3 features require deliberate per-project installation. There is no automatic upgrade.
 - A solo operator who does not read the tiers doc may miss that Sentry is needed on a Tier 2 site.
 

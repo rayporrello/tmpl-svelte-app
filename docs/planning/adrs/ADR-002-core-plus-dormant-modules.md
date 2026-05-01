@@ -13,6 +13,7 @@ A reusable template must balance two competing pressures: it should be rich enou
 The template maintains a strict two-tier structure:
 
 **Core — always on:**
+
 - SvelteKit / Svelte 5 (framework)
 - Bun (tooling and runtime)
 - CSS token/design-system baseline (custom properties, explicit CSS layers, hand-authored component styles)
@@ -22,6 +23,7 @@ The template maintains a strict two-tier structure:
 - Agent operating rules (`AGENTS.md`, `CLAUDE.md.template`)
 
 **Dormant modules — prepared but off:**
+
 - Postgres + Drizzle (runtime data)
 - n8n (automation workflows)
 - Postmark or equivalent (transactional email)

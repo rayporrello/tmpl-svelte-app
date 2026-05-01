@@ -10,14 +10,14 @@ Component-specific styles belong in the `<style>` block of the `.svelte` file. S
 
 ```svelte
 <div class="hero">
-  <h1>Heading</h1>
+	<h1>Heading</h1>
 </div>
 
 <style>
-  .hero {
-    padding-block: var(--section-space);
-    background: var(--surface-sunken);
-  }
+	.hero {
+		padding-block: var(--section-space);
+		background: var(--surface-sunken);
+	}
 </style>
 ```
 
@@ -47,15 +47,15 @@ If the right semantic token doesn't exist yet, add it to `tokens.css` first.
 
 Use CSS logical properties instead of physical directional properties. They work correctly in right-to-left languages without overrides.
 
-| Physical | Logical |
-|----------|---------|
-| `margin-left` | `margin-inline-start` |
-| `margin-right` | `margin-inline-end` |
-| `margin-top` | `margin-block-start` |
-| `margin-bottom` | `margin-block-end` |
-| `padding-left` | `padding-inline-start` |
-| `padding: X Y` | `padding-block: X; padding-inline: Y` |
-| `border-top` | `border-block-start` |
+| Physical                      | Logical                                   |
+| ----------------------------- | ----------------------------------------- |
+| `margin-left`                 | `margin-inline-start`                     |
+| `margin-right`                | `margin-inline-end`                       |
+| `margin-top`                  | `margin-block-start`                      |
+| `margin-bottom`               | `margin-block-end`                        |
+| `padding-left`                | `padding-inline-start`                    |
+| `padding: X Y`                | `padding-block: X; padding-inline: Y`     |
+| `border-top`                  | `border-block-start`                      |
 | `left` / `right` (in `inset`) | `inset-inline-start` / `inset-inline-end` |
 
 Shorthands like `padding-inline: X` and `padding-block: X` are fine and preferred over spelling out all four sides when both axes are equal.
@@ -69,14 +69,14 @@ Components own the gap between their own children. Use `gap` in flex and grid la
 ```css
 /* Right */
 .card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-component-gap);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-component-gap);
 }
 
 /* Wrong — margin creates outside dependency */
 .card > * + * {
-  margin-block-start: var(--space-4);
+	margin-block-start: var(--space-4);
 }
 ```
 
@@ -91,13 +91,13 @@ A component must not set its own `margin` on the outer element. The parent layou
 ```css
 /* Wrong — component controls its own outside margin */
 .card {
-  margin-block-end: var(--space-8);
+	margin-block-end: var(--space-8);
 }
 
 /* Right — parent controls the gap */
 .card-grid {
-  display: grid;
-  gap: var(--space-6);
+	display: grid;
+	gap: var(--space-6);
 }
 ```
 
@@ -109,23 +109,23 @@ When a component's internal layout should respond to its available width (not th
 
 ```svelte
 <div class="card-grid container-inline">
-  {#each items as item}
-    <div class="card">…</div>
-  {/each}
+	{#each items as item}
+		<div class="card">…</div>
+	{/each}
 </div>
 
 <style>
-  .card-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
-  }
+	.card-grid {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: var(--space-4);
+	}
 
-  @container (inline-size >= 40rem) {
-    .card-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
+	@container (inline-size >= 40rem) {
+		.card-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
 </style>
 ```
 
@@ -165,6 +165,7 @@ padding-inline: var(--space-6);
 ```
 
 **Approved exceptions:**
+
 - `1px` borders and outlines
 - `2px` focus ring outlines
 - Sub-pixel optical corrections (e.g., `translateY(-1px)` for vertical centering of icons)
@@ -191,20 +192,29 @@ background: color-mix(in oklch, var(--brand-accent) 15%, transparent);
 ```css
 /* Whole-element fade — modal, backdrop, tooltip */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
 }
 
 /* Disabled state — dim the whole control, including its placeholder and icons */
 .input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 /* Skeleton / pulse — the whole element pulses */
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
 }
 ```
 
@@ -220,8 +230,8 @@ If a component needs a custom focus ring:
 
 ```css
 .custom-button:focus-visible {
-  outline: 2px solid var(--state-focus-ring);
-  outline-offset: 2px;
+	outline: 2px solid var(--state-focus-ring);
+	outline-offset: 2px;
 }
 ```
 
@@ -234,6 +244,7 @@ Interactive elements must meet the 44×44px minimum touch target. Use `min-heigh
 ### Color is not the sole status indicator
 
 Do not use color alone to convey error, success, or warning status. Pair it with:
+
 - An icon or symbol
 - A visible text label
 - An ARIA attribute (`aria-invalid`, `aria-live`, `role="alert"`)

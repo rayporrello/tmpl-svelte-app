@@ -43,7 +43,7 @@ const TRUSTED_SANITIZE: sanitizeHtml.IOptions = {
 		'figcaption',
 		'details',
 		'summary',
-		'pre'
+		'pre',
 	]),
 	allowedAttributes: {
 		...sanitizeHtml.defaults.allowedAttributes,
@@ -51,16 +51,16 @@ const TRUSTED_SANITIZE: sanitizeHtml.IOptions = {
 		a: ['href', 'title', 'target', 'rel'],
 		img: ['src', 'alt', 'width', 'height', 'loading'],
 		pre: ['class'],
-		code: ['class']
+		code: ['class'],
 	},
-	allowedSchemes: ['http', 'https', 'mailto']
+	allowedSchemes: ['http', 'https', 'mailto'],
 };
 
 // User-submitted: minimal allow-list — no images, no headings, no code blocks.
 const USER_SANITIZE: sanitizeHtml.IOptions = {
 	allowedTags: ['p', 'br', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'blockquote', 'code'],
 	allowedAttributes: { a: ['href'] },
-	allowedSchemes: ['https']
+	allowedSchemes: ['https'],
 };
 
 function getSanitizeOptions(tier: TrustTier): sanitizeHtml.IOptions {

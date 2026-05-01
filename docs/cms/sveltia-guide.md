@@ -11,7 +11,7 @@ Conventions and safety rules for working with Sveltia CMS configuration and cont
 ```yaml
 # static/admin/config.yml — correct
 - name: articles
-  format: frontmatter   # ← YAML frontmatter
+  format: frontmatter # ← YAML frontmatter
   extension: md
 ```
 
@@ -31,7 +31,7 @@ Required date fields should be ISO 8601 datetime with timezone.
   name: publishedAt
   widget: datetime
   required: true
-  hint: "Use ISO 8601 with timezone, e.g. 2026-04-27T12:00:00Z"
+  hint: 'Use ISO 8601 with timezone, e.g. 2026-04-27T12:00:00Z'
 ```
 
 ### Optional date fields — the problem
@@ -64,8 +64,7 @@ If a date-like field genuinely needs to be optional, use one of these patterns i
   name: updatedAt
   widget: string
   required: false
-  hint: "ISO 8601 datetime with timezone, e.g. 2026-04-27T12:00:00Z. Leave blank if unchanged."
-
+  hint: 'ISO 8601 datetime with timezone, e.g. 2026-04-27T12:00:00Z. Leave blank if unchanged.'
 # ✓ Also fine — simply omit the field if it is rarely needed
 ```
 
@@ -86,11 +85,11 @@ Date-only values (`2026-04-27`) are acceptable for `date` fields that represent 
 
 Optional fields that are not filled in must be **omitted entirely** from frontmatter. They must never be saved as:
 
-| Bad value | Why |
-|-----------|-----|
-| `""` | Breaks loaders that expect `string | undefined`, not `""` |
-| `null` | Breaks TypeScript `string` types |
-| `"null"` | Literal string "null" — causes display bugs |
+| Bad value     | Why                                              |
+| ------------- | ------------------------------------------------ | -------------------- |
+| `""`          | Breaks loaders that expect `string               | undefined`, not `""` |
+| `null`        | Breaks TypeScript `string` types                 |
+| `"null"`      | Literal string "null" — causes display bugs      |
 | `"undefined"` | Literal string "undefined" — causes display bugs |
 
 If Sveltia is saving blank optional fields as `""` or `null`, check the widget configuration. Consider switching to a `string` widget with `required: false` instead of `datetime`.
@@ -136,7 +135,7 @@ A casual field rename breaks the entire content pipeline. Treat it like a databa
   name: publishedAt
   widget: datetime
   required: true
-  hint: "Use ISO 8601 with timezone, e.g. 2026-04-27T12:00:00Z"
+  hint: 'Use ISO 8601 with timezone, e.g. 2026-04-27T12:00:00Z'
 ```
 
 ### Optional date field — incorrect
@@ -157,7 +156,7 @@ A casual field rename breaks the entire content pipeline. Treat it like a databa
   name: updatedAt
   widget: string
   required: false
-  hint: "ISO 8601 with timezone (e.g. 2026-04-27T12:00:00Z). Omit if unchanged."
+  hint: 'ISO 8601 with timezone (e.g. 2026-04-27T12:00:00Z). Omit if unchanged.'
 ```
 
 ### TOML frontmatter — incorrect
@@ -184,5 +183,5 @@ A casual field rename breaks the entire content pipeline. Treat it like a databa
 fields:
   - { name: title, widget: string }
   - { name: body, widget: markdown }
-  - { name: title, widget: string }   # duplicate!
+  - { name: title, widget: string } # duplicate!
 ```

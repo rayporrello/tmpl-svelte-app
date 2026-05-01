@@ -14,15 +14,15 @@ export function toSafeError(error: unknown): SafeError {
 			publicMessage: FALLBACK_MESSAGE,
 			diagnostic: {
 				errorType: error.name,
-				errorMessage: error.message
-			}
+				errorMessage: error.message,
+			},
 		};
 	}
 	return {
 		publicMessage: FALLBACK_MESSAGE,
 		diagnostic: {
 			errorType: 'UnknownError',
-			errorMessage: String(error)
-		}
+			errorMessage: String(error),
+		},
 	};
 }

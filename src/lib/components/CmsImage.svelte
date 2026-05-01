@@ -39,40 +39,24 @@
 		fetchpriority = 'auto',
 		sizes,
 		width,
-		height
+		height,
 	}: Props = $props();
 
 	// Treat already-optimised formats as pass-through — no <picture> transform needed.
 	// .avif: served directly (either a manually-placed developer asset, or a Tier 1
 	//   enhanced-img output that ended up in static/). Do not try to derive a .webp path.
 	// .webp: already the prebuild output format — serve directly.
-	const isAlreadyOptimised = $derived(src.toLowerCase().endsWith('.webp') || src.toLowerCase().endsWith('.avif'));
+	const isAlreadyOptimised = $derived(
+		src.toLowerCase().endsWith('.webp') || src.toLowerCase().endsWith('.avif')
+	);
 	const webpSrc = $derived(isAlreadyOptimised ? null : src.replace(/\.[^.]+$/, '.webp'));
 </script>
 
 {#if webpSrc}
 	<picture>
 		<source srcset={webpSrc} type="image/webp" {sizes} />
-		<img
-			{src}
-			{alt}
-			class={className}
-			{loading}
-			{fetchpriority}
-			{sizes}
-			{width}
-			{height}
-		/>
+		<img {src} {alt} class={className} {loading} {fetchpriority} {sizes} {width} {height} />
 	</picture>
 {:else}
-	<img
-		{src}
-		{alt}
-		class={className}
-		{loading}
-		{fetchpriority}
-		{sizes}
-		{width}
-		{height}
-	/>
+	<img {src} {alt} class={className} {loading} {fetchpriority} {sizes} {width} {height} />
 {/if}

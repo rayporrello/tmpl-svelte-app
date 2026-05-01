@@ -21,24 +21,24 @@ Non-negotiable HTML rules for AI agents generating markup in this template. Keep
 
 ## Forbidden patterns → replacements
 
-| Forbidden | Use instead |
-|-----------|-------------|
-| `<div class="header">` | `<header>` |
-| `<div class="nav">` | `<nav aria-label="...">` |
-| `<div class="footer">` | `<footer>` |
-| `<div class="main">` | `<main id="main-content">` |
-| `<div class="article">` | `<article>` |
-| `<div class="section">` | `<section>` |
-| `<div class="aside">` | `<aside>` |
-| `<div class="figure">` | `<figure>` |
-| `<span>April 26, 2026</span>` | `<time datetime="2026-04-26">April 26, 2026</time>` |
-| `<div class="button" onclick="...">` | `<button type="button">` |
-| `<button onclick="navigate()">` | `<a href="...">` |
-| `<h1>` in site header | `<a href="/" class="site-logo">` |
-| Image in `background-image` | `<figure><img src="..." alt="..."></figure>` |
-| `<div class="quote">` | `<figure><blockquote>…</blockquote><figcaption>—</figcaption></figure>` |
-| `<div class="key-value">` | `<dl><dt>…</dt><dd>…</dd></dl>` |
-| `<div class="faq-item">` | `<details><summary>…</summary><p>…</p></details>` |
+| Forbidden                            | Use instead                                                             |
+| ------------------------------------ | ----------------------------------------------------------------------- |
+| `<div class="header">`               | `<header>`                                                              |
+| `<div class="nav">`                  | `<nav aria-label="...">`                                                |
+| `<div class="footer">`               | `<footer>`                                                              |
+| `<div class="main">`                 | `<main id="main-content">`                                              |
+| `<div class="article">`              | `<article>`                                                             |
+| `<div class="section">`              | `<section>`                                                             |
+| `<div class="aside">`                | `<aside>`                                                               |
+| `<div class="figure">`               | `<figure>`                                                              |
+| `<span>April 26, 2026</span>`        | `<time datetime="2026-04-26">April 26, 2026</time>`                     |
+| `<div class="button" onclick="...">` | `<button type="button">`                                                |
+| `<button onclick="navigate()">`      | `<a href="...">`                                                        |
+| `<h1>` in site header                | `<a href="/" class="site-logo">`                                        |
+| Image in `background-image`          | `<figure><img src="..." alt="..."></figure>`                            |
+| `<div class="quote">`                | `<figure><blockquote>…</blockquote><figcaption>—</figcaption></figure>` |
+| `<div class="key-value">`            | `<dl><dt>…</dt><dd>…</dd></dl>`                                         |
+| `<div class="faq-item">`             | `<details><summary>…</summary><p>…</p></details>`                       |
 
 ---
 
@@ -47,16 +47,16 @@ Non-negotiable HTML rules for AI agents generating markup in this template. Keep
 ```svelte
 <!-- Use Section.svelte -->
 <Section id="hero" width="default">
-  <h2>Section heading</h2>
-  <p>…</p>
+	<h2>Section heading</h2>
+	<p>…</p>
 </Section>
 
 <!-- Or the raw pattern -->
 <section id="hero">
-  <div class="container">
-    <h2>Section heading</h2>
-    <p>…</p>
-  </div>
+	<div class="container">
+		<h2>Section heading</h2>
+		<p>…</p>
+	</div>
 </section>
 ```
 
@@ -72,8 +72,8 @@ Never put `padding-block` or rhythm on `.container`. Rhythm belongs on `<section
 
 <!-- Section headings -->
 <h2>Feature Overview</h2>
-  <h3>Subsection</h3>
-    <h4>Detail</h4>
+<h3>Subsection</h3>
+<h4>Detail</h4>
 
 <!-- Never skip levels -->
 <!-- Wrong: h1 → h4 -->
@@ -90,10 +90,10 @@ One question before writing any image markup:
 
 > **Is this image's path known at build time?**
 
-| Answer | Folder | Component | Import |
-|--------|--------|-----------|--------|
-| **Yes** — committed file, referenced in code | `src/lib/assets/` | `<enhanced:img>` | `import img from '$lib/assets/file.jpg'` |
-| **No** — runtime string from CMS, DB, or upload | `static/uploads/` | `<CmsImage>` | `import CmsImage from '$lib/components/CmsImage.svelte'` |
+| Answer                                          | Folder            | Component        | Import                                                   |
+| ----------------------------------------------- | ----------------- | ---------------- | -------------------------------------------------------- |
+| **Yes** — committed file, referenced in code    | `src/lib/assets/` | `<enhanced:img>` | `import img from '$lib/assets/file.jpg'`                 |
+| **No** — runtime string from CMS, DB, or upload | `static/uploads/` | `<CmsImage>`     | `import CmsImage from '$lib/components/CmsImage.svelte'` |
 
 Default to `<enhanced:img>` unless there is a runtime-path reason for `<CmsImage>`. When in doubt, ask. This is not about who created the image — it is about whether Vite can resolve the path at build time.
 
@@ -107,13 +107,13 @@ height  — display height in CSS pixels
 
 Use standard dimensions from `docs/design-system/images.md` → Standard image sizes. For `<enhanced:img>` (Tier 1), `width`/`height` should match the source file so the plugin generates the right srcset. For `<CmsImage>` (Tier 2), use the expected display size.
 
-| Use case | `width` attr | `height` attr |
-|----------|-------------|--------------|
-| Hero / full-bleed | 1920 | 960 |
-| Section feature | 1600 | 900 |
-| Article featured | 1200 | 630 |
-| Card (2–3/row) | 800 | 450 |
-| Team headshot | 400 | 400 |
+| Use case          | `width` attr | `height` attr |
+| ----------------- | ------------ | ------------- |
+| Hero / full-bleed | 1920         | 960           |
+| Section feature   | 1600         | 900           |
+| Article featured  | 1200         | 630           |
+| Card (2–3/row)    | 800          | 450           |
+| Team headshot     | 400          | 400           |
 
 Add `sizes="100vw"` to full-bleed images.
 
@@ -124,8 +124,7 @@ If the slot does not match a standard, ask for the correct display dimensions or
 If the image is the first large visible element on page load (hero, banner, full-width feature):
 
 ```svelte
-loading="eager"
-fetchpriority="high"
+loading="eager" fetchpriority="high"
 ```
 
 If below the fold: nothing. `loading="lazy"` is the default in both components.
@@ -193,9 +192,12 @@ If below the fold: nothing. `loading="lazy"` is the default in both components.
 <button type="submit">Send message</button>
 
 <!-- Never -->
-<div onclick="navigate()">…</div>          <!-- wrong -->
-<a onclick="doAction()">Click me</a>       <!-- wrong: action, not navigation -->
-<button onclick="location.href='/'">…</button> <!-- wrong: use <a> -->
+<div onclick="navigate()">…</div>
+<!-- wrong -->
+<a onclick="doAction()">Click me</a>
+<!-- wrong: action, not navigation -->
+<button onclick="location.href='/'">…</button>
+<!-- wrong: use <a> -->
 ```
 
 ---

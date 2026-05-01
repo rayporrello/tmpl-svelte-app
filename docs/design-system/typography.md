@@ -6,10 +6,10 @@ Permanent reference for font loading, CSS tokens, and typography decisions in th
 
 ## Default font pair
 
-| Role | Font | Package |
-|------|------|---------|
-| UI / body (`--font-sans`) | Plus Jakarta Sans Variable | `@fontsource-variable/plus-jakarta-sans` |
-| Code / mono (`--font-mono`) | JetBrains Mono Variable | `@fontsource-variable/jetbrains-mono` |
+| Role                        | Font                       | Package                                  |
+| --------------------------- | -------------------------- | ---------------------------------------- |
+| UI / body (`--font-sans`)   | Plus Jakarta Sans Variable | `@fontsource-variable/plus-jakarta-sans` |
+| Code / mono (`--font-mono`) | JetBrains Mono Variable    | `@fontsource-variable/jetbrains-mono`    |
 
 This pair works well for SaaS products, marketing sites, and developer tools. Both are open-source variable fonts with a wide weight range.
 
@@ -22,12 +22,14 @@ This pair works well for SaaS products, marketing sites, and developer tools. Bo
 Open-source fonts are self-hosted via [Fontsource](https://fontsource.org/) variable packages. Install and import once globally.
 
 **Install:**
+
 ```bash
 bun add @fontsource-variable/plus-jakarta-sans
 bun add @fontsource-variable/jetbrains-mono
 ```
 
 **Import in `src/app.css` (already done in this template):**
+
 ```css
 @import '@fontsource-variable/plus-jakarta-sans';
 @import '@fontsource-variable/jetbrains-mono';
@@ -47,20 +49,22 @@ If a project uses a paid or proprietary typeface:
 
 ```css
 @font-face {
-  font-family: 'Acme Sans';
-  src: url('/fonts/acme-sans-var.woff2') format('woff2-variations');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
+	font-family: 'Acme Sans';
+	src: url('/fonts/acme-sans-var.woff2') format('woff2-variations');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
 }
 ```
 
 4. Update the `--font-sans` token to reference it:
+
 ```css
 --font-sans: 'Acme Sans', ui-sans-serif, system-ui, sans-serif;
 ```
 
 5. **Optionally preload the primary above-the-fold font** — only for manually-hosted fonts where you control the filename:
+
 ```html
 <!-- In src/app.html, inside <head> -->
 <link rel="preload" href="/fonts/acme-sans-var.woff2" as="font" type="font/woff2" crossorigin />
@@ -76,10 +80,12 @@ Font tokens live in `tokens.css` under section 5 (Fonts):
 
 ```css
 --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
---font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+--font-mono:
+	'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
 ```
 
 **Rules:**
+
 - Always reference `var(--font-sans)` and `var(--font-mono)` in CSS — never hardcode font names in component CSS.
 - `body` uses `var(--font-sans)` (set in `reset.css`).
 - `code`, `pre`, `kbd`, `samp` use `var(--font-mono)` (set in `base.css`).
@@ -107,20 +113,20 @@ When starting a new project from this template and swapping fonts:
 The full type scale lives in `tokens.css` (section 6). Key tokens:
 
 ```css
---text-xs:   0.75rem;   /* 12px */
---text-sm:   0.875rem;  /* 14px */
---text-base: 1rem;      /* 16px — body default */
---text-lg:   1.125rem;  /* 18px */
---text-xl:   1.25rem;   /* 20px */
---text-2xl:  1.5rem;    /* 24px */
---text-3xl:  1.875rem;  /* 30px */
---text-4xl:  2.25rem;   /* 36px */
---text-5xl:  3rem;      /* 48px */
+--text-xs: 0.75rem; /* 12px */
+--text-sm: 0.875rem; /* 14px */
+--text-base: 1rem; /* 16px — body default */
+--text-lg: 1.125rem; /* 18px */
+--text-xl: 1.25rem; /* 20px */
+--text-2xl: 1.5rem; /* 24px */
+--text-3xl: 1.875rem; /* 30px */
+--text-4xl: 2.25rem; /* 36px */
+--text-5xl: 3rem; /* 48px */
 
---weight-normal:   400;
---weight-medium:   500;
+--weight-normal: 400;
+--weight-medium: 500;
 --weight-semibold: 600;
---weight-bold:     700;
+--weight-bold: 700;
 ```
 
 Fluid scales for hero text: `--text-fluid-3xl` through `--text-fluid-5xl` (clamp-based).

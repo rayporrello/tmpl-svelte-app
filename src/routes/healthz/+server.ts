@@ -6,6 +6,6 @@ export const GET: RequestHandler = () => {
 		ok: true,
 		service: 'tmpl-svelte-app',
 		environment: process.env.NODE_ENV ?? 'development',
-		time: new Date().toISOString()
+		time: new Date().toISOString(),
 	});
 };

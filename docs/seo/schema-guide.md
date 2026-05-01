@@ -6,15 +6,15 @@ JSON-LD structured data helps search engines understand your content and can unl
 
 ## What ships in the template
 
-| Helper | `@type` | Use when |
-|--------|---------|----------|
-| `organizationSchema()` | Organization | Always injected by root layout |
-| `websiteSchema()` | WebSite | Always injected by root layout |
-| `articleSchema()` | Article | Page is a blog post, news article, or case study |
-| `breadcrumbSchema()` | BreadcrumbList | Page shows a visible breadcrumb trail |
-| `personSchema()` | Person | Page is an author profile or team member bio |
-| `localBusinessSchema()` | LocalBusiness | Page represents a physical business with an address |
-| `faqSchema()` | FAQPage | Page contains a visible list of questions and answers |
+| Helper                  | `@type`        | Use when                                              |
+| ----------------------- | -------------- | ----------------------------------------------------- |
+| `organizationSchema()`  | Organization   | Always injected by root layout                        |
+| `websiteSchema()`       | WebSite        | Always injected by root layout                        |
+| `articleSchema()`       | Article        | Page is a blog post, news article, or case study      |
+| `breadcrumbSchema()`    | BreadcrumbList | Page shows a visible breadcrumb trail                 |
+| `personSchema()`        | Person         | Page is an author profile or team member bio          |
+| `localBusinessSchema()` | LocalBusiness  | Page represents a physical business with an address   |
+| `faqSchema()`           | FAQPage        | Page contains a visible list of questions and answers |
 
 All helpers are in [src/lib/seo/schemas.ts](../../src/lib/seo/schemas.ts).
 
@@ -28,13 +28,16 @@ Import the helper, call it with the page-specific data, and pass the result to t
 
 ```svelte
 <script lang="ts">
-  import SEO from '$lib/components/seo/SEO.svelte';
-  import { faqSchema } from '$lib/seo/schemas';
+	import SEO from '$lib/components/seo/SEO.svelte';
+	import { faqSchema } from '$lib/seo/schemas';
 
-  const schema = faqSchema([
-    { question: 'What is your refund policy?', answer: 'Full refunds within 30 days.' },
-    { question: 'Do you offer free trials?', answer: 'Yes, 14-day free trial, no credit card required.' }
-  ]);
+	const schema = faqSchema([
+		{ question: 'What is your refund policy?', answer: 'Full refunds within 30 days.' },
+		{
+			question: 'Do you offer free trials?',
+			answer: 'Yes, 14-day free trial, no credit card required.',
+		},
+	]);
 </script>
 
 <SEO seo={{ title: 'FAQ', description: '...', canonicalPath: '/faq', schema }} />
@@ -56,16 +59,17 @@ const schema = [articleSchema({ ... }), breadcrumbSchema([...])];
 
 ## Schema dos and don'ts
 
-| Do | Don't |
-|----|-------|
-| Use helpers from `schemas.ts` | Hardcode domain/name strings in schema |
-| Add schema only when content matches | Add schema types "just in case" |
-| Use `canonicalPath` + helper to build URLs | Construct full URLs manually |
-| Validate with Google's Rich Results Test | Assume correct schema = rich result |
+| Do                                         | Don't                                  |
+| ------------------------------------------ | -------------------------------------- |
+| Use helpers from `schemas.ts`              | Hardcode domain/name strings in schema |
+| Add schema only when content matches       | Add schema types "just in case"        |
+| Use `canonicalPath` + helper to build URLs | Construct full URLs manually           |
+| Validate with Google's Rich Results Test   | Assume correct schema = rich result    |
 
 ## Validating schema
 
 After adding schema, validate with:
+
 - [Google Rich Results Test](https://search.google.com/test/rich-results)
 - [Schema.org Validator](https://validator.schema.org/)
 

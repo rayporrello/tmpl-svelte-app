@@ -79,14 +79,14 @@ The template uses three official observability tiers. Choose based on the site t
 
 ## What is rejected for any tier
 
-| Feature | Reason |
-|---------|--------|
-| OpenTelemetry in base template | Overengineering for landing pages |
-| Sentry in base template | Paid service; install per project |
+| Feature                            | Reason                                                          |
+| ---------------------------------- | --------------------------------------------------------------- |
+| OpenTelemetry in base template     | Overengineering for landing pages                               |
+| Sentry in base template            | Paid service; install per project                               |
 | Grafana/Prometheus/Loki as default | Requires separate infrastructure; not justified for small sites |
-| n8n required for all sites | n8n is optional; site must work without it |
-| Logging raw form payloads | Privacy risk; PII must never be logged |
-| Logging full request bodies | Security risk; credentials may be in request bodies |
+| n8n required for all sites         | n8n is optional; site must work without it                      |
+| Logging raw form payloads          | Privacy risk; PII must never be logged                          |
+| Logging full request bodies        | Security risk; credentials may be in request bodies             |
 
 ---
 

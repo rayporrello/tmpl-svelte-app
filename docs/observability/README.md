@@ -6,15 +6,15 @@ This template ships a **lean default observability spine** for small websites. M
 
 ## What is included by default
 
-| Feature | File |
-|---------|------|
-| Friendly error page | `src/routes/+error.svelte` |
-| Health endpoint | `src/routes/healthz/+server.ts` |
-| Structured server logging | `src/lib/server/logger.ts` |
-| Request ID propagation | `src/lib/server/request-id.ts` |
-| Safe error normalization | `src/lib/server/safe-error.ts` |
-| Observability types | `src/lib/observability/types.ts` |
-| Centralized error handling | `src/hooks.server.ts` |
+| Feature                    | File                             |
+| -------------------------- | -------------------------------- |
+| Friendly error page        | `src/routes/+error.svelte`       |
+| Health endpoint            | `src/routes/healthz/+server.ts`  |
+| Structured server logging  | `src/lib/server/logger.ts`       |
+| Request ID propagation     | `src/lib/server/request-id.ts`   |
+| Safe error normalization   | `src/lib/server/safe-error.ts`   |
+| Observability types        | `src/lib/observability/types.ts` |
+| Centralized error handling | `src/hooks.server.ts`            |
 
 These are the minimum viable safety tools for any website built from this template.
 
@@ -39,11 +39,11 @@ Not every website needs the same tooling. A simple landing site and a revenue-cr
 
 This template uses three official tiers:
 
-| Tier | Site type | Core tools |
-|------|-----------|-----------|
-| **Small** | Static/content/landing | Error page, `/healthz`, structured logs, uptime check |
-| **Medium** | CMS, forms, Postgres, n8n | + Sentry, `/readyz`, n8n Error Workflow, backup verification |
-| **Large** | Revenue-critical, auth, payments | + OpenTelemetry, SLOs, incident runbooks, dead-letter handling |
+| Tier       | Site type                        | Core tools                                                     |
+| ---------- | -------------------------------- | -------------------------------------------------------------- |
+| **Small**  | Static/content/landing           | Error page, `/healthz`, structured logs, uptime check          |
+| **Medium** | CMS, forms, Postgres, n8n        | + Sentry, `/readyz`, n8n Error Workflow, backup verification   |
+| **Large**  | Revenue-critical, auth, payments | + OpenTelemetry, SLOs, incident runbooks, dead-letter handling |
 
 See [docs/observability/tiers.md](tiers.md) for the complete tier model.
 

@@ -17,10 +17,10 @@ The key distinctions:
 
 ## Tool roles
 
-| Tool | Role |
-|------|------|
-| **SOPS** | Manages encrypted structured files. Knows which keys to encrypt (by path or regex), which encryption backends to use, and how to re-encrypt when recipients change. |
-| **age** | Provides the public/private key encryption backend. A keypair is a one-time `age-keygen` call; the public key goes into SOPS config, the private key stays on the operator's machine (or a secure backup). |
+| Tool     | Role                                                                                                                                                                                                       |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **SOPS** | Manages encrypted structured files. Knows which keys to encrypt (by path or regex), which encryption backends to use, and how to re-encrypt when recipients change.                                        |
+| **age**  | Provides the public/private key encryption backend. A keypair is a one-time `age-keygen` call; the public key goes into SOPS config, the private key stays on the operator's machine (or a secure backup). |
 
 SOPS supports multiple backends (PGP, AWS KMS, GCP KMS, Azure Key Vault, age). This template defaults to **age** because it is simple, local-first, provider-independent, and has no cloud dependency. Switching to a KMS backend later is a `.sops.yaml` change, not an application change.
 
@@ -28,15 +28,15 @@ SOPS supports multiple backends (PGP, AWS KMS, GCP KMS, Azure Key Vault, age). T
 
 ## File model
 
-| File | Role | Committed? |
-|------|------|-----------|
-| `.env.example` | Public contract: lists required variable names without values | Yes |
-| `secrets.example.yaml` | Example shape for a real `secrets.yaml` — shows structure with fake values | Yes |
-| `.sops.yaml.example` | Example SOPS encryption config — shows the pattern to copy | Yes |
-| `.sops.yaml` | Real project SOPS config with public recipients — safe to commit once values are public keys only | Yes |
-| `secrets.yaml` | Encrypted source of truth — commit only after encryption | Yes (encrypted only) |
-| `.env` | Rendered local/runtime env file — derived from `secrets.yaml` | **Never** |
-| `~/.config/sops/age/keys.txt` | Operator's private age identity | **Never** |
+| File                          | Role                                                                                              | Committed?           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- | -------------------- |
+| `.env.example`                | Public contract: lists required variable names without values                                     | Yes                  |
+| `secrets.example.yaml`        | Example shape for a real `secrets.yaml` — shows structure with fake values                        | Yes                  |
+| `.sops.yaml.example`          | Example SOPS encryption config — shows the pattern to copy                                        | Yes                  |
+| `.sops.yaml`                  | Real project SOPS config with public recipients — safe to commit once values are public keys only | Yes                  |
+| `secrets.yaml`                | Encrypted source of truth — commit only after encryption                                          | Yes (encrypted only) |
+| `.env`                        | Rendered local/runtime env file — derived from `secrets.yaml`                                     | **Never**            |
+| `~/.config/sops/age/keys.txt` | Operator's private age identity                                                                   | **Never**            |
 
 ---
 

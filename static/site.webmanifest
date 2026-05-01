@@ -1,21 +1,21 @@
 {
-  "name": "Your Site Name",
-  "short_name": "Your Site",
-  "description": "REPLACE PER PROJECT",
-  "start_url": "/",
-  "display": "standalone",
-  "theme_color": "#0B1120",
-  "background_color": "#0B1120",
-  "icons": [
-    {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png"
-    },
-    {
-      "src": "/favicon-32.png",
-      "sizes": "32x32",
-      "type": "image/png"
-    }
-  ]
+	"name": "Your Site Name",
+	"short_name": "Your Site",
+	"description": "REPLACE PER PROJECT",
+	"start_url": "/",
+	"display": "standalone",
+	"theme_color": "#0B1120",
+	"background_color": "#0B1120",
+	"icons": [
+		{
+			"src": "/apple-touch-icon.png",
+			"sizes": "180x180",
+			"type": "image/png"
+		},
+		{
+			"src": "/favicon-32.png",
+			"sizes": "32x32",
+			"type": "image/png"
+		}
+	]
 }

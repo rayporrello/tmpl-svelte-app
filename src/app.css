@@ -33,12 +33,12 @@
 /* display: contents makes #svelte invisible to layout — children flow      */
 /* directly into the document, preserving normal block/scroll behavior.     */
 #svelte {
-  display: contents;
+	display: contents;
 }
 
 /* ── Smooth Scrolling (respects reduced-motion preference) ─────────────── */
 @media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-behavior: smooth;
-  }
+	html {
+		scroll-behavior: smooth;
+	}
 }

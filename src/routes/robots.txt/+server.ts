@@ -10,26 +10,15 @@ export function GET(): Response {
 	let body: string;
 
 	if (!site.indexing) {
-		body = [
-			'User-agent: *',
-			'Disallow: /',
-			'',
-			`Sitemap: ${sitemapUrl}`
-		].join('\n');
+		body = ['User-agent: *', 'Disallow: /', '', `Sitemap: ${sitemapUrl}`].join('\n');
 	} else {
 		const disallowLines = DISALLOWED_PATHS.map((p) => `Disallow: ${p}`).join('\n');
-		body = [
-			'User-agent: *',
-			'Allow: /',
-			disallowLines,
-			'',
-			`Sitemap: ${sitemapUrl}`
-		].join('\n');
+		body = ['User-agent: *', 'Allow: /', disallowLines, '', `Sitemap: ${sitemapUrl}`].join('\n');
 	}
 
 	return new Response(body, {
 		headers: {
-			'Content-Type': 'text/plain'
-		}
+			'Content-Type': 'text/plain',
+		},
 	});
 }

@@ -7,6 +7,7 @@ Accepted
 ## Context
 
 This template targets solo and founder-led projects running on a single VPS. The deployment stack must be:
+
 - rootless (no Docker daemon, no root container runtime)
 - manageable via standard systemd tooling
 - capable of zero-downtime restarts via container image rebuilds
@@ -24,6 +25,7 @@ Use rootless Podman Quadlets and Caddy as the deployment target for all projects
 - Deploy documentation is committed to the repo so the process is reproducible without institutional memory.
 
 The deploy invariant:
+
 1. Build a new container image (via Containerfile / CI).
 2. Pull the new image on the production host.
 3. `systemctl --user restart <service>` to bring up the new container.

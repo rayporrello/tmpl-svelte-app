@@ -21,23 +21,32 @@ updates:
     ignore:
       # Protected packages — must not be bumped without explicit approval (ADR-012)
       - dependency-name: svelte
-        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
-      - dependency-name: "@sveltejs/kit"
-        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
-      - dependency-name: "@sveltejs/adapter-*"
-        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
-      - dependency-name: "@sveltejs/vite-plugin-svelte"
-        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
-      - dependency-name: "@sveltejs/enhanced-img"
-        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+        update-types:
+          [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: '@sveltejs/kit'
+        update-types:
+          [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: '@sveltejs/adapter-*'
+        update-types:
+          [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: '@sveltejs/vite-plugin-svelte'
+        update-types:
+          [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+      - dependency-name: '@sveltejs/enhanced-img'
+        update-types:
+          [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
       - dependency-name: svelte-adapter-bun
-        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+        update-types:
+          [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
       - dependency-name: better-auth
-        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+        update-types:
+          [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
       - dependency-name: esm-env
-        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+        update-types:
+          [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
       - dependency-name: vite
-        update-types: [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
+        update-types:
+          [version-update:semver-major, version-update:semver-minor, version-update:semver-patch]
 
   # ── GitHub Actions ────────────────────────────────────────────────────────
   - package-ecosystem: github-actions

@@ -8,7 +8,7 @@ const SENSITIVE_KEYS = new Set([
 	'accesstoken',
 	'refreshtoken',
 	'clientsecret',
-	'privatekey'
+	'privatekey',
 ]);
 
 function redact(obj: Record<string, unknown>): Record<string, unknown> {
@@ -39,7 +39,7 @@ function emit(level: 'info' | 'warn' | 'error', message: string, context?: LogCo
 		message,
 		...(requestId !== undefined ? { requestId } : {}),
 		...(route !== undefined ? { route } : {}),
-		...(Object.keys(meta).length > 0 ? { meta: redact(meta) } : {})
+		...(Object.keys(meta).length > 0 ? { meta: redact(meta) } : {}),
 	};
 	const output = JSON.stringify(entry);
 	if (level === 'error') console.error(output);
@@ -50,5 +50,5 @@ function emit(level: 'info' | 'warn' | 'error', message: string, context?: LogCo
 export const logger = {
 	info: (message: string, context?: LogContext) => emit('info', message, context),
 	warn: (message: string, context?: LogContext) => emit('warn', message, context),
-	error: (message: string, context?: LogContext) => emit('error', message, context)
+	error: (message: string, context?: LogContext) => emit('error', message, context),
 };

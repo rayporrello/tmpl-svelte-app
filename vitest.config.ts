@@ -9,7 +9,7 @@ export default defineConfig({
 		// SvelteKit virtual modules ($env/*, $app/*) are not available in unit tests.
 		// Tests that need them must mock via vi.mock() or test the underlying logic directly.
 		alias: {
-			$lib: resolve('./src/lib')
-		}
-	}
+			$lib: resolve('./src/lib'),
+		},
+	},
 });

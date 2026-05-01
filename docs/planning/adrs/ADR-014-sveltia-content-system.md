@@ -10,6 +10,7 @@
 The template needs a content management layer that allows non-technical editors to update site copy, articles, team bios, and other durable editorial content without requiring direct Git access or developer involvement for every change.
 
 Requirements:
+
 - Content must be version-controlled in Git (no separate CMS database)
 - Non-technical editors need a browser UI that does not require understanding Git
 - Content files must be machine-readable for automation (n8n, CI scripts)
@@ -36,6 +37,7 @@ Adopt **Sveltia CMS** as the default human editing UI for Git-backed content in 
 ## Consequences
 
 **Positive:**
+
 - Zero separate CMS server or database — content is just committed files
 - Full Git history for all content changes, including rollback and blame
 - Content files are human-readable YAML/Markdown — easy for automations to generate
@@ -43,6 +45,7 @@ Adopt **Sveltia CMS** as the default human editing UI for Git-backed content in 
 - The template's content schema is explicit and version-controlled alongside the code
 
 **Negative / tradeoffs:**
+
 - GitHub OAuth must be configured before the Sveltia editor UI works
 - Content changes trigger a full site rebuild (acceptable for most editorial workflows; not suitable for real-time user-generated content — that goes in Postgres)
 - Sveltia CMS is a younger project than Decap/Netlify CMS; some edge-case widgets may behave differently

@@ -18,25 +18,26 @@ Every page built from this template has this structure, provided by `+layout.sve
 <a href="#main-content" class="skip-link">Skip to main content</a>
 
 <header class="site-header">
-  <div class="container">
-    <a href="/" class="site-logo">[Site Name]</a>
-    <nav aria-label="Primary">…</nav>
-  </div>
+	<div class="container">
+		<a href="/" class="site-logo">[Site Name]</a>
+		<nav aria-label="Primary">…</nav>
+	</div>
 </header>
 
 <main id="main-content">
-  <!-- Page content renders here via {@render children()} -->
+	<!-- Page content renders here via {@render children()} -->
 </main>
 
 <footer class="site-footer">
-  <div class="container">
-    <nav aria-label="Footer">…</nav>
-    …
-  </div>
+	<div class="container">
+		<nav aria-label="Footer">…</nav>
+		…
+	</div>
 </footer>
 ```
 
 Rules:
+
 - Exactly one `<main id="main-content">` per page. It lives in `+layout.svelte`. Pages must not add a second `<main>`.
 - The skip link is the first element in the DOM, before the header.
 - The site name / logo in the header is an `<a>` (link to home), never an `<h1>`.
@@ -49,11 +50,13 @@ Rules:
 Every thematic block inside `<main>` is a section. Use the two-layer pattern:
 
 ```html
-<section id="hero">          <!-- full-bleed background, vertical rhythm, gutter -->
-  <div class="container">   <!-- centered, max-width content -->
-    <h2>Section heading</h2>
-    …
-  </div>
+<section id="hero">
+	<!-- full-bleed background, vertical rhythm, gutter -->
+	<div class="container">
+		<!-- centered, max-width content -->
+		<h2>Section heading</h2>
+		…
+	</div>
 </section>
 ```
 
@@ -61,26 +64,28 @@ Or use the `Section` component, which wraps this pattern:
 
 ```svelte
 <Section id="hero" width="default">
-  <h2>Section heading</h2>
-  …
+	<h2>Section heading</h2>
+	…
 </Section>
 ```
 
 `Section` props:
 
-| Prop | Type | Default | Effect |
-|------|------|---------|--------|
-| `id` | string | — | Sets `id` on the `<section>` element |
-| `class` | string | — | Sets `class` on the `<section>` element |
-| `width` | `'default' \| 'narrow' \| 'wide' \| 'full'` | `'default'` | Controls `.container` width variant |
+| Prop    | Type                                        | Default     | Effect                                  |
+| ------- | ------------------------------------------- | ----------- | --------------------------------------- |
+| `id`    | string                                      | —           | Sets `id` on the `<section>` element    |
+| `class` | string                                      | —           | Sets `class` on the `<section>` element |
+| `width` | `'default' \| 'narrow' \| 'wide' \| 'full'` | `'default'` | Controls `.container` width variant     |
 
 Width variants:
+
 - `default` → `max-width: var(--content-width)` — 72rem / 1152px
 - `narrow` → `max-width: var(--content-narrow)` — 48rem / 768px
 - `wide` → `max-width: var(--content-wide)` — 80rem / 1280px
 - `full` → `max-width: none`
 
 Rules:
+
 - Vertical rhythm (`padding-block: var(--section-space)`) belongs on the `<section>`, not the `.container`.
 - Background color/image belongs on the `<section>`.
 - The `.container` is purely structural — it centers and constrains width.
@@ -104,6 +109,7 @@ One `<h1>` per page. It is the page title, not the site name.
 ```
 
 Rules:
+
 - One `<h1>` per page — always the first heading a user encounters.
 - No skipped levels: do not jump from `<h2>` to `<h4>`.
 - The site name / logo in `<header>` is an `<a>`, not an `<h1>`.
@@ -118,8 +124,8 @@ Meaningful images and media are real elements, not CSS backgrounds:
 ```html
 <!-- Always: meaningful image wrapped in figure -->
 <figure>
-  <img src="..." alt="Descriptive alt text" width="800" height="600" />
-  <figcaption>Caption providing context for the image.</figcaption>
+	<img src="..." alt="Descriptive alt text" width="800" height="600" />
+	<figcaption>Caption providing context for the image.</figcaption>
 </figure>
 
 <!-- Decorative image: alt="" (empty, not omitted) -->
@@ -127,20 +133,19 @@ Meaningful images and media are real elements, not CSS backgrounds:
 
 <!-- Quote with attribution -->
 <figure>
-  <blockquote>
-    Good design is as little design as possible.
-  </blockquote>
-  <figcaption>— <cite>Dieter Rams</cite></figcaption>
+	<blockquote>Good design is as little design as possible.</blockquote>
+	<figcaption>— <cite>Dieter Rams</cite></figcaption>
 </figure>
 
 <!-- Video -->
 <figure>
-  <video src="..." controls></video>
-  <figcaption>Caption for the video.</figcaption>
+	<video src="..." controls></video>
+	<figcaption>Caption for the video.</figcaption>
 </figure>
 ```
 
 Rules:
+
 - CSS `background-image` is for decorative visuals only — it is invisible to assistive technology and search engines.
 - Always include `width` and `height` attributes on `<img>` to prevent layout shift.
 - Decorative images use `alt=""` (empty string, not omitted).
@@ -155,11 +160,13 @@ Rules:
 A `<div>` is a last resort. It has no semantic meaning — it adds nothing to the document outline or accessibility tree.
 
 Acceptable uses:
+
 - The inner `.container` div in the section/container pattern
 - Grid or flex wrappers with no semantic intent
 - Layout-only grouping when no semantic element fits
 
 Never use `<div>` for:
+
 - Navigation → `<nav>`
 - Page header → `<header>`
 - Page footer → `<footer>`
@@ -174,33 +181,33 @@ Never use `<div>` for:
 
 ## Semantic element reference
 
-| Use case | Element | Notes |
-|----------|---------|-------|
-| Page title | `<h1>` | One per page |
-| Section heading | `<h2>` | One per thematic block |
-| Subsection heading | `<h3>`, `<h4>` | No skipped levels |
-| Page header shell | `<header>` | Contains logo + nav |
-| Page footer shell | `<footer>` | Contains nav + meta |
-| Main content area | `<main id="main-content">` | One per page; in layout |
-| Site navigation | `<nav aria-label="Primary">` | Labeled for AT |
-| Footer navigation | `<nav aria-label="Footer">` | Labeled for AT |
-| Thematic section | `<section>` | Must have a heading |
-| Self-contained unit | `<article>` | Blog post, news item, product card |
-| Complementary content | `<aside>` | Sidebars, callout boxes |
-| Meaningful image/media | `<figure>` | With optional `<figcaption>` |
-| Caption for figure | `<figcaption>` | Inside `<figure>` |
-| Quote | `<blockquote>` | Attribution in `<figcaption>` |
-| Citation | `<cite>` | Author/source of a quote |
-| Key-value data | `<dl>`, `<dt>`, `<dd>` | Metadata, definitions |
-| Date / time | `<time datetime="...">` | Machine-readable datetime |
-| Disclosure widget | `<details>`, `<summary>` | FAQ, accordion |
-| Navigation link | `<a href="...">` | Must have a destination |
-| Action button | `<button type="button">` | No href |
-| Submit button | `<button type="submit">` | Inside a `<form>` |
-| Abbreviation | `<abbr title="...">` | With expansion in title |
-| Highlighted text | `<mark>` | Search results, key terms |
-| Code snippet | `<code>` | Inline code |
-| Code block | `<pre><code>` | Block code |
+| Use case               | Element                      | Notes                              |
+| ---------------------- | ---------------------------- | ---------------------------------- |
+| Page title             | `<h1>`                       | One per page                       |
+| Section heading        | `<h2>`                       | One per thematic block             |
+| Subsection heading     | `<h3>`, `<h4>`               | No skipped levels                  |
+| Page header shell      | `<header>`                   | Contains logo + nav                |
+| Page footer shell      | `<footer>`                   | Contains nav + meta                |
+| Main content area      | `<main id="main-content">`   | One per page; in layout            |
+| Site navigation        | `<nav aria-label="Primary">` | Labeled for AT                     |
+| Footer navigation      | `<nav aria-label="Footer">`  | Labeled for AT                     |
+| Thematic section       | `<section>`                  | Must have a heading                |
+| Self-contained unit    | `<article>`                  | Blog post, news item, product card |
+| Complementary content  | `<aside>`                    | Sidebars, callout boxes            |
+| Meaningful image/media | `<figure>`                   | With optional `<figcaption>`       |
+| Caption for figure     | `<figcaption>`               | Inside `<figure>`                  |
+| Quote                  | `<blockquote>`               | Attribution in `<figcaption>`      |
+| Citation               | `<cite>`                     | Author/source of a quote           |
+| Key-value data         | `<dl>`, `<dt>`, `<dd>`       | Metadata, definitions              |
+| Date / time            | `<time datetime="...">`      | Machine-readable datetime          |
+| Disclosure widget      | `<details>`, `<summary>`     | FAQ, accordion                     |
+| Navigation link        | `<a href="...">`             | Must have a destination            |
+| Action button          | `<button type="button">`     | No href                            |
+| Submit button          | `<button type="submit">`     | Inside a `<form>`                  |
+| Abbreviation           | `<abbr title="...">`         | With expansion in title            |
+| Highlighted text       | `<mark>`                     | Search results, key terms          |
+| Code snippet           | `<code>`                     | Inline code                        |
+| Code block             | `<pre><code>`                | Block code                         |
 
 ---
 
@@ -211,16 +218,20 @@ Never use `<div>` for:
 ```css
 /* Component responds to its available space, not the viewport */
 .card-grid {
-  container-type: inline-size;
+	container-type: inline-size;
 }
 
 @container (inline-size >= 40rem) {
-  .card-grid { grid-template-columns: repeat(2, 1fr); }
+	.card-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
 }
 
 /* Page shell decisions: nav collapse, hero layout */
 @media (width >= 48rem) {
-  .site-header .container { flex-direction: row; }
+	.site-header .container {
+		flex-direction: row;
+	}
 }
 ```
 

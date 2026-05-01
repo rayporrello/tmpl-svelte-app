@@ -4,5 +4,5 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	// enhancedImages() MUST come before sveltekit() — it preprocesses <enhanced:img> elements
-	plugins: [enhancedImages(), sveltekit()]
+	plugins: [enhancedImages(), sveltekit()],
 });
