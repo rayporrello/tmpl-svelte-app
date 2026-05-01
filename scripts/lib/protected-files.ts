@@ -1,0 +1,50 @@
+import { isAbsolute, relative } from 'node:path';
+
+export const PROTECTED_FILES = [
+	'.env',
+	'.bootstrap.state.json',
+	'.template/project.json',
+	'package.json',
+	'src/lib/config/site.ts',
+	'static/admin/config.yml',
+	'static/site.webmanifest',
+	'.env.example',
+	'deploy/env.example',
+	'deploy/Caddyfile.example',
+	'deploy/quadlets/web.container',
+	'deploy/quadlets/web.network',
+	'deploy/systemd/backup.service',
+	'deploy/systemd/backup.timer',
+	'content/pages/home.yml',
+	'.github/workflows/ci.yml',
+	'README.md',
+] as const;
+
+export const INIT_SITE_OWNED_FILES = [
+	'package.json',
+	'src/lib/config/site.ts',
+	'static/admin/config.yml',
+	'static/site.webmanifest',
+	'.env.example',
+	'deploy/env.example',
+	'deploy/Caddyfile.example',
+	'deploy/quadlets/web.container',
+	'deploy/quadlets/web.network',
+	'deploy/systemd/backup.service',
+	'deploy/systemd/backup.timer',
+	'content/pages/home.yml',
+	'.github/workflows/ci.yml',
+	'README.md',
+] as const;
+
+const protectedSet = new Set<string>(PROTECTED_FILES);
+
+export function normalizeRepoPath(path: string, rootDir = process.cwd()): string {
+	const relativePath = isAbsolute(path) ? relative(rootDir, path) : path;
+	return relativePath.replace(/\\/g, '/').replace(/^\.\//u, '');
+}
+
+export function isAllowed(path: string): boolean {
+	const normalized = normalizeRepoPath(path);
+	return protectedSet.has(normalized) && !normalized.startsWith('../');
+}
