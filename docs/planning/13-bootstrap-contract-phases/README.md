@@ -10,13 +10,33 @@ read the spec.
 
 ## How to use a prompt
 
-In VS Code, open the relevant phase file and feed its contents to Codex with
-something like:
+In VS Code, open the relevant phase file and feed its contents to Codex
+with the **hardened prompt template** below. The wording matters — it
+prevents Codex from "checking boxes" against acceptance criteria it
+couldn't actually verify (e.g., browser flows, CI-only signals).
 
-> Implement the phase described in `docs/planning/13-bootstrap-contract-phases/phase-00-formatting-baseline.md`. Refer to `docs/planning/13-bootstrap-contract-project.md` for the locked spec where the prompt cites a section number. Stop when the acceptance criteria are met. Commit using the suggested message.
+```text
+Implement the phase described in <phase-file>. Read AGENTS.md, the phase
+README at docs/planning/13-bootstrap-contract-phases/README.md, and the
+sections of docs/planning/13-bootstrap-contract-project.md cited by the
+phase.
 
-Run **one phase per session** and review the diff before starting the next.
-Phases must run in order — Phase N+1 depends on Phase N's primitives.
+Before editing, verify git status is clean and prerequisite phases are
+already merged. If the phase conflicts with current implementation, stop
+and report the mismatch instead of guessing.
+
+Stop only when all executable acceptance criteria pass. For
+manual/browser/CI-only criteria, list the exact evidence still needed;
+do not mark them complete locally.
+
+Run the phase-specific checks and `bun run validate`. Commit only the
+scoped phase diff. Use an accurate co-author trailer for the agent that
+actually made the commit, or omit the trailer.
+```
+
+Run **one phase per session** and review the diff before starting the
+next. Phases must run in order — Phase N+1 depends on Phase N's
+primitives.
 
 ## Phase order
 

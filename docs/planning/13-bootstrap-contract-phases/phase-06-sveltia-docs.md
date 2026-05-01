@@ -1,4 +1,4 @@
-# Phase 6 — Sveltia Local-Editing Docs
+# Phase 6 — Sveltia Local-Editing Docs + `local_backend` Removal
 
 > Plan reference: §2 (CMS local editing), §6 Phase 6.
 
@@ -8,6 +8,13 @@ Document the correct local-editing path for Sveltia CMS: the **"Work with
 Local Repository"** browser flow. No proxy server, no `local_backend` in
 `config.yml`, no extra scripts.
 
+This phase **also removes `local_backend` from `static/admin/config.yml`
+and adds a hard check rule** to `scripts/check-cms-config.ts` that fails
+on any `local_backend` key (any value). Sveltia ignores the key entirely;
+keeping it as dead code misleads future contributors and the rule
+prevents anyone from re-introducing it under the assumption it does
+something.
+
 ## Prereqs
 
 - Phase 0 merged. (No code dependency on prior phases — this is doc-only,
@@ -16,12 +23,14 @@ Local Repository"** browser flow. No proxy server, no `local_backend` in
 
 ## Files to modify
 
-| Path                      | Change                                                                                                                                                                                                                                                 |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `docs/cms/README.md`      | Replace any proxy or `local_backend` guidance with the Work-with-Local-Repository flow. Add a clearly labeled "Local development" section.                                                                                                             |
-| `docs/getting-started.md` | Step 8 admin verification should mention the Work-with-Local-Repository flow as the canonical local path; the existing `local_backend: true` paragraph should be removed (it conflicts with current Sveltia docs that say `local_backend` is ignored). |
-| `static/admin/index.html` | Confirm the script tag is `<script src="…sveltia-cms.js">` in `<body>` with no `type="module"` and no stylesheet link (per `CLAUDE.md.template` line 128). No change unless drift is found.                                                            |
-| `static/admin/config.yml` | Confirm there is no `local_backend` key. Existing `check:cms` blocks deploys with it; this phase confirms the comment-level guidance matches.                                                                                                          |
+| Path                                  | Change                                                                                                                                                                                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `docs/cms/README.md`                  | Replace any proxy or `local_backend` guidance with the Work-with-Local-Repository flow. Add a clearly labeled "Local development" section.                                                                                                             |
+| `docs/getting-started.md`             | Step 8 admin verification should mention the Work-with-Local-Repository flow as the canonical local path; the existing `local_backend: true` paragraph should be removed (it conflicts with current Sveltia docs that say `local_backend` is ignored). |
+| `static/admin/index.html`             | Confirm the script tag is `<script src="…sveltia-cms.js">` in `<body>` with no `type="module"` and no stylesheet link (per `CLAUDE.md.template` line 128). No change unless drift is found.                                                            |
+| `static/admin/config.yml`             | **Remove** the `local_backend: false` line and the two comment lines above it. Sveltia ignores the key entirely; keeping it is dead code that misleads future contributors.                                                                            |
+| `scripts/check-cms-config.ts`         | **Add** a rule that fails (`exit 1`) if any `local_backend` key is present in `static/admin/config.yml`, regardless of value. Use the existing YAML parse path; do not add a new dependency.                                                           |
+| `tests/unit/check-cms-config.test.ts` | Add a fail-case unit test asserting that `local_backend: true` and `local_backend: false` both fail the new rule.                                                                                                                                      |
 
 ## Behavior contract
 
@@ -49,8 +58,9 @@ Sveltia does not perform Git operations itself — committing, pulling, and
 pushing remain your responsibility (or your IDE's).
 
 > **Note.** Sveltia ignores `local_backend` in `config.yml`; it is not
-> part of the local workflow. Do not add it. The current `check:cms`
-> gate fails any deploy that re-introduces it.
+> part of the local workflow. Do not add it back. As of this phase,
+> `bun run check:cms` fails on the presence of any `local_backend` key
+> regardless of value.
 ```
 
 ### Step 8 update in `docs/getting-started.md`
@@ -79,7 +89,14 @@ start) or OAuth (multi-user). Note in `docs/cms/README.md` that the
       as the recommended local-development path.
 - [ ] No reference to `@sveltia/cms-proxy-server`,
       `netlify-cms-proxy-server`, `decap-server`, or any proxy in any doc.
-- [ ] `static/admin/config.yml` does not contain `local_backend`.
+- [ ] `static/admin/config.yml` does **not** contain a `local_backend`
+      key (verify with `grep -n local_backend static/admin/config.yml`
+      returning empty).
+- [ ] Adding `local_backend: false` back to `static/admin/config.yml`
+      makes `bun run check:cms` exit nonzero with a message identifying
+      the rule.
+- [ ] `tests/unit/check-cms-config.test.ts` covers both
+      `local_backend: true` and `local_backend: false` as fail cases.
 - [ ] `docs/getting-started.md` Step 8 points to the new local-dev
       section instead of recommending `local_backend: true`.
 - [ ] On a fresh-bootstrapped repo, `bun run dev` and opening
@@ -91,7 +108,7 @@ start) or OAuth (multi-user). Note in `docs/cms/README.md` that the
 ## Commit message
 
 ```
-docs(cms): document Sveltia "Work with Local Repository" as local path
+feat(cms): Sveltia "Work with Local Repository" + ban local_backend
 
 Sveltia's current local workflow uses the browser File System Access API
 and ignores local_backend. Document that as the canonical
@@ -103,9 +120,13 @@ local-development path:
 - Select the project root
 - Edit; commit with Git as usual
 
-Remove the older local_backend: true guidance from getting-started.md
-Step 8. The check:cms gate already blocks deploys that re-introduce
-local_backend.
+Also:
+- Remove `local_backend: false` and its comments from
+  static/admin/config.yml (dead code; Sveltia ignores it).
+- Add a check:cms rule that fails on any `local_backend` key, with unit
+  tests covering both `true` and `false` as fail cases.
+- Remove the older local_backend: true guidance from getting-started.md
+  Step 8.
 
 Production CMS auth (GitHub token / OAuth) remains a documented launch
 task.

@@ -4,8 +4,14 @@
 
 These are additive polish on top of the contract. Each section below
 ships as its own commit. None block earlier phases. Pick whichever
-matters most first; common picks are §9.4 `reset:dev` and §9.6 the dev
+matters most first; common picks are §9.3 `reset:dev` and §9.5 the dev
 banner.
+
+> **Note.** The original §9.1 (`launch:check` alias) was moved into
+> Phase 8, because the README and getting-started rewrite there
+> reference the alias. The four-command model must be coherent the
+> moment the docs flip. §9.1 is intentionally absent here; the
+> remaining extras keep their original order, renumbered.
 
 ## Prereqs
 
@@ -20,36 +26,7 @@ phase-09-extras.md").
 
 ---
 
-## §9.1 — `bun run launch:check` alias
-
-### Goal
-
-Memorable alias for `validate:launch`. One-line addition.
-
-### Files
-
-- `package.json` — add `"launch:check": "bun run validate:launch"`.
-
-### Acceptance
-
-- [ ] `bun run launch:check` produces identical output to
-      `bun run validate:launch`.
-- [ ] README and `docs/getting-started.md` updates from Phase 8 reference
-      `launch:check`; if they don't, update them in this commit.
-
-### Commit message
-
-```
-chore(scripts): add bun run launch:check alias for validate:launch
-
-Memorable, mirrors the bootstrap/doctor/validate naming.
-
-Refs: docs/planning/13-bootstrap-contract-project.md §6 Phase 9.
-```
-
----
-
-## §9.2 — `bun run deploy:preflight`
+## §9.1 — `bun run deploy:preflight`
 
 ### Goal
 
@@ -108,7 +85,7 @@ Refs: docs/planning/13-bootstrap-contract-project.md §6 Phase 9.
 
 ---
 
-## §9.3 — `bun run backup:check`
+## §9.2 — `bun run backup:check`
 
 ### Goal
 
@@ -153,7 +130,7 @@ Refs: docs/planning/13-bootstrap-contract-project.md §6 Phase 9.
 
 ---
 
-## §9.4 — `bun run reset:dev`
+## §9.3 — `bun run reset:dev`
 
 ### Goal
 
@@ -223,7 +200,7 @@ Refs: docs/planning/13-bootstrap-contract-project.md §6 Phase 9.
 
 ---
 
-## §9.5 — `bun run seed:dev`
+## §9.4 — `bun run seed:dev`
 
 ### Goal
 
@@ -285,7 +262,7 @@ Refs: docs/planning/13-bootstrap-contract-project.md §6 Phase 9.
 
 ---
 
-## §9.6 — First-run dev banner
+## §9.5 — First-run dev banner
 
 ### Goal
 
@@ -357,7 +334,7 @@ Refs: docs/planning/13-bootstrap-contract-project.md §4 rule 12,
 
 ---
 
-## §9.7 — `.template/project.json`
+## §9.6 — `.template/project.json`
 
 ### Goal
 

@@ -28,10 +28,25 @@ generates local secrets, plaintext-leak detection runs on every PR.
 
 ## Behavior contract
 
+### Default mode — runs both dry-run and mock-provisioner
+
+`bun run check:bootstrap` with no flags runs **both modes** in sequence.
+This is what `validate` calls; it must catch both planning regressions
+(dry-run output drift) and mutation regressions (idempotency, allowlist,
+secret hygiene).
+
+Focused subcommands exist for triage:
+
+- `bun run check:bootstrap --dry-run` — only Mode 1.
+- `bun run check:bootstrap --mock` — only Mode 2.
+
+Either focused mode is sufficient when iterating on a specific failure;
+neither is sufficient as the CI gate. The default-mode runner aggregates
+both results and exits nonzero if either fails.
+
 ### Mode 1 — dry-run
 
-Invoked by `bun run check:bootstrap` with no args (default mode) or
-explicitly with `--dry-run`.
+Invoked by the default runner or by `bun run check:bootstrap --dry-run`.
 
 Steps:
 
@@ -44,7 +59,7 @@ Steps:
 
 ### Mode 2 — mock-provisioner
 
-Invoked by `bun run check:bootstrap --mock`.
+Invoked by the default runner or by `bun run check:bootstrap --mock`.
 
 Steps:
 
@@ -104,8 +119,10 @@ build/test steps. `secrets:check` is cheap; place it next to
 
 ## Acceptance criteria
 
-- [ ] `bun run check:bootstrap` (dry-run mode) exits 0 against a clean
-      working tree.
+- [ ] `bun run check:bootstrap` (default mode, both runs) exits 0
+      against a clean working tree.
+- [ ] `bun run check:bootstrap --dry-run` exits 0 and asserts no
+      mutations in the tempdir.
 - [ ] `bun run check:bootstrap --mock` exits 0 and proves second-run
       byte-for-byte idempotency.
 - [ ] Each documented `BOOT-*` failure-mode test produces the documented
@@ -122,11 +139,14 @@ build/test steps. `secrets:check` is cheap; place it next to
 ```
 test(bootstrap): add check:bootstrap harness + secrets:check in validate
 
-Two-mode harness:
+Two-mode harness; default runs BOTH modes and is what `validate` calls.
 - Dry-run: proves planning, output shape, no mutations.
 - Mock-provisioner: tempdir + stubbed DB provisioning; proves .env
   generation, allowlist enforcement, second-run byte-for-byte
   idempotency, and that secrets never leak into captured output.
+
+Focused subcommands `--dry-run` and `--mock` are for iteration only;
+neither alone is sufficient as the CI gate.
 
 Failure-mode coverage for every BOOT-* code that doesn't require real
 Podman (BOOT-PG-001, -003, -DB-*, -MIG-001, -GUARD-001, -INIT-001,

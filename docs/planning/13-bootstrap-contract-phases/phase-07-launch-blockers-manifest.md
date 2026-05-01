@@ -40,16 +40,35 @@ Each entry has shape:
 
 ### Blockers and their checks
 
-| ID                   | Severity    | Check                                                                                                                                                                        |
-| -------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `LAUNCH-OG-001`      | required    | Read `static/og-default.png`, hash it, compare to the template's known checksum. `fail` if it matches the template asset; `pass` otherwise.                                  |
-| `LAUNCH-SEO-001`     | required    | Read `src/lib/config/site.ts`, parse `defaultTitle`. `fail` if it equals the template default (`'tmpl-svelte-app'` or whatever the original template name resolves to).      |
-| `LAUNCH-CMS-001`     | required    | Read `static/admin/config.yml`, parse `backend.repo`. `fail` if it is `<owner>/<repo>` or any obvious placeholder pattern.                                                   |
-| `LAUNCH-ENV-001`     | required    | Read `ORIGIN` from production env (or current `.env` if no prod env file is provided to the check). `fail` if it contains `localhost` or `127.0.0.1`. `warn` if it is unset. |
-| `LAUNCH-ENV-002`     | required    | Same shape as `LAUNCH-ENV-001`, against `PUBLIC_SITE_URL`.                                                                                                                   |
-| `LAUNCH-APPHTML-001` | required    | Read `src/app.html`, find the `<title>` tag. `fail` if it equals the template fallback (literal `tmpl-svelte-app` or similar).                                               |
-| `LAUNCH-BACKUP-001`  | recommended | Check whether `BACKUP_REMOTE` is set in the production env reference. `warn` (not `fail`) if missing — backups can be configured post-launch.                                |
-| `LAUNCH-EMAIL-001`   | recommended | Check whether `POSTMARK_SERVER_TOKEN` is set in production env reference. `warn` if missing — the contact form falls back to console-only logging cleanly.                   |
+The env-source rule for `LAUNCH-ENV-001` and `LAUNCH-ENV-002` is the
+crux of the dev-vs-prod question (see "env source" below the table).
+
+| ID                   | Severity    | Check                                                                                                                                                                                                                                                                                     |
+| -------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LAUNCH-OG-001`      | required    | Read `static/og-default.png`, hash it, compare to the template's known checksum. `fail` if it matches the template asset; `pass` otherwise.                                                                                                                                               |
+| `LAUNCH-SEO-001`     | required    | Read `src/lib/config/site.ts`, parse `defaultTitle`. `fail` if it equals the template default (`'tmpl-svelte-app'` or whatever the original template name resolves to).                                                                                                                   |
+| `LAUNCH-CMS-001`     | required    | Read `static/admin/config.yml`, parse `backend.repo`. `fail` if it is `<owner>/<repo>` or any obvious placeholder pattern.                                                                                                                                                                |
+| `LAUNCH-ENV-001`     | required    | Read `ORIGIN`. **Production env source:** `fail` if it contains `localhost` or `127.0.0.1`, or if missing. **Dev env source (`.env`):** `warn` if localhost (expected for local dev), `warn` if missing. The same physical check function takes an `envSource: 'prod' \| 'dev'` argument. |
+| `LAUNCH-ENV-002`     | required    | Same shape as `LAUNCH-ENV-001`, against `PUBLIC_SITE_URL`.                                                                                                                                                                                                                                |
+| `LAUNCH-APPHTML-001` | required    | Read `src/app.html`, find the `<title>` tag. `fail` if it equals the template fallback (literal `tmpl-svelte-app` or similar).                                                                                                                                                            |
+| `LAUNCH-BACKUP-001`  | recommended | Check whether `BACKUP_REMOTE` is set in the production env reference. `warn` (not `fail`) if missing — backups can be configured post-launch.                                                                                                                                             |
+| `LAUNCH-EMAIL-001`   | recommended | Check whether `POSTMARK_SERVER_TOKEN` is set in production env reference. `warn` if missing — the contact form falls back to console-only logging cleanly.                                                                                                                                |
+
+### Env source — which env file the check reads
+
+Each consumer passes an explicit `envSource` to the manifest:
+
+| Consumer                                                  | `envSource` | Why                                                                                   |
+| --------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------- |
+| `bun run validate:launch` / `launch:check` (release gate) | `'prod'`    | About to ship; `localhost` in `ORIGIN`/`PUBLIC_SITE_URL` is a fail.                   |
+| `bun run doctor` (default)                                | `'dev'`     | A diagnostic on a developer machine; localhost is expected and should warn, not fail. |
+| `bun run doctor --env prod` (or `DOCTOR_ENV=prod`)        | `'prod'`    | When checking a prod env file or running pre-deploy.                                  |
+| Dev banner                                                | `'dev'`     | Always dev; only renders in dev mode anyway.                                          |
+
+The "production env reference" is the rendered prod env file (e.g.,
+`.env.production` or whatever `secrets:render` produces). If no prod env
+file is locatable when `envSource: 'prod'`, the check fails with
+`status: 'fail', detail: 'no production env file found at …'`.
 
 ### Severity rules
 
@@ -80,20 +99,29 @@ If `scripts/check-launch.ts` already exists, refactor it to:
 4. Exit nonzero if any `required` blocker is `fail`.
 
 If a separate script does not exist, add one and wire it into the
-existing `validate:launch`. Plan §11 already aliases `launch:check` to
-`validate:launch`; that alias is added in Phase 9 extras.
+existing `validate:launch`. The `launch:check` alias for
+`validate:launch` ships in Phase 8 alongside the docs flip; this
+phase's checks are consumed by both names interchangeably.
 
 ## Acceptance criteria
 
 - [ ] Every entry in the registry has a real `check` function with unit
-      tests covering pass and fail cases.
-- [ ] Removing `static/og-default.png` (or replacing it with the
-      template's checksum) makes `validate:launch` fail with `LAUNCH-OG-001`
-      exactly once across the run.
-- [ ] Restoring it to a different image makes the next `validate:launch`
-      pass.
+      tests covering pass and fail cases (and, for `LAUNCH-ENV-001/002`,
+      both `envSource: 'dev'` and `envSource: 'prod'` cases).
+- [ ] Replacing `static/og-default.png` with a non-template image makes
+      `LAUNCH-OG-001` disappear from the next `validate:launch` run
+      (other unrelated launch blockers may still be present; this
+      criterion asserts the OG-specific code goes away, not that the
+      whole gate passes).
+- [ ] A `tests/fixtures/ready-to-launch/` fixture (every blocker
+      satisfied — real OG, real prod URLs, real CMS repo, real app.html
+      title) makes `validate:launch` exit 0 against that fixture.
+- [ ] On a developer machine with `localhost` in the local `.env`,
+      `bun run doctor` reports `LAUNCH-ENV-001/002` as **warn**, not fail.
+- [ ] On a production env file with `localhost` set, `validate:launch`
+      reports `LAUNCH-ENV-001/002` as **fail**.
 - [ ] Doctor reports the same set of blockers for the same repo state as
-      `validate:launch`.
+      `validate:launch` (when invoked with the same `envSource`).
 - [ ] No duplicate blocker logic exists outside the manifest.
 - [ ] `bun run validate` passes.
 
@@ -128,12 +156,15 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
   hard-code it as a constant in the manifest. Re-running the project's
   own image-optimizer must not change the checksum (if it does, the
   template's prebuild is non-idempotent and that's a separate bug).
-- **`LAUNCH-ENV-001/002` env source.** When called from `validate:launch`
-  on a developer machine without a production env file, default to
-  reading the current `.env` and emit `warn` for localhost values rather
-  than `fail` — otherwise every dev gets red CI on every push. The fail
-  threshold is "production environment said localhost," not "your local
-  .env said localhost."
+- **`LAUNCH-ENV-001/002` env source is explicit, not heuristic.** Each
+  caller passes `envSource: 'prod' | 'dev'`. The check does **not**
+  guess based on whether a `.env.production` happens to exist. See the
+  "Env source" table in the contract above. The fail threshold is
+  "production env said localhost," not "your local `.env` said
+  localhost," so `bun run doctor` on a dev machine with localhost
+  values returns `warn`, never `fail`, by default.
+- **`validate:launch` always uses `envSource: 'prod'`.** That is its
+  job. Doctor defaults to `'dev'`; `--env prod` switches it.
 - **Recommended vs required.** Backups and email are recommended; OG
   image, CMS repo, and prod URL placeholders are required. Don't bundle
   all of these as `required` — that would block the launch on things the

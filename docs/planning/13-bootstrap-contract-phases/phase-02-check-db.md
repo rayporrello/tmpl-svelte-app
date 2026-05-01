@@ -25,10 +25,20 @@ This is the only place script-side code is allowed to import from `src/`.
 
 `scripts/check-db-health.ts` must:
 
-1. Load `.env` deterministically (use Bun's built-in `import.meta.env` or
-   read `.env` via `scripts/lib/env-file.ts`).
-2. Call `checkDbHealth()` from `src/lib/server/db/health.ts`.
-3. On success, print:
+1. Read `.env` deterministically. Bun auto-loads `.env` into `process.env`
+   when scripts run via `bun run`, so `process.env.DATABASE_URL` is the
+   normal access path. **Do not use `import.meta.env`** — that is a
+   Vite/SvelteKit convention and is not populated for plain Bun scripts.
+   For non-`bun run` invocations (CI step calling the script directly,
+   tempdir harness, etc.), parse `.env` explicitly via
+   `scripts/lib/env-file.ts`.
+2. Be invocable as a script — i.e., the file ends with a top-level
+   `await main()` (or equivalent) so `bun scripts/check-db-health.ts`
+   actually runs the check, not just defines `checkDbHealth()`. The
+   imported `checkDbHealth()` from `src/lib/server/db/health.ts` is the
+   probe; this script is its CLI executor.
+3. Call `checkDbHealth()` from `src/lib/server/db/health.ts`.
+4. On success, print:
    ```
    OK   Database connectivity verified
         host: <host>:<port>
@@ -36,7 +46,7 @@ This is the only place script-side code is allowed to import from `src/`.
         latency: <ms>
    ```
    and exit 0.
-4. On failure, route the error through `diagnosePostgresError()` from
+5. On failure, route the error through `diagnosePostgresError()` from
    `scripts/lib/diagnose-pg.ts`, which returns `{ code, hint }`. Print:
    ```
    FAIL <code> <human label from errors.ts>
@@ -45,7 +55,7 @@ This is the only place script-side code is allowed to import from `src/`.
    ```
    and exit nonzero. The exit code can simply be `1` — the readable
    `BOOT-DB-*` code is in the output.
-5. **Never print `DATABASE_URL` or any password.** Use the redaction in
+6. **Never print `DATABASE_URL` or any password.** Use the redaction in
    `scripts/lib/run.ts` if you log connection info.
 
 ### Failure → code mapping
@@ -107,6 +117,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 - **Do not add to `validate`.** Validate runs in CI and on dev machines
   that may not have a DB. Bootstrap-smoke (Phase 8) is where it belongs
   in CI.
-- **Loading `.env`.** Bun reads `.env` automatically for `bun run`, but
-  the path resolution is project-root. If you spawn this script from
-  elsewhere, prefer reading `.env` explicitly via `env-file.ts`.
+- **Loading `.env`.** Bun reads `.env` into `process.env` automatically
+  for `bun run`, but the path resolution is project-root. If you spawn
+  this script from elsewhere (a tempdir test, a CI step calling the file
+  directly), prefer reading `.env` explicitly via `env-file.ts`. Never
+  use `import.meta.env`; that is Vite-specific and is not populated for
+  Bun scripts.

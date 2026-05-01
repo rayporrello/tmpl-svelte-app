@@ -1,4 +1,4 @@
-# Phase 8 — Docs Flip + CI Hardening
+# Phase 8 — Docs Flip + CI Hardening + `launch:check` Alias
 
 > Plan reference: §6 Phase 8, §11 (PR sequence).
 
@@ -7,6 +7,13 @@
 Make the bootstrap path the documented default. Add a `bootstrap-smoke`
 CI job that exercises the full path on every push to `main`, and a
 nightly job that exercises the Podman integration smoke from Phase 5b.
+
+This phase **also adds the `launch:check` alias** to `package.json`
+because the README and getting-started rewrite below references it. The
+four-command model (`bootstrap`, `doctor`, `validate`, `launch:check`)
+must be coherent at the moment the docs flip. The alias was originally
+parked in Phase 9 §9.1 — that section is dropped (see
+[phase-09-extras.md](phase-09-extras.md)).
 
 After this phase, "_use this template_" actually means
 `./bootstrap && bun run dev`.
@@ -19,6 +26,7 @@ After this phase, "_use this template_" actually means
 
 | Path                                      | Change                                                                                                                                                                           |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `package.json`                            | Add `"launch:check": "bun run validate:launch"` alongside the other scripts. (Was previously parked in Phase 9 §9.1; moved up because the docs rewrite below references it.)     |
 | `README.md`                               | Replace the "Using this template" lead with the bootstrap path.                                                                                                                  |
 | `docs/getting-started.md`                 | New top: `git clone → cd → ./bootstrap → bun run dev`. Move the existing 12 manual steps under a heading "Manual setup (advanced — understand or override what bootstrap does)." |
 | `.github/workflows/ci.yml`                | Add `bootstrap-smoke` job that runs on `main` push only. The existing `validate` job continues to run on every PR.                                                               |
@@ -125,10 +133,12 @@ Add to `.github/workflows/ci.yml`:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      # Action SHAs match the existing pinning style in .github/workflows/ci.yml.
+      # Verify against current main before merging — they may need a refresh.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: latest
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - name: Run ./bootstrap --ci against the service Postgres
         env:
@@ -177,13 +187,19 @@ Notes:
 
 ## Acceptance criteria
 
-- [ ] README's "Using this template" leads with the bootstrap path.
+- [ ] `package.json` has `"launch:check": "bun run validate:launch"`.
+- [ ] `bun run launch:check` produces identical output to
+      `bun run validate:launch`.
+- [ ] README's "Using this template" leads with the bootstrap path and
+      references `bun run launch:check`.
 - [ ] `docs/getting-started.md` opens with the four-line happy path; the
       old 12 steps live under "Manual setup (advanced)."
 - [ ] CI `bootstrap-smoke` job runs on `main` push.
 - [ ] Job exits 0 on a clean `main` push and fails on any regression
       introduced by intentionally breaking bootstrap (smoke-test by reverting
       one BOOT-\* code in the script, confirming CI red, restoring).
+- [ ] CI snippet uses repo's pinned-SHA + `bun-version-file: package.json`
+      style; does not use floating tags or `bun-version: latest`.
 - [ ] The nightly Podman workflow from Phase 5b is wired up (or
       documented as pending if a self-hosted runner is not yet available).
 - [ ] `bun run validate` passes.
@@ -194,15 +210,23 @@ Notes:
 feat(docs+ci): flip getting-started to bootstrap-first; add bootstrap-smoke
 
 Docs:
-- README "Using this template" leads with ./bootstrap.
+- README "Using this template" leads with ./bootstrap and references
+  bun run launch:check as the release-grade gate.
 - docs/getting-started.md opens with the four-line happy path; the
   existing 12 manual steps move under "Manual setup (advanced)."
+
+Scripts:
+- Add `launch:check` alias = `bun run validate:launch`. The four-command
+  model (bootstrap, doctor, validate, launch:check) must be coherent at
+  the moment the docs flip.
 
 CI:
 - New bootstrap-smoke job on main push: service Postgres,
   ./bootstrap --ci with deterministic BOOTSTRAP_* env vars,
   bun run build, start server, curl /healthz and /readyz, bun run
   validate.
+- CI uses the repo's pinned-SHA + bun-version-file: package.json
+  conventions to match the existing validate job.
 - Nightly Podman integration job (from Phase 5b) confirmed wired or
   documented as pending self-hosted runner.
 
@@ -230,3 +254,13 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 - **README and getting-started must agree.** If they drift, the agent
   rules in `AGENTS.md` start contradicting the real first-run flow. Keep
   them in lockstep.
+- **Action SHAs go stale.** The pinned SHAs in this prompt mirror what
+  `.github/workflows/ci.yml` uses today. If `main` has bumped them when
+  this phase runs, copy the current SHAs from `ci.yml` rather than the
+  ones written here. Do not regress to floating tags like
+  `actions/checkout@v4`.
+- **`bun-version-file: package.json` is the locked convention.** The
+  template's `package.json` declares `"engines": { "bun": ">=1.1" }` and
+  `"packageManager": "bun@1.3.9"`; `setup-bun` reads from there. Do not
+  use `bun-version: latest` — it diverges from local dev and from the
+  rest of the repo's CI.
