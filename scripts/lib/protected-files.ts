@@ -16,7 +16,6 @@ export const PROTECTED_FILES = [
 	'deploy/systemd/backup.service',
 	'deploy/systemd/backup.timer',
 	'content/pages/home.yml',
-	'.github/workflows/ci.yml',
 	'README.md',
 ] as const;
 
@@ -33,7 +32,6 @@ export const INIT_SITE_OWNED_FILES = [
 	'deploy/systemd/backup.service',
 	'deploy/systemd/backup.timer',
 	'content/pages/home.yml',
-	'.github/workflows/ci.yml',
 	'README.md',
 ] as const;
 

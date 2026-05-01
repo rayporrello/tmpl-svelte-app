@@ -18,6 +18,8 @@ bun.lockb
 .env
 .env.*
 !.env.example
+.env.backup.*
+.bootstrap.state.json
 
 # ── SOPS / secrets ────────────────────────────────────────────────────────────
 # Decrypted secrets must never be committed.

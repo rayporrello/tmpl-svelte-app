@@ -63,4 +63,18 @@ describe('site-state inspectRepo()', () => {
 		expect(result.envPresent).toBe(true);
 		expect(result.envParsed).toBeNull();
 	});
+
+	it('does not scan CI workflow values as init-owned placeholders', async () => {
+		const root = makeRepo();
+		writeRepoFile(
+			root,
+			'.github/workflows/ci.yml',
+			'name: tmpl-svelte-app\nORIGIN: https://example.com\nPUBLIC_SITE_URL: https://example.com\n'
+		);
+
+		const result = await inspectRepo({ rootDir: root });
+
+		expect(result.placeholdersByFile['.github/workflows/ci.yml']).toBeUndefined();
+		expect(result.initSiteDone).toBe(true);
+	});
 });

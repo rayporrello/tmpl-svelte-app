@@ -38,8 +38,8 @@ export function run(label: string, options: PrintOptions = {}): string {
 
 export function fail(
 	code: ErrorCode,
-	message = ERRORS[code],
-	hint = 'See the error above and re-run after fixing it.',
+	message: string = ERRORS[code],
+	hint: string = 'See the error above and re-run after fixing it.',
 	options: PrintOptions = {}
 ): string {
 	const output = [`FAIL ${code} ${message}`, nextLine(hint)].join('\n');

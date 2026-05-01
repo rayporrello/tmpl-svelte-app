@@ -14,6 +14,14 @@ describe('run helper', () => {
 		expect(result.durationMs).toBeGreaterThanOrEqual(0);
 	});
 
+	it('writes provided stdin to the child process', async () => {
+		const result = await run('/bin/cat', [], { stdin: 'hello\n', capture: true });
+
+		expect(result.code).toBe(0);
+		expect(result.stdout).toBe('hello\n');
+		expect(result.stderr).toBe('');
+	});
+
 	it('redacts Postgres passwords and 32-byte hex secrets', () => {
 		const secret = 'a'.repeat(64);
 		const redacted = redactSecrets(

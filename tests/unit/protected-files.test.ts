@@ -25,6 +25,8 @@ describe('protected file allowlist', () => {
 	it('exports the init-site-owned subset', () => {
 		expect(PROTECTED_FILES).toContain('.bootstrap.state.json');
 		expect(INIT_SITE_OWNED_FILES).not.toContain('.bootstrap.state.json');
+		expect(PROTECTED_FILES).not.toContain('.github/workflows/ci.yml');
+		expect(INIT_SITE_OWNED_FILES).not.toContain('.github/workflows/ci.yml');
 		expect(INIT_SITE_OWNED_FILES).toContain('README.md');
 	});
 });

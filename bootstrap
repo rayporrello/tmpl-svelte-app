@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+command -v bun >/dev/null 2>&1 || {
+	echo "FAIL BOOT-BUN-001 Bun is required."
+	echo "NEXT: Install Bun (https://bun.sh) and re-run ./bootstrap."
+	exit 1
+}
+
+# --dry-run must not mutate node_modules/.
+for arg in "$@"; do
+	if [ "$arg" = "--dry-run" ]; then
+		if [ -d node_modules ]; then
+			exec bun run bootstrap "$@"
+		else
+			echo "DRY-RUN ./bootstrap"
+			echo "  WOULD run: bun install --frozen-lockfile"
+			echo "  WOULD run: bun run bootstrap $*"
+			echo "  Re-run without --dry-run to install dependencies and continue."
+			exit 0
+		fi
+	fi
+done
+
+bun install --frozen-lockfile
+exec bun run bootstrap "$@"

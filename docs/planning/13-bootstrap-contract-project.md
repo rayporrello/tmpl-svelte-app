@@ -290,7 +290,6 @@ deploy/quadlets/web.network           (init:site-owned)
 deploy/systemd/backup.service         (init:site-owned)
 deploy/systemd/backup.timer           (init:site-owned)
 content/pages/home.yml                (init:site-owned)
-.github/workflows/ci.yml              (init:site-owned, name only)
 README.md                             (init:site-owned, name only)
 ```
 
