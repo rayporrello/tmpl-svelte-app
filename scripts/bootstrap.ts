@@ -61,13 +61,15 @@ type PostgresStepResult = {
 	databaseUrl: string;
 	container: string | null;
 	port: number | null;
-	runtime: ContainerRuntime | 'external';
+	runtime: ContainerRuntime | 'external' | 'mock';
 };
 
 const TEMPLATE_PACKAGE_NAME = 'tmpl-svelte-app';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = resolve(SCRIPT_DIR, '..');
 const REQUIRED_ENV_KEYS = ['DATABASE_URL', 'ORIGIN', 'PUBLIC_SITE_URL', 'SESSION_SECRET'] as const;
+const MOCK_POSTGRES_PORT = 55432;
+const MOCK_POSTGRES_PASSWORD = 'mock-local-password';
 
 const CI_ANSWER_ENV = [
 	'BOOTSTRAP_PACKAGE_NAME',
@@ -311,6 +313,37 @@ function isBootCode(value: string): value is BootErrorCode {
 	return value.startsWith('BOOT-') && value in ERRORS;
 }
 
+function isMockProvisioner(): boolean {
+	return process.env.BOOTSTRAP_PROVISIONER === 'mock';
+}
+
+function mockFailureCode(): BootErrorCode | null {
+	const value = process.env.BOOTSTRAP_MOCK_FAILURE?.trim();
+	if (!value) return null;
+	if (isBootCode(value)) return value;
+	throw new BootstrapScriptError(
+		'BOOT-INIT-001',
+		`Unsupported BOOTSTRAP_MOCK_FAILURE value: ${value}`,
+		'NEXT: Use a documented BOOT-* code or unset BOOTSTRAP_MOCK_FAILURE.'
+	);
+}
+
+function mockHint(code: BootErrorCode): string {
+	return `NEXT: check:bootstrap intentionally triggered ${code}; inspect bootstrap handling for that failure.`;
+}
+
+function mockFailureOutput(code: BootErrorCode): string {
+	return `FAIL ${code} ${ERRORS[code]}\n${mockHint(code)}\n`;
+}
+
+function throwMockFailure(code: BootErrorCode): never {
+	throw new BootstrapScriptError(code, `Mock bootstrap failure for ${code}.`, mockHint(code));
+}
+
+function recordMockAction(action: string): void {
+	process.stdout.write(`MOCK ${action}\n`);
+}
+
 function parseFailure(
 	output: string,
 	fallback: BootErrorCode
@@ -328,6 +361,23 @@ async function checkDatabaseUrl(
 	rootDir: string,
 	databaseUrl: string
 ): Promise<DatabaseCheckResult> {
+	if (isMockProvisioner()) {
+		recordMockAction('bun run check:db');
+		const failure = mockFailureCode();
+		if (failure && ['BOOT-DB-001', 'BOOT-DB-002', 'BOOT-DB-003', 'BOOT-DB-004'].includes(failure)) {
+			const output = mockFailureOutput(failure);
+			return { ok: false, code: failure, hint: mockHint(failure), output };
+		}
+
+		return {
+			ok: true,
+			output:
+				'OK   Database connectivity verified\n' +
+				`     host: 127.0.0.1:${MOCK_POSTGRES_PORT}\n` +
+				'     db:   mock\n',
+		};
+	}
+
 	const result = await runCommand('bun', ['run', 'check:db'], {
 		cwd: rootDir,
 		env: { ...process.env, DATABASE_URL: databaseUrl },
@@ -444,7 +494,7 @@ async function stepSiteInit(rootDir: string, options: CliOptions): Promise<StepR
 	if (options.dryRun) {
 		if (options.ci || options.answersFile) initInputForOptions(rootDir, options);
 		ok('Site initialization planned');
-		process.stdout.write('DRY-RUN would run: bun run init:site\n');
+		process.stdout.write('DRY-RUN WOULD run: bun run init:site\n');
 		return { status: 'ok', summary: 'Site initialization planned' };
 	}
 
@@ -482,7 +532,7 @@ function stepEnvMaterialize(plan: EnvPlan, options: CliOptions): StepRecord {
 
 	if (options.dryRun) {
 		ok('.env materialization planned');
-		process.stdout.write(`DRY-RUN would add ${plan.missingKeys.length} missing local .env keys.\n`);
+		process.stdout.write(`DRY-RUN WOULD add ${plan.missingKeys.length} missing local .env keys.\n`);
 		return { status: 'ok', summary: '.env materialization planned' };
 	}
 
@@ -504,7 +554,7 @@ async function stepPostgres(
 		if (existingDatabaseUrl) {
 			ok('Postgres verification planned');
 			process.stdout.write(
-				'DRY-RUN would verify existing DATABASE_URL and would not overwrite it if unreachable.\n'
+				'DRY-RUN WOULD verify existing DATABASE_URL and would not overwrite it if unreachable.\n'
 			);
 			return {
 				record: { status: 'ok', summary: 'Postgres verification planned' },
@@ -516,7 +566,7 @@ async function stepPostgres(
 		}
 
 		ok('Postgres provisioning planned');
-		process.stdout.write('DRY-RUN would provision local Postgres with Podman or Docker.\n');
+		process.stdout.write('DRY-RUN WOULD provision local Postgres with Podman or Docker.\n');
 		return {
 			record: { status: 'ok', summary: 'Postgres provisioning planned' },
 			databaseUrl: '',
@@ -566,6 +616,30 @@ async function stepPostgres(
 		};
 	}
 
+	if (isMockProvisioner()) {
+		const failure = mockFailureCode();
+		if (failure && ['BOOT-PG-001', 'BOOT-PG-002', 'BOOT-PG-003'].includes(failure)) {
+			throwMockFailure(failure);
+		}
+
+		recordMockAction('provision local Postgres');
+		const { database, user, container } = postgresIdentifiers(projectSlug);
+		const databaseUrl = `postgres://${user}:${encodeURIComponent(
+			MOCK_POSTGRES_PASSWORD
+		)}@127.0.0.1:${MOCK_POSTGRES_PORT}/${database}`;
+		ok(`Mock Postgres ${container} provisioned on 127.0.0.1:${MOCK_POSTGRES_PORT}`);
+		return {
+			record: {
+				status: 'ok',
+				summary: `Mock Postgres ${container} provisioned on 127.0.0.1:${MOCK_POSTGRES_PORT}`,
+			},
+			databaseUrl,
+			container,
+			port: MOCK_POSTGRES_PORT,
+			runtime: 'mock',
+		};
+	}
+
 	const result = await provisionLocalPostgres({
 		projectSlug,
 		isDatabaseReachable: async (databaseUrl) => (await checkDatabaseUrl(rootDir, databaseUrl)).ok,
@@ -600,8 +674,17 @@ async function stepMigrate(
 	printRun('Migrate');
 	if (options.dryRun) {
 		ok('Migrations planned');
-		process.stdout.write('DRY-RUN would run: bun run db:migrate\n');
+		process.stdout.write('DRY-RUN WOULD run: bun run db:migrate\n');
 		return { status: 'ok', summary: 'Migrations planned' };
+	}
+
+	if (isMockProvisioner()) {
+		recordMockAction('bun run db:migrate');
+		if (mockFailureCode() === 'BOOT-MIG-001') {
+			throwMockFailure('BOOT-MIG-001');
+		}
+		ok('Migrations simulated');
+		return { status: 'ok', summary: 'Migrations simulated' };
 	}
 
 	const result = await runCommand('bun', ['run', 'db:migrate'], {
@@ -628,7 +711,7 @@ async function stepHealthVerify(
 	printRun('Health verify');
 	if (options.dryRun) {
 		ok('Database connectivity check planned');
-		process.stdout.write('DRY-RUN would run: bun run check:db\n');
+		process.stdout.write('DRY-RUN WOULD run: bun run check:db\n');
 		return { status: 'ok', summary: 'Database connectivity check planned' };
 	}
 
@@ -706,6 +789,10 @@ async function mainWithOptions(rootDir: string, options: CliOptions): Promise<nu
 		: { status: 'ok', summary: 'Dependencies installed' };
 
 	await stepPreflight(rootDir);
+	if (process.env.BOOTSTRAP_TEST_GUARD_WRITE === '1') {
+		guardedWriteText(rootDir, 'src/app.html', '<title>not allowed</title>\n');
+	}
+
 	const site = await stepSiteInit(rootDir, options);
 	const packageName = readPackageName(rootDir);
 	const projectSlug = readProjectSlug(rootDir, packageName);

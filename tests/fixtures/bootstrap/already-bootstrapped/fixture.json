@@ -1,0 +1,16 @@
+{
+	"initialized": true,
+	"env": {
+		"DATABASE_URL": "postgres://phase_five_smoke_user:fixture-password@127.0.0.1:55432/phase_five_smoke",
+		"ORIGIN": "http://127.0.0.1:5173",
+		"PUBLIC_SITE_URL": "http://127.0.0.1:5173",
+		"SESSION_SECRET": "fixture-session-secret-not-real"
+	},
+	"state": {
+		"createdAt": "2026-05-01T18:00:00.000Z",
+		"createdContainer": "phase-five-smoke-pg",
+		"createdContainerPort": 55432,
+		"createdEnvKeys": ["DATABASE_URL", "ORIGIN", "PUBLIC_SITE_URL", "SESSION_SECRET"],
+		"bootstrapContractVersion": 1
+	}
+}
