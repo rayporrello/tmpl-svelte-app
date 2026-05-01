@@ -35,11 +35,11 @@ Starting a new web project from scratch means re-solving the same problems every
 - Secrets management (SOPS + age workflow, render and check scripts)
 - Agent-readable operating rules (`AGENTS.md`, `CLAUDE.md.template`)
 
-**Scaffolded but dormant (activate per project):**
+**Live / configured seams:**
 
-- Contact form pattern (Superforms + Valibot + EmailProvider seam + rate limiter at `src/routes/contact-example/`) — write submissions to `contact_submissions` table when activated
-- Postmark transactional email provider (`src/lib/server/forms/providers/postmark.example.ts`)
-- Provider-agnostic automation env contract (`AUTOMATION_PROVIDER`, generic webhook vars, and n8n provider vars) — use `automation_events` table for outbound event tracking
+- Contact form (Superforms + Valibot + EmailProvider seam + rate limiter at `src/routes/contact/`) — writes submissions to `contact_submissions`
+- Postmark transactional email provider (`src/lib/server/forms/providers/postmark.ts`) — activated by `POSTMARK_SERVER_TOKEN`
+- Provider-agnostic automation env contract (`AUTOMATION_PROVIDER`, generic webhook vars, and n8n provider vars) — writes outbound event state to `automation_events`
 - Analytics spine: GTM + GA4 + Cloudflare Web Analytics + server conversion events (set `PUBLIC_ANALYTICS_ENABLED=true` in production — see `docs/analytics/README.md`)
 
 **Planned, not yet implemented:**

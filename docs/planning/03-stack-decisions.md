@@ -20,8 +20,8 @@ See [ADR-005](adrs/ADR-005-css-token-architecture.md).
 
 ## Forms
 
-**Superforms + Valibot** — standard form behavior library; install per project when the first server action is added.  
-CSS layer (`forms.css`) works without it for display-only forms.
+**Superforms + Valibot** — standard form behavior library, pre-installed in the template.
+The live `/contact` route demonstrates the pattern; CSS layer (`forms.css`) also works for display-only forms.
 
 ## CMS
 
@@ -30,7 +30,7 @@ See [ADR-014](adrs/ADR-014-sveltia-content-system.md).
 
 ## Database
 
-**Postgres + Drizzle** — default for runtime data. Dormant in base template; activate when a project needs persistent data.  
+**Postgres + Drizzle** — default runtime data layer. The base template ships starter tables and requires `DATABASE_URL` at runtime.
 See [ADR-004](adrs/ADR-004-postgres-for-runtime-data.md).
 
 ## Images

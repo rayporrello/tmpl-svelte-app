@@ -19,23 +19,24 @@ The template ships with a complete, built-in SEO system. It is not optional and 
 
 ### Components
 
-| File | Role |
-|------|------|
-| `src/lib/config/site.ts` | Single source of truth for domain, name, OG image, org, locale |
-| `src/lib/seo/types.ts` | TypeScript types for per-page SEO input and resolved metadata |
-| `src/lib/seo/metadata.ts` | Pure helpers: canonical URL, image URL, title template, robots directive |
-| `src/lib/seo/schemas.ts` | JSON-LD helpers: Organization, WebSite, Article, Breadcrumb, Person, LocalBusiness, FAQ |
-| `src/lib/seo/routes.ts` | Static route registry — every route declared with `indexable` flag |
-| `src/lib/seo/sitemap.ts` | Generates `sitemap.xml` XML from the route registry |
-| `src/lib/components/seo/SEO.svelte` | Svelte component: renders title, meta, canonical, OG, Twitter, JSON-LD |
-| `src/routes/sitemap.xml/+server.ts` | Prerendered sitemap endpoint |
-| `src/routes/robots.txt/+server.ts` | Prerendered robots.txt endpoint (respects `site.indexing` flag) |
-| `src/routes/llms.txt/+server.ts` | Prerendered AI-readable site description |
-| `scripts/check-seo.ts` | Validation script — fails on placeholder values and indexability errors |
+| File                                | Role                                                                                        |
+| ----------------------------------- | ------------------------------------------------------------------------------------------- |
+| `src/lib/config/site.ts`            | Single source of truth for domain, name, OG image, org, locale                              |
+| `src/lib/seo/types.ts`              | TypeScript types for per-page SEO input and resolved metadata                               |
+| `src/lib/seo/metadata.ts`           | Pure helpers: canonical URL, image URL, title template, robots directive                    |
+| `src/lib/seo/schemas.ts`            | JSON-LD helpers: Organization, WebSite, Article, Breadcrumb, Person, LocalBusiness, FAQ     |
+| `src/lib/seo/routes.ts`             | Static route registry — every route declared with `indexable` flag                          |
+| `src/lib/seo/sitemap.ts`            | Generates `sitemap.xml` XML from the route registry                                         |
+| `src/lib/components/seo/SEO.svelte` | Svelte component: renders title, meta, canonical, OG, Twitter, JSON-LD                      |
+| `src/routes/sitemap.xml/+server.ts` | Prerendered sitemap endpoint                                                                |
+| `src/routes/robots.txt/+server.ts`  | Prerendered robots.txt endpoint (respects `site.indexing` flag)                             |
+| `src/routes/llms.txt/+server.ts`    | Prerendered AI-readable site description                                                    |
+| `scripts/check-seo.ts`              | Validation script — warns on placeholder values and fails on structural/indexability errors |
 
 ### Page contract
 
 Every new public route must:
+
 1. Use the `SEO` component with `title`, `description`, and `canonicalPath`.
 2. Be registered in `src/lib/seo/routes.ts` with `indexable` declared.
 
@@ -43,7 +44,7 @@ Internal/admin/dev routes must use `robots: 'noindex, nofollow'` and `indexable:
 
 ### Per-project customization
 
-`src/lib/config/site.ts` is the only file that must change per project. All other SEO files derive from it. `bun run check:seo` fails if `site.url` is still `https://example.com`.
+`src/lib/config/site.ts` is the primary SEO file that must change per project. All other SEO files derive from it. `bun run check:seo` warns if `site.url` is still `https://example.com`; `bun run check:launch` fails on that placeholder before release.
 
 ---
 
@@ -61,7 +62,7 @@ Internal/admin/dev routes must use `robots: 'noindex, nofollow'` and `indexable:
 
 ## Consequences
 
-- **Every project must update `site.ts`** before deploying. `check:seo` will loudly fail otherwise.
+- **Every project must update `site.ts`** before deploying. `check:seo` warns during development and `check:launch` fails loudly before release if placeholder values remain.
 - **Every new route must be registered** in `routes.ts`. This is a small, explicit step that makes indexability decisions visible and reviewable.
 - **Schema helpers must be used only when visible content supports them.** The helpers include comments documenting this. The onus is on the developer/agent to not misuse them.
 - **The root layout injects Organization and WebSite schema** on every page. Individual pages add their own schema on top. Agents must not duplicate root schema in page components.

@@ -20,8 +20,10 @@ example.com {
     }
 
     # ── HSTS ─────────────────────────────────────────────────────────────────
-    # Caddy owns HSTS. Do not set Strict-Transport-Security in the app.
-    # Adjust max-age and includeSubDomains before adding to the preload list.
+    # Caddy is canonical for HSTS. The app also sets the same value on HTTPS
+    # responses as defense-in-depth when deployed behind a different proxy.
+    # Adjust max-age/includeSubDomains here and in src/hooks.server.ts together
+    # before adding a domain to the preload list.
     header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 
     # ── Compression ──────────────────────────────────────────────────────────
@@ -57,6 +59,15 @@ example.com {
     #         window 1m
     #     }
     # }
+
+    # ── Immutable SvelteKit assets (optional) ────────────────────────────────
+    # SvelteKit's generated /_app/immutable/* filenames are content-hashed.
+    # The Bun adapter normally serves them with long-lived cache headers; keep
+    # this edge snippet here as the explicit Caddy-side override if a future
+    # adapter/proxy path stops doing so.
+    #
+    # @svelte_immutable path /_app/immutable/*
+    # header @svelte_immutable Cache-Control "public, max-age=31536000, immutable"
 
     # ── Reverse proxy ─────────────────────────────────────────────────────────
     # The SvelteKit app listens on port 3000. In a Podman Quadlet setup the

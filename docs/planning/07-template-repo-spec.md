@@ -85,7 +85,7 @@ tmpl-svelte-app/
           rate-limit.ts       ← in-memory token-bucket rate limiter (RATE_LIMIT_ENABLED)
           providers/
             console.ts        ← default no-op provider (logs to stdout)
-            postmark.example.ts ← Postmark swap target — copy to postmark.ts to activate
+            postmark.ts       ← Postmark provider — activated by POSTMARK_SERVER_TOKEN
       styles/
         tokens.css            ← BRAND FILE — replace or extend per project
         brand.example.css     ← annotated "Warm Coral" re-skin example
@@ -105,9 +105,9 @@ tmpl-svelte-app/
         [slug]/
           +page.server.ts     ← loadArticle + renderMarkdown
           +page.svelte        ← /articles/[slug] — full Article schema, sanitized HTML body
-      contact-example/        ← DORMANT — rename to contact/ to activate
-        +page.server.ts       ← Superforms server action with rate limit + EmailProvider
-        +page.svelte          ← Superforms-powered contact form with forms.css styles
+      contact/
+        +page.server.ts       ← live Superforms server action with rate limit, DB persistence, EmailProvider, automation event
+        +page.svelte          ← Superforms-powered contact form with honeypot and forms.css styles
       healthz/
         +server.ts            ← process liveness check; returns JSON
       sitemap.xml/
@@ -212,7 +212,7 @@ tmpl-svelte-app/
 
 `forms.css` is visual-only. It does not include validation logic, form submission, or data binding.
 
-**Superforms is the standard form behavior library** for projects built from this template. When a project adds its first form with a server action, install Superforms: `bun add sveltekit-superforms valibot`. Superforms owns validation, data binding, submission, and progressive enhancement. It generates markup that `forms.css` already styles — no CSS changes needed.
+**Superforms is the standard form behavior library** for projects built from this template. It is already installed with Valibot. Superforms owns validation, data binding, submission, and progressive enhancement. It generates markup that `forms.css` already styles — no CSS changes needed.
 
 ## Dormant modules
 

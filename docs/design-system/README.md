@@ -11,7 +11,7 @@ A lightweight, token-driven CSS layer with no mandatory build-time dependencies.
 - **Website-first defaults** — normal document scrolling, no full-height viewport lock, no disabled user zoom
 - **Light/dark theme engine** — CSS `light-dark()` and `color-scheme`, no JavaScript required at paint time
 - **Visual form primitives** — `forms.css` styles fields, controls, and messages
-- **Superforms as standard** — the behavior layer for any form with submission; CSS layer works without it
+- **Superforms as standard** — pre-installed behavior layer for forms with submission; CSS layer works without it
 
 ## The two-layer model
 
@@ -73,6 +73,7 @@ Do not hardcode color or spacing values in component CSS. Always add to `tokens.
 Use Svelte scoped `<style>` blocks. See [component-css-rules.md](component-css-rules.md) for the full rule set.
 
 Quick reference:
+
 - Reference `var(--semantic-token)` — never raw brand primitives or hardcoded values
 - Use logical properties (`padding-inline`, `border-block-start`)
 - Use `gap` for spacing between flex/grid children
@@ -84,7 +85,7 @@ Quick reference:
 `forms.css` handles all visual styling. **Superforms** is the standard behavior layer.
 
 - **Visual**: class-based primitives in `forms.css` — `.form`, `.field`, `.input`, `.form-message`, etc.
-- **Behavior**: [Superforms](https://superforms.rocks/) — install when a project adds its first server-action form: `bun add sveltekit-superforms valibot`
+- **Behavior**: [Superforms](https://superforms.rocks/) — already installed; use it for every server-action form
 
 See [forms-guide.md](forms-guide.md) for the full explanation and usage patterns.
 

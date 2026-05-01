@@ -134,11 +134,7 @@ Use container queries for component-level responsive layout. Use media queries o
 - `forms.css` — visual only: field layout, control appearance, error/help text, disabled states, focus rings, form messages
 - **Superforms** — behavior: validation, data binding, submission, server errors, progressive enhancement
 
-**Superforms is the standard form behavior library.** Install when the first form with a server action is added:
-
-```bash
-bun add sveltekit-superforms valibot
-```
+**Superforms is the standard form behavior library.** It is already installed in this template; use it for every form with a server action.
 
 **CSS classes from `forms.css`:**
 

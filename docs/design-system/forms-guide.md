@@ -267,12 +267,12 @@ Disabled controls use `opacity: 0.5` — this is intentional whole-element dimmi
 
 ## Full Superforms integration pattern
 
-Once Superforms is installed, the typical pattern for a SvelteKit server-action form:
+Superforms is already installed. The typical pattern for a SvelteKit server-action form:
 
 ### Schema (Valibot)
 
 ```ts
-// src/lib/schemas/contact.ts
+// src/lib/forms/contact.schema.ts
 import { object, string, email, minLength } from 'valibot';
 
 export const contactSchema = object({
@@ -288,7 +288,7 @@ export const contactSchema = object({
 // src/routes/contact/+page.server.ts
 import { superValidate, message } from 'sveltekit-superforms';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { contactSchema } from '$lib/schemas/contact';
+import { contactSchema } from '$lib/forms/contact.schema';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {

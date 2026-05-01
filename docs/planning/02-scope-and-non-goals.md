@@ -7,7 +7,8 @@ Every project spawned from this template includes these by default.
 - **SvelteKit / Svelte 5 skeleton** — routing, layouts, and page structure.
 - **Bun** — package manager, dev server, and runtime direction.
 - **CSS token/design-system baseline** — custom properties, explicit CSS layers, and hand-authored component styles. No Tailwind dependency. Includes `forms.css` for visual form primitives.
-- **Superforms + Valibot** — the standard form behavior library for any form with submission behavior. Already shipped as a devDependency; the dormant `src/routes/contact-example/` route demonstrates the wiring. The CSS layer (`forms.css`) works independently for display-only forms.
+- **Postgres + Drizzle** — default runtime data layer with starter tables for contact submissions, automation events, and dead letters. `DATABASE_URL` is required at runtime.
+- **Superforms + Valibot** — the standard form behavior library for any form with submission behavior. Already shipped as dependencies; the live `src/routes/contact/` route demonstrates the wiring. The CSS layer (`forms.css`) works independently for display-only forms.
 - **Sveltia CMS / file-based content conventions** — Git-backed editorial content via Markdown/JSON; Sveltia admin at `/admin`.
 - **SEO, accessibility, semantic HTML, and image baseline** — meta tags, Open Graph, structured data stubs, accessible markup conventions, and image handling patterns.
 - **Podman Quadlet + Caddy deployment templates and documentation** — Caddyfile, Quadlet service definitions, and deploy notes committed to the repo.
@@ -20,7 +21,6 @@ These capabilities are part of the template but off by default. Activating them 
 
 | Module                | What it provides                          | Activation                                         |
 | --------------------- | ----------------------------------------- | -------------------------------------------------- |
-| Postgres + Drizzle    | Runtime data: forms, waitlists, app state | Add Quadlet service + run migrations               |
 | n8n                   | Automation workflows and webhook handling | Add Quadlet service + configure webhook URLs       |
 | Postmark / email      | Transactional email delivery              | Add credentials + enable email module              |
 | Better Auth           | Auth, sessions, member areas, admin       | Add auth config + enable protected routes          |
@@ -46,10 +46,10 @@ These are explicitly out of scope. Pressure to include them should be resisted.
 
 - **Kubernetes or multi-server orchestration** — this template targets a single Podman host. Multi-server concerns belong in infrastructure tooling, not the app template.
 - **Managed cloud database as default** — no AWS RDS, Supabase, PlanetScale, or Vercel Postgres. Runtime data is self-hosted Postgres.
-- **SQLite as the default data path** — dormant module is Postgres + Drizzle; SQLite is not a fallback here.
+- **SQLite as the default data path** — Postgres + Drizzle is the default runtime data layer; SQLite is not a fallback here.
 - **WordPress / plugin architecture** — this template replaces that model entirely.
 - **React, Next.js, or Tailwind as the default stack** — SvelteKit and hand-authored CSS are the chosen directions. Do not add Tailwind as a default dependency.
 - **Heavy UI component libraries** — no Shadcn, DaisyUI, Flowbite, or equivalent baked into the template. The design system is hand-authored and project-specific.
 - **Complex multi-environment infrastructure** — `main` deploys to production. The dev server is the staging environment. No additional environment tiers in the template by default.
 - **Full SaaS platform scaffold by default** — this is a website template with app-capable seams. It is not a pre-built SaaS. Auth, billing, and multi-tenancy are future-project concerns.
-- **Forcing every project to use every module** — dormant means dormant. A simple landing page site should not be required to run Postgres or n8n.
+- **Forcing every project to use every optional module** — optional integrations stay optional. This database-backed template does require Postgres at runtime; n8n, auth, R2, search, and similar modules remain opt-in.

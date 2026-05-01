@@ -123,11 +123,11 @@ The template is feature-complete for the **database-backed website baseline**. A
 - [x] Add env validation (Valibot — src/lib/server/env.ts; moved to Batch B / Phase 6 timeline)
 - [x] Add Superforms (`bun add --dev sveltekit-superforms`) — D; valibot already present from B
 - [x] Add contact form pattern (forms.css + Superforms + console/Postmark provider seam) — D
-- [x] Add EmailProvider seam (src/lib/server/forms/email-provider.ts, providers/console.ts, providers/postmark.example.ts) — D
+- [x] Add EmailProvider seam (src/lib/server/forms/email-provider.ts, providers/console.ts, providers/postmark.ts) — D
 - [x] Add in-memory rate limiter (src/lib/server/forms/rate-limit.ts — token bucket, RATE_LIMIT_ENABLED flag) — D
-- [x] Add contact-example route (src/routes/contact-example/ — dormant by default, rename to activate) — D
+- [x] Add live contact route (src/routes/contact/ — Superforms, honeypot, rate-limit hook, DB persistence, email provider, automation event) — D
 - [x] Add contact Valibot schema (src/lib/forms/contact.schema.ts) — D
-- [x] Wire contact-example as noindex in src/lib/seo/routes.ts — D
+- [x] Register /contact in src/lib/seo/routes.ts as indexable — D
 - [x] Update CSP form-action and connect-src extension comments (src/lib/server/csp.ts) — D
 - [x] Update forms-guide.md with activation walkthrough and provider swap instructions — D
 - [x] Implement typed automation event emitter (`src/lib/server/automation/events.ts` — non-blocking webhook)
@@ -190,8 +190,8 @@ The template is feature-complete for the **database-backed website baseline**. A
 - [x] Add media editor guide (docs/design-system/media-editor-guide.md)
 - [x] Add SEO docs (docs/seo/ — README.md, page-contract.md, schema-guide.md, launch-checklist.md, ADR-011)
 - [x] Add template maintenance / toolchain guide (docs/template-maintenance.md, ADR-012)
-- [ ] Add architecture docs (content system overview) — Phase 5+ deferral
-- [ ] Add operations docs (secrets, deployment, backups) — Phase 5+ deferral
+- [x] Add content/CMS architecture docs (docs/cms/README.md, collection patterns, content safety, Sveltia contract)
+- [x] Add operations docs (secrets, deployment, backups, restore, privacy retention)
 - [x] Add "new site from template" setup guide (docs/getting-started.md — 11-step walkthrough, init:site, brand swap, deploy) — E
 
 ## Phase 8 — Validation
@@ -261,7 +261,4 @@ The template is feature-complete for the **database-backed website baseline**. A
 - n8n Error Workflow setup — Tier 2; document per project once n8n is active
 - Sentry integration — Tier 2; per-project only; do not add to base template
 - OpenTelemetry — Tier 3; seam in place (`event.locals.requestId`); full implementation deferred
-- Architecture docs (content system overview) — Phase 5+ deferral
-- Operations docs (secrets, deployment, backups) — Phase 5+ deferral
-- Typed automation event emitter (`src/lib/automation/events.ts`) — next step after Phase 5 DB; wire into `automation_events` table
 - Template update strategy: @<owner>/web-template-utils extraction — deferred until 3+ projects use the template (see docs/template-update-strategy.md)

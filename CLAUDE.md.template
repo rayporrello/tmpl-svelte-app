@@ -14,7 +14,7 @@ Website — [brief description, e.g., "marketing site for Acme Corp" or "product
 - **Framework:** SvelteKit (Svelte 5)
 - **Runtime:** Bun
 - **CSS:** Token-driven CSS custom properties, cascade layers — see `docs/design-system/`
-- **Forms:** Superforms + Valibot (standard; install with `bun add sveltekit-superforms valibot` when needed)
+- **Forms:** Superforms + Valibot are pre-installed; contact form pattern lives at `src/routes/contact/`
 - **CMS:** Sveltia CMS (file-based content at `static/admin`)
 - **Database:** [Postgres + Drizzle — active/inactive; if active, note connection details]
 - **Deployment:** Podman + Caddy on [host name / IP]
@@ -32,7 +32,7 @@ bun run check:design-system  # validate design-system guardrails
 bun run check:cms            # validate CMS config
 bun run check:content        # validate content files
 bun run check:content-diff   # check for destructive content changes
-bun run validate             # run check + optimize + build + check:seo + check:cms + check:content
+bun run validate             # PR-grade pipeline: checks, build, unit tests, Playwright/axe e2e
 bun run lint                 # ESLint
 bun run format               # Prettier
 ```
@@ -84,16 +84,13 @@ Quick rules:
 
 **`forms.css`** is visual-only: field layout, control appearance, states, messages.
 
-**Superforms** is the standard form behavior library. It is installed in this project: [yes/no].
+**Superforms** is the standard form behavior library and is already installed in this template.
 
-If yes:
 - Use Superforms server actions for all forms with submission behavior.
 - Do not build custom form submission handlers.
 - Do not add validation logic to CSS or components.
-- Schema is in `src/lib/schemas/`.
-
-If no (display-only forms or not yet added):
-- Add Superforms when the first form with a server action is needed: `bun add sveltekit-superforms valibot`.
+- Put form schemas in `src/lib/forms/` (for example, `src/lib/forms/contact.schema.ts`).
+- Reuse the live contact form at `src/routes/contact/` as the reference pattern for validation, DB persistence, email notification, automation events, honeypot handling, and rate limiting.
 
 ## Content and CMS
 
@@ -208,7 +205,7 @@ Secrets workflow: `bun run secrets:render` / `bun run secrets:check`
 ## Project-specific rules
 
 [Add anything an AI agent needs to know that is not covered by template defaults. Examples:]
-- [Forms: schema is at `src/lib/schemas/contact.ts`; server action at `src/routes/contact/+page.server.ts`]
+- [Forms: schema is at `src/lib/forms/contact.schema.ts`; server action at `src/routes/contact/+page.server.ts`]
 - [The `/blog` route loads from Sveltia CMS; do not hardcode posts]
 - [Forms submit to an n8n webhook at `N8N_WEBHOOK_URL` env var]
 
@@ -245,7 +242,7 @@ Full docs: `docs/seo/README.md` · Page contract: `docs/seo/page-contract.md`
 - Internal/admin/preview/draft routes must be `indexable: false` and use `robots: 'noindex, nofollow'`.
 - Do not use `$page.url.href` as canonical. Do not hardcode domain in SEO files.
 - Schema helpers are in `src/lib/seo/schemas.ts`. Only add schema when visible page content supports it.
-- Run `bun run check:seo` before deploying. It fails on placeholder `site.url`/`site.name` values.
+- Run `bun run check:seo` before deploying. It warns on placeholder site values and fails on structural/indexability errors. `bun run check:launch` is the placeholder gate for real project launches.
 
 ```bash
 bun run check:seo  # validate SEO config and route registry

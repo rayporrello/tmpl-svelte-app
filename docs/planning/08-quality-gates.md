@@ -9,10 +9,10 @@ Checks that must pass before a project built from this template ships or before 
 - [ ] No unresolved TypeScript errors in routes or lib files
 - [ ] Bundle size is within expected range (no accidental large imports)
 
-## Lint / format gates (automated)
+## Lint / format gates (pre-commit + manual)
 
-- [ ] ESLint exits 0 (or equivalent project linter)
-- [ ] Prettier exits 0 (or equivalent formatter)
+- [ ] `bun run lint` exits 0 (or equivalent project linter)
+- [ ] `bun run format` has been run, or Lefthook has formatted staged files during commit
 - [ ] No `console.log` left in production code
 
 ## Accessibility gates
@@ -98,7 +98,7 @@ Full rules: `docs/design-system/typography.md`
 
 ## SEO gates
 
-- [ ] `bun run check:seo` exits 0 (validates site config, placeholder detection, route registry)
+- [ ] `bun run check:seo` exits 0 (validates SEO structure and route registry; placeholders warn here and fail in `check:launch`)
 - [ ] `site.url` in `src/lib/config/site.ts` is the production domain — not `https://example.com`
 - [ ] `site.name` and `site.defaultTitle` are not placeholder values
 - [ ] Every public `+page.svelte` uses the `SEO` component with `title`, `description`, `canonicalPath`

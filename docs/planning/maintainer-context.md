@@ -194,7 +194,7 @@ tmpl-svelte-app/
 │ │ │ ├── rate-limit.ts
 │ │ │ └── providers/
 │ │ │ ├── console.ts
-│ │ │ └── postmark.example.ts
+│ │ │ └── postmark.ts
 │ │ └── styles/
 │ │ ├── animations.css
 │ │ ├── base.css
@@ -214,7 +214,7 @@ tmpl-svelte-app/
 │ │ └── [slug]/
 │ │ ├── +page.server.ts
 │ │ └── +page.svelte
-│ ├── contact-example/ ← dormant; rename to /contact to activate
+│ ├── contact/ ← live contact form
 │ │ ├── +page.server.ts
 │ │ └── +page.svelte
 │ ├── healthz/
@@ -291,15 +291,15 @@ Completed build phases (as of April 2026):
 - Phase 3 (CMS/content): COMPLETE. content/ directory, Sveltia CMS admin files (static/admin/), typed content loaders (pages, articles, team, testimonials), Markdown renderer with three trust tiers (src/lib/content/markdown.ts — marked + sanitize-html), CMS content-safety scripts (check:cms, check:content, check:content-diff), CMS docs (sveltia-guide.md, content-safety.md), ADR-014, ADR-015, ADR-017. Remaining per-project task only: configure GitHub OAuth in static/admin/config.yml backend.repo via init:site or manually.
 - Phase 4 (SEO / images / accessibility / semantic HTML): COMPLETE. SEO component, site config, schema helpers, sitemap/robots/llms routes, image pipeline (Sharp + enhanced:img + CmsImage), Section.svelte, quality gates, scripts/check-seo.ts, scripts/check-assets.ts, scripts/optimize-images.js, accessibility doc with WCAG AA contrast fixes (Batch C).
 - Phase 4b (observability + CMS safety spine): COMPLETE. +error.svelte (with requestId display and contact link), /healthz, hooks.server.ts (request ID, safe error normalization, security headers, CSP, env init), logger, request-id, safe-error, observability types, ADR-016, ADR-017, observability docs (tiers, error-handling, n8n-workflows, runbook).
-- Phase 5 (forms/runtime data): PARTIALLY COMPLETE. Forms-as-optional-module is done (Batch D): Superforms + Valibot installed, contact-example route (dormant by default — rename to /contact to activate), Valibot contact schema (src/lib/forms/contact.schema.ts), EmailProvider seam (console default + postmark.example), in-memory token-bucket rate limiter, CSP form-action documented. Remaining: Postgres + Drizzle (still dormant), typed automation event emitter (src/lib/automation/events.ts), HMAC signing (src/lib/automation/signing.ts), `lead.created` and `newsletter.subscribed` event wiring, /readyz Postgres readiness probe, dead-letter table for failed events.
+- Phase 5 (forms/runtime data): COMPLETE for v1. Postgres + Drizzle are the default runtime data layer; `/contact` is live with Superforms + Valibot, honeypot handling, DB persistence, EmailProvider seam (console default + Postmark), in-memory token-bucket rate limiter, signed automation providers, `lead.created` event emission, `/readyz` Postgres readiness probe, and `automation_dead_letters`.
 - Phase 6 (deployment): COMPLETE for the website-only baseline. SOPS + age workflow (ADR-013, secrets.md, scripts/render-secrets.sh + check-secrets.sh). Production runtime (Batch A1): engines.bun, packageManager, preinstall guard, validation lifecycle split (validate vs validate:launch), default static assets (favicon, og-default, manifest), minimal app security headers, ADR-018. Containers + deploy (Batch A2): Containerfile (multi-stage Bun, non-root, HEALTHCHECK), Containerfile.node.example escape hatch, deploy/quadlets/{web.container,web.network}, deploy/Caddyfile.example, deploy/env.example, docs/deployment/runbook.md. CI (Batch A3): .github/workflows/ci.yml (validate/image/launch jobs, Trivy CRITICAL blocking, smoke tests, GHCR push), .github/dependabot.yml. Security baseline (Batch B): Valibot env schemas (src/lib/server/env.ts + src/lib/env/{public,private}.ts), CSP baseline (src/lib/server/csp.ts) with /admin allowance for Sveltia CDN, ADR-019. init:site interactive initializer (Batch B). Vitest + Playwright wired into validate (Batches B and C).
 - Phase E (ergonomics): COMPLETE. Lefthook (pre-commit prettier + eslint --fix), ESLint flat config, Prettier config, getting-started.md (11-step walkthrough), template-update-strategy.md (clone-and-customize model + future @<owner>/web-template-utils extraction path).
 - Phase F (UI groundwork): COMPLETE. .btn / .btn-primary / .btn-secondary / .btn-ghost / .btn-sm / .btn-lg utility classes in utilities.css; /articles index route (server load + cards + axe-clean); real header/footer nav with WCAG AA-passing active state.
 
 Remaining template work:
 
-- Phase 5 runtime data: Postgres + Drizzle activation, /readyz with DB connectivity, automation event emitter, HMAC signing, lead.created and newsletter.subscribed event wiring, dead-letter table for failed automation events.
-- Phase 7 architecture/operations docs: optional; deferred to Phase 5+ when runtime data lands.
+- No v1 launch blockers remain in the database-backed website baseline.
+- Post-v1 topics live in `docs/planning/12-post-v1-roadmap.md` and should get a focused ADR before implementation.
 - Phase 8 final validation pass: container build, Lighthouse/perf check, full doc-vs-implementation audit before tagging a v1 release.
 
 How I want you to work:

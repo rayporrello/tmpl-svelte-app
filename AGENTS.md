@@ -195,11 +195,7 @@ Full reference: [docs/design-system/typography.md](docs/design-system/typography
 
 **`forms.css`** owns visual styling: field layout, control appearance, states, messages.
 
-**Superforms** is the standard form behavior library. Install when a project adds its first form with a server action:
-
-```bash
-bun add sveltekit-superforms valibot
-```
+**Superforms** is the standard form behavior library and is already installed in this template.
 
 Superforms owns: validation, data binding, submission, progressive enhancement, server errors, constraint API.
 
