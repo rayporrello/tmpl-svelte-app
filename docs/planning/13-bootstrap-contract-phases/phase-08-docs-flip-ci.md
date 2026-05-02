@@ -5,8 +5,8 @@
 ## Goal
 
 Make the bootstrap path the documented default. Add a `bootstrap-smoke`
-CI job that exercises the full path on every push to `main`, and a
-nightly job that exercises the Podman integration smoke from Phase 5b.
+CI job that exercises the full path on every push to `main`, and confirm
+the manual Podman integration smoke from Phase 5b remains available.
 
 This phase **also adds the `launch:check` alias** to `package.json`
 because the README and getting-started rewrite below references it. The
@@ -24,13 +24,13 @@ After this phase, "_use this template_" actually means
 
 ## Files to modify
 
-| Path                                      | Change                                                                                                                                                                           |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `package.json`                            | Add `"launch:check": "bun run validate:launch"` alongside the other scripts. (Was previously parked in Phase 9 §9.1; moved up because the docs rewrite below references it.)     |
-| `README.md`                               | Replace the "Using this template" lead with the bootstrap path.                                                                                                                  |
-| `docs/getting-started.md`                 | New top: `git clone → cd → ./bootstrap → bun run dev`. Move the existing 12 manual steps under a heading "Manual setup (advanced — understand or override what bootstrap does)." |
-| `.github/workflows/ci.yml`                | Add `bootstrap-smoke` job that runs on `main` push only. The existing `validate` job continues to run on every PR.                                                               |
-| `.github/workflows/nightly-bootstrap.yml` | (Created in Phase 5b — confirm wired up.)                                                                                                                                        |
+| Path                                           | Change                                                                                                                                                                           |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `package.json`                                 | Add `"launch:check": "bun run validate:launch"` alongside the other scripts. (Was previously parked in Phase 9 §9.1; moved up because the docs rewrite below references it.)     |
+| `README.md`                                    | Replace the "Using this template" lead with the bootstrap path.                                                                                                                  |
+| `docs/getting-started.md`                      | New top: `git clone → cd → ./bootstrap → bun run dev`. Move the existing 12 manual steps under a heading "Manual setup (advanced — understand or override what bootstrap does)." |
+| `.github/workflows/ci.yml`                     | Add `bootstrap-smoke` job that runs on `main` push only. The existing `validate` job continues to run on every PR.                                                               |
+| `.github/workflows/bootstrap-podman-smoke.yml` | (Created in Phase 5b — confirm wired up.)                                                                                                                                        |
 
 ## Behavior contract
 
@@ -200,8 +200,8 @@ Notes:
       one BOOT-\* code in the script, confirming CI red, restoring).
 - [ ] CI snippet uses repo's pinned-SHA + `bun-version-file: package.json`
       style; does not use floating tags or `bun-version: latest`.
-- [ ] The nightly Podman workflow from Phase 5b is wired up (or
-      documented as pending if a self-hosted runner is not yet available).
+- [ ] The manual Podman workflow from Phase 5b is wired up for a
+      self-hosted Linux runner.
 - [ ] `bun run validate` passes.
 
 ## Commit message
@@ -227,8 +227,8 @@ CI:
   validate.
 - CI uses the repo's pinned-SHA + bun-version-file: package.json
   conventions to match the existing validate job.
-- Nightly Podman integration job (from Phase 5b) confirmed wired or
-  documented as pending self-hosted runner.
+- Manual Podman integration workflow (from Phase 5b) confirmed wired for
+  a self-hosted Linux runner.
 
 After this commit, "use this template" actually means clone, run
 ./bootstrap, run bun run dev.
@@ -246,8 +246,8 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 - **The CI service Postgres is on port 5432, not a dynamic port.** That's
   OK because bootstrap's Step 4 short-circuits when an existing
   `DATABASE_URL` is reachable. Don't try to make the bootstrap-smoke job
-  exercise the container-provisioning branch — that's the nightly Podman
-  job's responsibility.
+  exercise the container-provisioning branch — that's the manual Podman
+  smoke's responsibility.
 - **`/readyz` curl.** This is the first time `/readyz` is verified over
   HTTP in any automation. The wait loop on `/healthz` is necessary
   because the Bun process needs a moment to bind. 30 seconds is plenty.

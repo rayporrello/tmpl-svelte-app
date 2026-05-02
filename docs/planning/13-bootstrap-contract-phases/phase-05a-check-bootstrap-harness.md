@@ -178,4 +178,4 @@ Postgres` and `step 6 health verify` that returns canned success. The
   to actually be idempotent.
 - **Don't add `check:bootstrap-podman` to `validate`.** That's a
   separate command (Phase 5b) gated behind `BOOTSTRAP_PODMAN=1` for
-  nightly CI only.
+  manual real-container smoke runs only.

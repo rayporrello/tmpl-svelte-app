@@ -5,8 +5,8 @@
 ## Goal
 
 A real-container integration test for the bootstrap path. Gated behind
-`BOOTSTRAP_PODMAN=1`. Not in `validate`. Runs nightly on a self-hosted
-runner.
+`BOOTSTRAP_PODMAN=1`. Not in `validate`. Available as a manual workflow
+on a self-hosted runner.
 
 ## Prereqs
 
@@ -14,11 +14,11 @@ runner.
 
 ## Files to create / modify
 
-| Path                                      | Change                                                                                       |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `scripts/check-bootstrap-podman.ts`       | New integration script.                                                                      |
-| `package.json`                            | Add `"check:bootstrap:podman": "BOOTSTRAP_PODMAN=1 bun scripts/check-bootstrap-podman.ts"`.  |
-| `.github/workflows/nightly-bootstrap.yml` | New workflow. Cron daily; runs `bun run check:bootstrap:podman` on self-hosted Linux runner. |
+| Path                                           | Change                                                                                      |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `scripts/check-bootstrap-podman.ts`            | New integration script.                                                                     |
+| `package.json`                                 | Add `"check:bootstrap:podman": "BOOTSTRAP_PODMAN=1 bun scripts/check-bootstrap-podman.ts"`. |
+| `.github/workflows/bootstrap-podman-smoke.yml` | New manual workflow; runs `bun run check:bootstrap:podman` on a self-hosted Linux runner.   |
 
 ## Behavior contract
 
@@ -55,13 +55,11 @@ runner.
 - If cleanup fails, exit nonzero with details. Do not silently leak
   resources.
 
-### Nightly workflow shape
+### Manual workflow shape
 
 ```yaml
-name: Nightly bootstrap (Podman integration)
+name: Bootstrap Podman smoke
 on:
-  schedule:
-    - cron: '0 7 * * *' # 07:00 UTC daily
   workflow_dispatch:
 
 jobs:
@@ -74,10 +72,9 @@ jobs:
       - run: bun run check:bootstrap:podman
 ```
 
-(Adjust `runs-on` to whatever self-hosted label this repo uses; if a
-self-hosted runner is not yet wired up, document the requirement in
-`docs/planning/13-bootstrap-contract-phases/README.md` and leave the
-workflow disabled.)
+Adjust `runs-on` to whatever self-hosted label this repo uses. This
+template is used occasionally, so the workflow is manual-only; a stale
+template does not need a scheduled runner to prove it still exists.
 
 ## Acceptance criteria
 
@@ -85,16 +82,14 @@ workflow disabled.)
       installed.
 - [ ] The smoke test cleans up after itself by default.
 - [ ] `--keep` preserves the container and tempdir for inspection.
-- [ ] Nightly workflow file exists and references the correct command.
-- [ ] If no self-hosted runner is available yet, the workflow is
-      documented as pending in this directory's README.
+- [ ] Manual workflow file exists and references the correct command.
 - [ ] `bun run validate` does **not** include this command (still
       CI-fast).
 
 ## Commit message
 
 ```
-test(bootstrap): add Podman/Docker integration smoke (nightly)
+test(bootstrap): add Podman/Docker integration smoke
 
 Real-container test for the bootstrap contract. Gated behind
 BOOTSTRAP_PODMAN=1 and not in `validate` because it requires a
@@ -108,7 +103,7 @@ Cleanup is label-checked: only removes containers tagged
 tmpl-svelte-app.bootstrap=true and project-slug=tmpl-bootstrap-smoke.
 --keep preserves state for inspection.
 
-Nightly GitHub Actions cron at 07:00 UTC on a self-hosted runner.
+Manual GitHub Actions workflow on a self-hosted Linux runner.
 
 Refs: docs/planning/13-bootstrap-contract-project.md §6 Phase 5.
 

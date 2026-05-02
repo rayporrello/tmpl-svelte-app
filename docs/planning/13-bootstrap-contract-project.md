@@ -310,7 +310,7 @@ state as a launch blocker.
 | `README.md`                | Lead "Using this template" with the four-line bootstrap path. Manual path moves below.                                                                                                                                                                                                                                        |
 | `docs/getting-started.md`  | New top is `git clone → cd → ./bootstrap → bun run dev`. Existing 12 steps move under "Manual setup (understand or override what bootstrap does)."                                                                                                                                                                            |
 | `docs/cms/README.md`       | Document the Sveltia "Work with Local Repository" workflow as the local-dev path. Remove any proxy/`local_backend` references.                                                                                                                                                                                                |
-| `.github/workflows/ci.yml` | Add `bootstrap-smoke` job on `main` push. Nightly cron for `check:bootstrap-podman`.                                                                                                                                                                                                                                          |
+| `.github/workflows/ci.yml` | Add `bootstrap-smoke` job on `main` push. Manual self-hosted workflow for `check:bootstrap-podman`.                                                                                                                                                                                                                           |
 
 ---
 
@@ -523,7 +523,7 @@ and CI.
     Postgres service → `./bootstrap --ci` with deterministic
     `BOOTSTRAP_*` env vars → `bun run build` → start built server → curl
     `/healthz` and `/readyz` → `bun run validate`.
-  - Nightly cron job runs `check:bootstrap-podman` on a self-hosted runner.
+  - Manual workflow runs `check:bootstrap-podman` on a self-hosted runner.
 
 **Acceptance**
 
@@ -706,7 +706,7 @@ The project is done when **all** of the following are true:
 4.  Phase 3:  ./bootstrap + scripts/bootstrap.ts                      (PR #4)
 5.  Phase 4:  scripts/doctor.ts + bun run doctor + ADR-021            (PR #5)
 6.  Phase 5:  check:bootstrap dry-run + mock-provisioner + secrets    (PR #6)
-7.  Phase 5:  check:bootstrap-podman integration + nightly CI         (PR #7)
+7.  Phase 5:  check:bootstrap-podman integration + manual workflow    (PR #7)
 8.  Phase 6:  Sveltia local-repo workflow docs                        (PR #8)
 9.  Phase 7:  launch-blockers manifest filled in                      (PR #9)
 10. Phase 8:  README + getting-started flip; bootstrap-smoke CI job   (PR #10)

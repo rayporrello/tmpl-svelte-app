@@ -48,7 +48,7 @@ primitives.
 | [`phase-03-bootstrap-orchestrator.md`](phase-03-bootstrap-orchestrator.md)     | 3     | `./bootstrap` and `scripts/bootstrap.ts`                                                                                  |
 | [`phase-04-doctor.md`](phase-04-doctor.md)                                     | 4     | `bun run doctor` + ADR-021                                                                                                |
 | [`phase-05a-check-bootstrap-harness.md`](phase-05a-check-bootstrap-harness.md) | 5a    | `check:bootstrap` (dry-run + mock-provisioner) + `secrets:check` in `validate`                                            |
-| [`phase-05b-check-bootstrap-podman.md`](phase-05b-check-bootstrap-podman.md)   | 5b    | `check:bootstrap-podman` integration smoke + nightly cron                                                                 |
+| [`phase-05b-check-bootstrap-podman.md`](phase-05b-check-bootstrap-podman.md)   | 5b    | `check:bootstrap-podman` integration smoke + manual workflow                                                              |
 | [`phase-06-sveltia-docs.md`](phase-06-sveltia-docs.md)                         | 6     | Sveltia "Work with Local Repository" docs (no scripts)                                                                    |
 | [`phase-07-launch-blockers-manifest.md`](phase-07-launch-blockers-manifest.md) | 7     | Launch-blockers manifest filled in                                                                                        |
 | [`phase-08-docs-flip-ci.md`](phase-08-docs-flip-ci.md)                         | 8     | README + getting-started flip; `bootstrap-smoke` CI job                                                                   |

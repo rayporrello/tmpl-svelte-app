@@ -1,8 +1,6 @@
-name: Nightly bootstrap (Podman integration)
+name: Bootstrap Podman smoke
 
 on:
-  schedule:
-    - cron: '0 7 * * *' # 07:00 UTC daily
   workflow_dispatch:
 
 permissions:
