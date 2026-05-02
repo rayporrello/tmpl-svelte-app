@@ -6,6 +6,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: bootstrap-podman-smoke
+  cancel-in-progress: false
+
 jobs:
   bootstrap-podman:
     runs-on: [self-hosted, Linux]
