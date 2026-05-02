@@ -3,17 +3,19 @@
 	import SchemaJsonLd from '$lib/components/seo/SchemaJsonLd.svelte';
 	import AnalyticsHead from '$lib/components/analytics/AnalyticsHead.svelte';
 	import AnalyticsBody from '$lib/components/analytics/AnalyticsBody.svelte';
+	import SetupBanner from '$lib/components/dev/SetupBanner.svelte';
 	import { organizationSchema, websiteSchema } from '$lib/seo/schemas';
 	import { site } from '$lib/config/site';
 	import { page } from '$app/state';
 
-	let { children } = $props();
+	let { children, data } = $props();
 
 	// Root-level schema injected on every page. Page-specific schema is added
 	// via the SEO component on individual routes — do not duplicate it here.
 	const rootSchema = [organizationSchema(), websiteSchema()];
 	const year = new Date().getFullYear();
 	const rssUrl = `${site.url.replace(/\/$/, '')}/rss.xml`;
+	const devWarnings = $derived(import.meta.env.DEV ? (data.devWarnings ?? []) : []);
 </script>
 
 <svelte:head>
@@ -34,6 +36,10 @@
 
 <!-- Skip link — first element, visible on focus -->
 <a href="#main-content" class="skip-link">Skip to main content</a>
+
+{#if import.meta.env.DEV && devWarnings.length > 0}
+	<SetupBanner warnings={devWarnings} />
+{/if}
 
 <header class="site-header">
 	<div class="container">

@@ -1,0 +1,8 @@
+{
+	"$schema": "https://tmpl-svelte-app.dev/schema/project.v1.json",
+	"template": "tmpl-svelte-app",
+	"templateVersion": "0.1.0",
+	"bootstrapContract": 1,
+	"createdFromTemplateAt": null,
+	"projectSlug": null
+}

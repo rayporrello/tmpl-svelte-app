@@ -45,6 +45,15 @@ type BootstrapState = {
 	bootstrapContractVersion: 1;
 };
 
+type TemplateProjectJson = {
+	$schema: string;
+	template: string;
+	templateVersion: string;
+	bootstrapContract: 1;
+	createdFromTemplateAt: string | null;
+	projectSlug: string | null;
+};
+
 type EnvPlan = {
 	envPath: string;
 	existing: EnvMap;
@@ -166,6 +175,32 @@ function readProjectSlug(rootDir: string, fallback: string): string {
 		if (match?.[1]) return sanitizeProjectSlug(match[1]);
 	}
 	return sanitizeProjectSlug(fallback);
+}
+
+export function materializeTemplateProjectJson(
+	rootDir: string,
+	projectSlug: string,
+	now: () => Date = () => new Date()
+): boolean {
+	const path = join(rootDir, '.template/project.json');
+	if (!existsSync(path)) return false;
+
+	const parsed = JSON.parse(readFileSync(path, 'utf8')) as TemplateProjectJson;
+	let changed = false;
+	const next: TemplateProjectJson = { ...parsed };
+
+	if (next.createdFromTemplateAt === null) {
+		next.createdFromTemplateAt = now().toISOString();
+		changed = true;
+	}
+	if (next.projectSlug === null) {
+		next.projectSlug = sanitizeProjectSlug(projectSlug);
+		changed = true;
+	}
+
+	if (!changed) return false;
+	guardedWriteText(rootDir, '.template/project.json', JSON.stringify(next, null, '\t') + '\n');
+	return true;
 }
 
 function statePath(rootDir: string): string {
@@ -751,6 +786,7 @@ function printSummary(records: {
 
 	process.stdout.write('\nNext:\n');
 	process.stdout.write('  bun run dev          # start dev server at http://127.0.0.1:5173\n');
+	process.stdout.write('  bun run seed:dev     # optional demo content for styling passes\n');
 	process.stdout.write('  edit src/lib/styles/tokens.css       # brand colors / fonts\n');
 	process.stdout.write('  edit content/pages/home.yml          # homepage content\n');
 
@@ -796,6 +832,7 @@ async function mainWithOptions(rootDir: string, options: CliOptions): Promise<nu
 	const site = await stepSiteInit(rootDir, options);
 	const packageName = readPackageName(rootDir);
 	const projectSlug = readProjectSlug(rootDir, packageName);
+	if (!options.dryRun) materializeTemplateProjectJson(rootDir, projectSlug);
 	const envPlan = planEnv(rootDir);
 	const env = stepEnvMaterialize(envPlan, options);
 	const postgres = await stepPostgres(rootDir, projectSlug, envPlan, options);

@@ -43,6 +43,7 @@
 		"validate": "bun run format:check && bun run check && bun run check:bootstrap && bun run secrets:check && bun run check:seo && bun run check:analytics && bun run check:cms && bun run check:content && bun run check:assets && bun run check:design-system && bun run images:optimize && bun run build && bun run test && bun run test:e2e:built",
 		"validate:launch": "bun run validate && bun run check:init-site && bun run check:launch && bun run check:content-diff",
 		"launch:check": "bun run validate:launch",
+		"deploy:preflight": "bun scripts/deploy-preflight.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
@@ -56,6 +57,9 @@
 		"backup:all": "bash scripts/backup-all.sh",
 		"backup:push": "bash scripts/backup-push.sh",
 		"backup:verify": "bash scripts/verify-backup.sh",
+		"backup:check": "bun scripts/backup-check.ts",
+		"reset:dev": "bun scripts/reset-dev.ts",
+		"seed:dev": "bun scripts/seed-dev.ts",
 		"restore:db": "bash scripts/restore-db.sh",
 		"prepare": "lefthook install 2>/dev/null || true"
 	},
