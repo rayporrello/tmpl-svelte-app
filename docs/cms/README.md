@@ -78,16 +78,32 @@ Never use gray-matter on pure YAML files. Never use js-yaml on Markdown frontmat
 
 ---
 
-## Setting up Sveltia CMS
+## Local development — Work with Local Repository
+
+Sveltia CMS supports editing content directly against your local Git working copy from a Chromium-based browser, without GitHub auth. This is the recommended local-development workflow.
+
+1. Run the dev server:
+   ```bash
+   bun run dev
+   ```
+2. Open `http://127.0.0.1:5173/admin/index.html` in a Chromium-based browser (Chrome, Edge, Brave, Arc).
+3. Click **Work with Local Repository**.
+4. Select this project's root directory in the file picker.
+5. Edit content in the CMS UI. Sveltia writes directly to your working copy. Commit changes with Git as usual.
+
+Sveltia does not perform Git operations itself — committing, pulling, and pushing remain your responsibility, or your IDE's.
+
+> **Note.** Sveltia ignores `local_backend` in `config.yml`; it is not part of the local workflow. Do not add it back. `bun run check:cms` fails on the presence of any `local_backend` key regardless of value.
+
+## Setting up Sveltia CMS for production
 
 1. Edit `static/admin/config.yml`:
    - Set `backend.repo` to your GitHub `owner/repo`
    - Set `backend.branch` to your main branch
-   - Remove or set `local_backend: false` before deploying
 2. Configure GitHub OAuth — Sveltia CMS uses GitHub as the authentication provider
 3. Visit `/admin` in a browser to access the editor UI
 
-For local development with `local_backend: true`, run `npx netlify-cms-proxy-server` (or the Sveltia equivalent) to proxy file writes locally without GitHub auth.
+The `backend.repo` placeholder must be replaced before deploy. `bun run check:cms` validates the CMS structure, and `bun run check:launch` reports the placeholder repo as a launch blocker until it is replaced.
 
 ---
 

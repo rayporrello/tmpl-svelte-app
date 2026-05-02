@@ -123,7 +123,7 @@ Full docs: [docs/cms/README.md](docs/cms/README.md) · Contract: [docs/cms/svelt
 - Use `snake_case` for all YAML field names
 - Do not use `content` or `data` as field names — they clash with loader conventions
 - CMS image fields must render through `CmsImage`, not bare `<img>`
-- `local_backend: true` in `config.yml` is for local dev only — remove before deploying
+- Local CMS editing uses Sveltia's **Work with Local Repository** browser flow; do not add `local_backend` to `config.yml`
 - To add a collection: schema + config + starter file + loader + route/SEO + docs
 - `static/admin/index.html` must use a plain `<script src="...sveltia-cms.js">` in `<body>` — no stylesheet link, no `type="module"`. Sveltia bundles its styles in the JS file and is not an ES module. Do not copy Static CMS / Netlify CMS patterns here.
 

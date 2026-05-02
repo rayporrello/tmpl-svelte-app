@@ -186,9 +186,11 @@ If the editor fails to load or auth fails:
 - Confirm `backend.repo` is `<owner>/<repo>`, not a URL.
 - Confirm your GitHub account has push access to the repo.
 - Confirm the repo's default branch matches `backend.branch` (usually `main`).
-- For first-run local development only, you can add `local_backend: true` to
-  `config.yml` to bypass GitHub auth — but **remove it before deploying**.
-  This is also enforced by `bun run check:cms`.
+- For local-only editing without GitHub auth, follow the
+  Work-with-Local-Repository flow in
+  [docs/cms/README.md](cms/README.md#local-development--work-with-local-repository).
+  Open `/admin/index.html` in a Chromium-based browser, click
+  **Work with Local Repository**, and select this project root.
 
 Stop here and resolve any failure before moving on. Step 9 edits content the
 CMS will manage; verifying CMS auth first prevents commits that the editor

@@ -45,6 +45,12 @@ try {
 	process.exit(1);
 }
 
+if (Object.prototype.hasOwnProperty.call(config, 'local_backend')) {
+	fail(
+		'local_backend is ignored by Sveltia CMS. Remove it from config.yml and use the Work-with-Local-Repository flow for local editing.'
+	);
+}
+
 // ── media_folder / public_folder ────────────────────────────────────────────
 
 const mediaFolder = config['media_folder'] as string | undefined;

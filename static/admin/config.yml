@@ -2,15 +2,11 @@
 # Docs: https://github.com/sveltia/sveltia-cms
 #
 # SETUP REQUIRED: Update `backend.repo` with your GitHub owner/repo before deploying.
-# For local development, `local_backend: true` lets you edit files without GitHub auth.
-# Remove or set `local_backend: false` before shipping to production.
 
 backend:
   name: github
   repo: owner/repo-name # REPLACE with your GitHub repository (e.g., acme/my-site)
   branch: main
-
-local_backend: false
 
 media_folder: static/uploads
 public_folder: /uploads
