@@ -69,11 +69,11 @@ const ogSvgBuf = Buffer.from(
 await sharp(ogSvgBuf).resize(1200, 630).png().toFile('static/og-default.png');
 console.log('✓ static/og-default.png (1200×630)');
 
-// Print hash for embedding in check-launch.ts
+// Print hash for embedding in scripts/lib/launch-blockers.ts
 const ogBuf = await sharp('static/og-default.png').toBuffer();
 const ogHash = createHash('sha256').update(ogBuf).digest('hex');
 console.log(`\nog-default.png SHA-256: ${ogHash}`);
-console.log('→ Embed this in scripts/check-launch.ts as OG_PLACEHOLDER_HASH');
+console.log('→ Embed this in scripts/lib/launch-blockers.ts as TEMPLATE_OG_SHA256');
 
 // ── site.webmanifest ──────────────────────────────────────────────────────────
 const manifest = {

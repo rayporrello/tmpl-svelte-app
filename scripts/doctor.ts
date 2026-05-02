@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,7 +7,7 @@ import postgres from 'postgres';
 
 import { BootstrapScriptError } from './lib/errors';
 import { readEnv, type EnvMap } from './lib/env-file';
-import { LAUNCH_BLOCKERS, type LaunchBlocker } from './lib/launch-blockers';
+import { evaluateLaunchBlockers, type LaunchEnvSource } from './lib/launch-blockers';
 import { checkBun, detectContainerRuntime, gitWorkingTreeDirty } from './lib/preflight';
 import type { PrintStream } from './lib/print';
 import { redactSecrets, run as runCommand, type RunOptions, type RunResult } from './lib/run';
@@ -40,6 +39,7 @@ export type DoctorReport = {
 
 export type DoctorCliOptions = {
 	json: boolean;
+	envSource?: LaunchEnvSource;
 };
 
 type CommandRunner = (
@@ -56,6 +56,7 @@ type RuntimeProbe = (context: {
 export type RunDoctorOptions = {
 	rootDir?: string;
 	env?: NodeJS.ProcessEnv;
+	envSource?: LaunchEnvSource;
 	runner?: CommandRunner;
 	runtimeProbe?: RuntimeProbe;
 	now?: () => Date;
@@ -73,7 +74,6 @@ type DoctorResult = {
 
 const ROOT_DIR = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const TEMPLATE_PACKAGE_NAME = 'tmpl-svelte-app';
-const OG_PLACEHOLDER_HASH = 'e0597a81489d31513a5488151287ec107ae9deabf6b0c99399643e6bdbf587ab';
 const REQUIRED_TABLES = [
 	'contact_submissions',
 	'automation_events',
@@ -130,19 +130,51 @@ function normalizeHint(hint: string): string {
 export function parseArgs(argv: readonly string[]): DoctorCliOptions {
 	const options: DoctorCliOptions = { json: false };
 
-	for (const arg of argv) {
+	for (let index = 0; index < argv.length; index += 1) {
+		const arg = argv[index];
 		if (arg === '--json') {
 			options.json = true;
+		} else if (arg === '--env') {
+			const value = argv[index + 1];
+			if (value !== 'dev' && value !== 'prod') {
+				throw new BootstrapScriptError(
+					'BOOT-INIT-001',
+					'Unknown doctor env source; expected "dev" or "prod".',
+					'NEXT: Use bun run doctor -- --env dev or bun run doctor -- --env prod.'
+				);
+			}
+			options.envSource = value;
+			index += 1;
+		} else if (arg.startsWith('--env=')) {
+			const value = arg.slice('--env='.length);
+			if (value !== 'dev' && value !== 'prod') {
+				throw new BootstrapScriptError(
+					'BOOT-INIT-001',
+					'Unknown doctor env source; expected "dev" or "prod".',
+					'NEXT: Use bun run doctor -- --env dev or bun run doctor -- --env prod.'
+				);
+			}
+			options.envSource = value;
 		} else {
 			throw new BootstrapScriptError(
 				'BOOT-INIT-001',
 				`Unknown doctor option: ${arg}`,
-				'NEXT: Use bun run doctor [--json].'
+				'NEXT: Use bun run doctor [--json] [--env dev|prod].'
 			);
 		}
 	}
 
 	return options;
+}
+
+function doctorEnvSourceFrom(value: string | undefined): LaunchEnvSource | null {
+	if (!value) return null;
+	if (value === 'dev' || value === 'prod') return value;
+	throw new BootstrapScriptError(
+		'BOOT-INIT-001',
+		`Unknown DOCTOR_ENV value: ${value}`,
+		'NEXT: Set DOCTOR_ENV to "dev" or "prod".'
+	);
 }
 
 function aggregateStatus(checks: readonly DoctorCheck[]): DoctorStatus {
@@ -241,25 +273,6 @@ function containsInitPlaceholder(content: string): boolean {
 		'[Site Name]',
 		'[Year]',
 	].some((placeholder) => content.includes(placeholder));
-}
-
-function cmsRepoPlaceholder(config: string | null): boolean {
-	if (!config) return false;
-	return (
-		/^\s*repo:\s*owner\/repo-name\b/mu.test(config) ||
-		config.includes('REPLACE with your GitHub repository') ||
-		config.includes('REPLACE PER PROJECT')
-	);
-}
-
-function localhostUrl(value: string | undefined): boolean {
-	if (!value) return false;
-	try {
-		const parsed = new URL(value);
-		return ['localhost', '127.0.0.1', '0.0.0.0'].includes(parsed.hostname);
-	} catch {
-		return false;
-	}
 }
 
 function databaseUrlFrom(envFile: EnvMap | null, env: NodeJS.ProcessEnv): string | null {
@@ -466,22 +479,12 @@ function configurationSection(
 				'Restore static/admin/config.yml before using Sveltia CMS.'
 			)
 		);
-	} else if (cmsRepoPlaceholder(cmsConfig)) {
-		checks.push(
-			warn(
-				'doctor-cms-placeholders',
-				'CMS backend repo is launch-ready',
-				'static/admin/config.yml still contains the backend.repo placeholder',
-				'recommended',
-				'Replace backend.repo in static/admin/config.yml before launch.'
-			)
-		);
 	} else {
 		checks.push(
 			pass(
-				'doctor-cms-placeholders',
-				'CMS backend repo is launch-ready',
-				'No CMS repo placeholder detected',
+				'doctor-cms-config-present',
+				'CMS config is present',
+				'static/admin/config.yml exists',
 				'recommended'
 			)
 		);
@@ -708,93 +711,21 @@ async function validationForecastSection(
 	return { id: 'validation', label: 'Validation Forecast', checks };
 }
 
-function ogPlaceholderCheck(rootDir: string, blocker: LaunchBlocker): DoctorCheck | null {
-	const path = join(rootDir, 'static/og-default.png');
-	if (!existsSync(path)) {
-		return warn(
-			blocker.id,
-			blocker.label,
-			'static/og-default.png is missing',
-			blocker.severity,
-			blocker.fixHint
-		);
-	}
-
-	const hash = createHash('sha256').update(readFileSync(path)).digest('hex');
-	if (hash !== OG_PLACEHOLDER_HASH) return null;
-	return warn(
-		blocker.id,
-		blocker.label,
-		'static/og-default.png matches the template asset',
-		blocker.severity,
-		blocker.fixHint
-	);
-}
-
-function envLaunchCheck(
-	envFile: EnvMap | null,
-	env: NodeJS.ProcessEnv,
-	blocker: LaunchBlocker
-): DoctorCheck | null {
-	if (blocker.id === 'LAUNCH-ENV-001') {
-		const value = envFile?.ORIGIN ?? env.ORIGIN;
-		if (localhostUrl(value))
-			return warn(blocker.id, blocker.label, `ORIGIN=${value}`, blocker.severity, blocker.fixHint);
-	}
-	if (blocker.id === 'LAUNCH-ENV-002') {
-		const value = envFile?.PUBLIC_SITE_URL ?? env.PUBLIC_SITE_URL;
-		if (localhostUrl(value))
-			return warn(
-				blocker.id,
-				blocker.label,
-				`PUBLIC_SITE_URL=${value}`,
-				blocker.severity,
-				blocker.fixHint
-			);
-	}
-	return null;
-}
-
-function cmsLaunchCheck(rootDir: string, blocker: LaunchBlocker): DoctorCheck | null {
-	const config = readTextIfExists(rootDir, 'static/admin/config.yml');
-	if (!cmsRepoPlaceholder(config)) return null;
-	return warn(
-		blocker.id,
-		blocker.label,
-		'backend.repo still points to owner/repo-name',
-		blocker.severity,
-		blocker.fixHint
-	);
-}
-
 async function launchBlockersSection(
 	rootDir: string,
-	envFile: EnvMap | null,
-	env: NodeJS.ProcessEnv
+	env: NodeJS.ProcessEnv,
+	envSource: LaunchEnvSource
 ): Promise<DoctorSection> {
-	const checks: DoctorCheck[] = [];
-
-	for (const blocker of LAUNCH_BLOCKERS) {
-		const observed =
-			(blocker.id === 'LAUNCH-OG-001' && ogPlaceholderCheck(rootDir, blocker)) ||
-			envLaunchCheck(envFile, env, blocker) ||
-			(blocker.id === 'LAUNCH-CMS-001' && cmsLaunchCheck(rootDir, blocker));
-
-		if (observed) {
-			checks.push(observed);
-			continue;
-		}
-
-		const result = await blocker.check();
-		checks.push({
+	const checks = (await evaluateLaunchBlockers({ rootDir, env, envSource })).map(
+		(blocker): DoctorCheck => ({
 			id: blocker.id,
-			status: result.status,
+			status: blocker.status === 'pass' ? 'pass' : 'warn',
 			label: blocker.label,
-			detail: result.detail ?? 'No blocker detected',
+			detail: blocker.detail ?? 'No blocker detected',
 			severity: blocker.severity,
-			hint: result.status === 'pass' ? null : normalizeHint(blocker.fixHint),
-		});
-	}
+			hint: blocker.status === 'pass' ? null : normalizeHint(blocker.fixHint),
+		})
+	);
 
 	return { id: 'launch-blockers', label: 'Launch Blockers', checks };
 }
@@ -802,6 +733,7 @@ async function launchBlockersSection(
 export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorResult> {
 	const rootDir = options.rootDir ?? ROOT_DIR;
 	const env = options.env ?? process.env;
+	const envSource = options.envSource ?? doctorEnvSourceFrom(env.DOCTOR_ENV) ?? 'dev';
 	const runner = options.runner ?? runCommand;
 	const runtimeProbe = options.runtimeProbe ?? defaultRuntimeProbe;
 	const now = options.now ?? (() => new Date());
@@ -816,7 +748,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 		runtimeProbe
 	);
 	const validation = await validationForecastSection(rootDir, env, runner);
-	const launchBlockers = await launchBlockersSection(rootDir, configuration.envFile, env);
+	const launchBlockers = await launchBlockersSection(rootDir, env, envSource);
 
 	const sections = [environment, configuration.section, runtime, validation, launchBlockers];
 	const checks = sections.flatMap((section) => section.checks);
@@ -858,7 +790,7 @@ export async function main(
 
 	try {
 		const cli = parseArgs(argv);
-		const result = await runDoctor(options);
+		const result = await runDoctor({ ...options, envSource: cli.envSource ?? options.envSource });
 		if (cli.json) {
 			stdout.write(`${JSON.stringify(result.report, null, '\t')}\n`);
 		} else {
