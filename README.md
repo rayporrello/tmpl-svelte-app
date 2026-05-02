@@ -118,12 +118,29 @@ Env vars `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.exam
 
 ## Using this template
 
-See **[docs/getting-started.md](docs/getting-started.md)** for the full step-by-step guide, including:
+```bash
+git clone git@github.com:<you>/<your-project>.git
+cd <your-project>
+./bootstrap
+bun run dev
+```
 
-- Running `bun run init:site` to replace all placeholders in one shot
-- Swapping `tokens.css` for your brand colors, fonts, and shape
-- Registering routes, updating CMS config, and activating dormant modules
-- Deploying via container and running `bun run validate:launch` before go-live
+`./bootstrap` provisions a local Postgres container, generates a working `.env`
+with sane local defaults, runs database migrations, and prints the next things
+to customize. It is idempotent and safe to re-run.
+
+For local CMS editing in a Chromium browser, follow the Work-with-Local-Repository
+flow at [docs/cms/README.md](docs/cms/README.md#local-development--work-with-local-repository).
+
+Before deploying:
+
+```bash
+bun run launch:check   # release-grade gate; alias of validate:launch
+```
+
+See [docs/getting-started.md](docs/getting-started.md) for the full guide,
+including the manual setup path if you want to understand or override what
+bootstrap does.
 
 `init:site` asks these ten prompts in order: package name, site name,
 production URL, default meta description, GitHub owner, GitHub repository name,

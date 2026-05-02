@@ -1,4 +1,4 @@
-# CI — three jobs: validate (PR + push), image (push to main + tag), launch (tag only)
+# CI — validate, bootstrap-smoke, init-site acceptance, image, and launch gates.
 #
 # Trivy gates on CRITICAL only initially; HIGH is reported but non-blocking.
 # Tighten to HIGH after 3 successful releases without false positives (ADR-018).
@@ -89,6 +89,80 @@ jobs:
           name: build-${{ github.sha }}
           path: build/
           retention-days: 7
+
+  bootstrap-smoke:
+    name: Bootstrap smoke (real Postgres)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: tmpl_smoke_user
+          POSTGRES_PASSWORD: tmpl_smoke_pw
+          POSTGRES_DB: tmpl_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tmpl_smoke_user -d tmpl_smoke"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      # Action SHAs match the existing pinning style in this workflow.
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run ./bootstrap --ci against the service Postgres
+        env:
+          DATABASE_URL: postgres://tmpl_smoke_user:tmpl_smoke_pw@127.0.0.1:5432/tmpl_smoke
+          BOOTSTRAP_PACKAGE_NAME: tmpl-bootstrap-smoke
+          BOOTSTRAP_SITE_NAME: Bootstrap Smoke
+          BOOTSTRAP_PRODUCTION_URL: https://bootstrap-smoke.example.com
+          BOOTSTRAP_META_DESCRIPTION: Bootstrap smoke description.
+          BOOTSTRAP_GITHUB_OWNER: bootstrap-smoke
+          BOOTSTRAP_GITHUB_REPO: tmpl-bootstrap-smoke
+          BOOTSTRAP_SUPPORT_EMAIL: hello@bootstrap-smoke.example.com
+          BOOTSTRAP_PROJECT_SLUG: tmpl-bootstrap-smoke
+          BOOTSTRAP_PRODUCTION_DOMAIN: bootstrap-smoke.example.com
+          BOOTSTRAP_PWA_SHORT_NAME: Smoke
+        run: ./bootstrap --ci
+
+      - name: Build production bundle
+        run: bun run build
+
+      - name: Start built server
+        env:
+          DATABASE_URL: postgres://tmpl_smoke_user:tmpl_smoke_pw@127.0.0.1:5432/tmpl_smoke
+          ORIGIN: http://127.0.0.1:3000
+          PUBLIC_SITE_URL: http://127.0.0.1:3000
+          PORT: 3000
+        run: bun run serve.js &
+
+      - name: Wait for /healthz
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3000/healthz && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Check /readyz
+        run: curl -sf http://127.0.0.1:3000/readyz
+
+      - name: Run validate
+        run: bun run validate
 
   init-site-acceptance:
     name: init:site acceptance

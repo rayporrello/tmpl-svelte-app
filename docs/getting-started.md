@@ -1,5 +1,31 @@
 # Getting Started
 
+The fast path:
+
+```bash
+git clone git@github.com:<you>/<your-project>.git
+cd <your-project>
+./bootstrap
+bun run dev
+```
+
+That gets you a working local site with Postgres, migrations applied, `.env`
+populated, and the contact form live. Edit `src/lib/styles/tokens.css` for brand
+colors and `content/pages/home.yml` for homepage content; both changes hot-reload.
+
+Before launch:
+
+```bash
+bun run launch:check   # release-grade pre-deploy gate
+```
+
+If you want to understand each step or override what bootstrap does, the manual
+path follows below.
+
+---
+
+## Manual setup (advanced)
+
 Step-by-step guide for turning `tmpl-svelte-app` into a production site.
 
 ---
