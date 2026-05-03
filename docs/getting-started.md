@@ -51,11 +51,11 @@ Step-by-step guide for turning `tmpl-svelte-app` into a production site.
 3. Verify the scaffold works:
    ```bash
    bun run dev            # starts at http://127.0.0.1:5173
-   bun run validate:core  # local-safe pipeline: typecheck, SEO/CMS/content/asset checks, build, unit tests
+   bun run validate:core  # local-safe pipeline: format/type/bootstrap/secret/config checks, build, unit tests
    ```
    `bun run validate` is an alias of `validate:core` and is the green-light
    check before any commit. CI runs `bun run validate:ci`, which adds built
-   Playwright e2e and visual smoke checks.
+   Playwright e2e, axe accessibility, and visual smoke checks.
 
 ---
 
@@ -398,7 +398,7 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
 
 1. Build and verify locally:
    ```bash
-   bun run validate:core     # local-safe: typecheck, SEO/CMS/content/assets, build, unit
+   bun run validate:core     # local-safe: format/type/bootstrap/config checks, build, unit
    bun run validate:launch   # release-grade: validate:core + check:launch + check:content-diff
    ```
 2. Build the container image:

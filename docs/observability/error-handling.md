@@ -127,14 +127,14 @@ try {
 
 ## /healthz vs /readyz
 
-| Endpoint   | Tier      | Checks                | Purpose                                   |
-| ---------- | --------- | --------------------- | ----------------------------------------- |
-| `/healthz` | All tiers | Process is alive      | Container liveness probe; uptime monitors |
-| `/readyz`  | Tier 2+   | Postgres, Redis, etc. | Container readiness probe; load balancer  |
+| Endpoint   | Checks                | Purpose                                   |
+| ---------- | --------------------- | ----------------------------------------- |
+| `/healthz` | Process is alive      | Container liveness probe; uptime monitors |
+| `/readyz`  | Postgres connectivity | Container readiness probe; load balancer  |
 
 **`/healthz`** is included in the base template. It returns immediately with a JSON response indicating that the app process is running.
 
-**`/readyz`** is a Tier 2 addition. Add it in Phase 5 when `DATABASE_URL` is active. It should check Postgres connectivity and any other required dependencies. Do not add `/readyz` until real dependencies exist to check — an always-true readiness endpoint is misleading.
+**`/readyz`** is included because Postgres is part of the template baseline. If a project adds more required runtime dependencies, extend `/readyz` with real checks for those dependencies. Do not add always-true readiness checks — they create false confidence.
 
 ---
 

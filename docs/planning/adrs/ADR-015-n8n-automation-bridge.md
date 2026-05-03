@@ -34,7 +34,7 @@ Treat **n8n** as an optional first-class automation layer for websites built fro
 
 3. **Two categories of n8n interaction:**
    - _Content automations:_ n8n writes files to `content/` through the GitHub API. These files must follow the same schema as Sveltia CMS defines in `static/admin/config.yml`.
-   - _Runtime automations (Phase 5):_ SvelteKit server actions save to Postgres, then emit a typed webhook event to n8n. n8n handles downstream tasks. The webhook call is non-blocking — user-facing flows must not fail if n8n is down.
+   - _Runtime automations:_ SvelteKit server actions save the source record to Postgres and insert a minimized outbox row in `automation_events` in the same transaction. `bun run automation:worker` later builds the provider envelope, signs HTTP delivery when configured, retries with backoff, and dead-letters exhausted failures. User-facing flows must not fail just because n8n or another receiver is down.
 
 4. **Webhook security:** Production HTTP webhook calls from SvelteKit must be signed using HMAC-SHA256 with the selected provider secret. Unsigned production webhooks are not acceptable.
 
@@ -55,7 +55,7 @@ Treat **n8n** as an optional first-class automation layer for websites built fro
 **Negative / tradeoffs:**
 
 - n8n workflow JSON is not version-controlled in this repo by default (it lives in n8n's own database); teams should export and back up workflows separately
-- If n8n is unavailable and a runtime webhook call fails silently, the failure may not be noticed without logging
+- Runtime delivery now has durable queue state, retry counters, idempotency keys, and dead letters. Operators still need to run/schedule `bun run automation:worker` and monitor failed rows.
 - Content automations that write directly to `main` carry deployment risk — a malformed file triggers a failed build
 
 ## Alternatives considered
@@ -71,10 +71,15 @@ Treat **n8n** as an optional first-class automation layer for websites built fro
 - Env vars `AUTOMATION_PROVIDER`, `AUTOMATION_WEBHOOK_URL`, `AUTOMATION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`, and `N8N_WEBHOOK_SECRET` are documented in `.env.example`
 - Docs: `docs/automations/` — README, n8n-patterns.md, content-automation-contract.md, security-and-secrets.md
 - Runtime event contract: `docs/automations/runtime-event-contract.md`
-- Phase 5 will implement `src/lib/automation/events.ts` (non-blocking webhook emitter) and `src/lib/automation/signing.ts` (HMAC signing)
+- Runtime automation source files:
+  - `src/lib/server/automation/events.ts` — enqueue helpers for outbox rows
+  - `src/lib/server/automation/envelopes.ts` — minimized outbox payloads and provider envelope builders
+  - `src/lib/server/automation/registry.ts` — event handler registry used by the worker
+  - `src/lib/server/automation/signing.ts` — HMAC signing
+  - `scripts/automation-worker.ts` — delivery, retry, locking, and dead-letter processing
 
 ## Revisit triggers
 
 - If n8n's self-hosted deployment complexity outweighs its value for simpler sites
-- If a project requires exactly-once delivery guarantees (consider adding the `automation_events` Postgres table with retry logic)
+- If a project requires stronger than at-least-once delivery guarantees, document receiver-side idempotency and consider project-specific workflow orchestration.
 - If an alternative automation platform becomes more suitable for the self-hosted posture

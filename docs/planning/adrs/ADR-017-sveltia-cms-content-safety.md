@@ -57,7 +57,7 @@ CMS writes content
 | Content file validator | `bun run check:content`      | Validates `.md` files under `content/`  |
 | Content diff guard     | `bun run check:content-diff` | Detects destructive changes in git diff |
 
-`check:cms` and `check:content` are included in `bun run validate`. `check:content-diff` is a pre-commit guard — it inspects uncommitted working-tree state and is run manually before content-heavy commits, not as part of the build pipeline.
+`check:cms` and `check:content` are included in `bun run validate`. `check:content-diff` is destructive-change protection: run it manually before content-heavy commits, and expect it in the launch-grade pipeline (`bun run validate:launch`).
 
 ---
 
@@ -104,7 +104,7 @@ Out of scope. This template uses Git-backed content as a deliberate architectura
 
 ## Deferred
 
-- Full CMS implementation for sites where Phase 3 is not yet active (scripts exit successfully when CMS is absent).
+- Webhook-triggered pre-merge validation for CMS commits. The current scripts-based approach is simpler and works without external infrastructure.
 - Rich content migrations when field names or structures change significantly.
 - Database-backed CMS validation (out of scope for this template).
 

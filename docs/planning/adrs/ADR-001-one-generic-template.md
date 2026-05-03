@@ -12,12 +12,12 @@ Early planning considered maintaining separate templates for different project t
 
 Use one reusable golden template with configurable and dormant modules instead of separate templates for different site types.
 
-The single template covers: landing pages, content sites, product sites, founder projects, and advanced marketing sites. App-capable seams (forms, runtime data, automations, auth, admin) are present in the template but dormant by default.
+The single template covers: landing pages, content sites, product sites, founder projects, and advanced marketing sites. The database-backed website baseline is always on; project-specific capabilities such as external automations, auth, search, consent UI, and advanced media storage remain modular.
 
 ## Consequences
 
 - Maintenance is simpler: one place to keep deploy config, agent rules, CSS baseline, and content conventions up to date.
-- A simple landing page project activates only what it needs — dormant modules add no runtime cost.
+- A simple landing page project inherits one consistent baseline and activates only the optional modules it needs.
 - An advanced project that grows into auth or runtime data does not require migrating to a different template.
 - The template's scope must be kept honest: "one template" does not mean "everything on by default." Core must remain lean.
 

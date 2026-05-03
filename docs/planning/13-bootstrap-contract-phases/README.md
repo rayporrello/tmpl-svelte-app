@@ -1,5 +1,9 @@
 # Bootstrap Contract — Phase Prompts
 
+> Historical note: these phase prompts are implementation history. Do not feed
+> them to an agent for new work unless you are deliberately reconstructing the
+> original bootstrap project.
+
 This directory contains one prompt file per phase of the Bootstrap Contract
 project. Each file is a self-contained brief intended to be loaded as a
 single prompt to Codex (or any other coding agent) inside VS Code.

@@ -18,29 +18,33 @@ The template maintains a strict two-tier structure:
 - Bun (tooling and runtime)
 - CSS token/design-system baseline (custom properties, explicit CSS layers, hand-authored component styles)
 - Sveltia / file-based content conventions (Markdown/JSON, `/admin` route)
+- Postgres + Drizzle runtime data (`DATABASE_URL` required at runtime)
+- Superforms + Valibot form behavior for business forms
 - SEO, accessibility, semantic HTML, and image baseline
 - Podman Quadlet + Caddy deployment templates and documentation
+- Backup and restore scripts for Postgres/uploads, with optional off-host push
 - Agent operating rules (`AGENTS.md`, `CLAUDE.md.template`)
 
 **Dormant modules — prepared but off:**
 
-- Postgres + Drizzle (runtime data)
 - n8n (automation workflows)
 - Postmark or equivalent (transactional email)
 - Better Auth (auth, sessions, member areas, admin)
-- Backup automation (pg_dump + media to Cloudflare R2)
-- GitHub Actions deploy automation (documented as optional; manual deploy is the baseline)
+- Cookie consent UI components
+- Pagefind search
+- Cloudflare R2 image storage
+- PWA/service worker behavior
 
 ## Consequences
 
-- A project that only needs a static content site runs with the core only — no database container, no automation service.
-- A project that grows into runtime data or auth activates the relevant dormant module without structural changes.
+- A project that only needs a public website still inherits the database-backed baseline. Runtime records, migrations, health checks, backups, and forms use the same shape in every clone.
+- A project that grows into auth, search, consent UI, R2 storage, or external automation activates the relevant dormant module without structural changes.
 - The core must be kept honest: adding a new always-on dependency requires justifying why every future project needs it.
 - Dormant modules must be designed so activation is low-friction: a defined seam (Quadlet service entry, credential env vars, feature flag) rather than a refactor.
 
 ## Implementation Notes
 
-- Dormant module files exist in the repo (Quadlet templates, schema stubs, route stubs) but are either commented out or gated behind an activation step documented in the module's README or inline comment.
+- Dormant module files may exist in the repo as docs, components, examples, or provider seams, but they are not imported or enabled until a project activates them.
 - The boundary between core and dormant is enforced by the template's own documentation and agent operating rules — not by a runtime plugin system.
 
 ## Revisit Triggers

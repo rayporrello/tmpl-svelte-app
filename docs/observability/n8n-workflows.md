@@ -56,12 +56,13 @@ Each workflow must document the following in the workflow's notes or a linked ru
 When the SvelteKit app emits a webhook event to n8n, it uses the provider-neutral automation contract:
 
 ```ts
-import type { WorkflowEventPayload } from '$lib/observability/types';
+import type { AutomationEvent } from '$lib/server/automation/automation-provider';
 
-const event: WorkflowEventPayload = {
+const event: AutomationEvent<'lead.created'> = {
 	event: 'lead.created',
 	version: 1,
 	occurred_at: new Date().toISOString(),
+	idempotency_key: `lead.created:${submissionId}`,
 	data: {
 		submission_id: submissionId,
 		name: formData.name,
@@ -76,6 +77,8 @@ const event: WorkflowEventPayload = {
 **`data.request_id`** allows correlating n8n execution logs with SvelteKit server logs.
 
 **`version`** allows n8n to handle schema evolution without breaking.
+
+**`idempotency_key`** allows receivers to deduplicate worker retries.
 
 See [docs/automations/runtime-event-contract.md](../automations/runtime-event-contract.md) for the source-of-truth contract.
 

@@ -1,5 +1,9 @@
 # Template Repo Spec
 
+> Historical note: this planning spec is superseded by the live files,
+> [docs/documentation-map.md](../documentation-map.md), `README.md`, and
+> `AGENTS.md`. Do not use it as the current structural contract.
+
 ## What this document covers
 
 The structural contract for `tmpl-svelte-app`: what files exist, what they own, and what must not change between projects.

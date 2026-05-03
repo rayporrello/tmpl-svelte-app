@@ -1,5 +1,9 @@
 # Build Decision Ledger
 
+> Historical note: this ledger is implementation history. Durable decisions now
+> live in accepted ADRs under `docs/planning/adrs/`; current system coverage is
+> mapped in [docs/documentation-map.md](../documentation-map.md).
+
 This document converts prior planning notes into accepted template decisions, unresolved decisions, ADR updates, and implementation tasks.
 
 ## Status values

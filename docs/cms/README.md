@@ -120,7 +120,7 @@ The shared Valibot schema contract and validator rules are documented in [docs/c
 
 ```bash
 bun run check:cms          # validate static/admin/config.yml
-bun run check:content      # validate .md content files
+bun run check:content      # validate Markdown/YAML content files
 bun run check:content-diff # detect destructive changes before committing
 ```
 

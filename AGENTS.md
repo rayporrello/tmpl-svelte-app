@@ -425,23 +425,26 @@ Run these before finalizing any template change:
 
 ```bash
 bun install --frozen-lockfile   # verify lockfile is clean
+bun run format:check            # Prettier drift
 bun run check                   # TypeScript + svelte-check
-bun run images:optimize         # prebuild image pipeline (idempotent)
-bun run build                   # production build
+bun run check:bootstrap         # bootstrap dry-run + mock-provisioner harness
+bun run secrets:check           # plaintext secret guard
+bun run project:check           # site.project.json + generated-file drift
+bun run routes:check            # explicit route policy coverage
+bun run forms:check             # business form registry + outbox references
 bun run check:seo               # SEO config validation
 bun run check:analytics         # analytics config validation (GTM format, staging isolation)
 bun run check:cms               # CMS config validation
 bun run check:content           # content file validation
-bun run check:content-diff      # destructive content diff check
-bun run project:check           # site.project.json + generated-file drift
-bun run routes:check            # explicit route policy coverage
-bun run forms:check             # business form registry + outbox references
 bun run check:assets            # favicon / OG / webmanifest validation
 bun run check:design-system     # design-system guardrail validation
+bun run images:optimize         # prebuild image pipeline (idempotent)
+bun run build                   # production build
+bun run test                    # Vitest unit tests
 ```
 
 Or run the listener-free local gate: `bun run validate` / `bun run validate:core`.
-CI runs `bun run validate:ci`, which adds built Playwright and visual smoke tests.
+CI runs `bun run validate:ci`, which adds built Playwright, axe, and visual smoke tests. Release-grade checks also run `bun run check:init-site`, `bun run check:launch`, and `bun run check:content-diff`.
 
 ---
 
@@ -452,7 +455,7 @@ src/
   app.css           entry file — layer order, font imports, design system imports
   app.html          HTML shell — title, viewport, theme-color, anti-FOUC script
   app.d.ts          SvelteKit type augmentation — App.Locals (requestId, etc.)
-  hooks.server.ts   request ID injection, centralized error handling
+  hooks.server.ts   env init, request ID injection, CSP, security headers, centralized error handling
   lib/
     analytics/
       config.ts             reads PUBLIC_* env vars; buildAnalyticsConfig factory
@@ -466,6 +469,11 @@ src/
     observability/
       types.ts      ObservabilityTier, LogLevel, HealthResponse, WorkflowEventPayload
     server/
+      automation/
+        events.ts       enqueue minimized outbox rows
+        envelopes.ts    outbox payload + provider envelope builders
+        registry.ts     worker delivery handler registry
+        signing.ts      HMAC signing
       analytics/
         types.ts                          ServerAnalyticsProvider interface and event types
         events.ts                         emitServerAnalyticsEvent() — wraps provider with failure guard
@@ -474,12 +482,22 @@ src/
       logger.ts     structured JSON logger with redaction — use instead of console.error
       request-id.ts read/generate request ID from x-request-id header
       safe-error.ts normalize thrown errors; split public message from diagnostic detail
+      db/
+        schema.ts   contact_submissions, automation_events, automation_dead_letters
+        health.ts   injectable Postgres readiness probe
+      forms/
+        registry.ts business form registry
+        providers/  console + Postmark email providers
+      privacy/
+        retention.ts data retention defaults
     seo/
       types.ts      SEO TypeScript types
       metadata.ts   canonical URL, image URL, title, robots helpers
       schemas.ts    JSON-LD schema helpers
       routes.ts     public page route registry
       route-policy.ts full SvelteKit route policy coverage
+      public-routes.ts sitemap/feed route merge helpers
+      feed.ts       RSS feed generator
       sitemap.ts    sitemap XML generator
     styles/
       tokens.css    BRAND FILE — edit to rebrand
@@ -497,15 +515,23 @@ src/
   routes/
     +error.svelte           friendly accessible error page
     +layout.svelte          imports app.css, injects root schema + analytics components
+    contact/+page.svelte    live Superforms contact form
+    articles/+page.svelte   articles index
+    articles/[slug]/+page.svelte article detail
     healthz/+server.ts      process liveness check — returns JSON
+    readyz/+server.ts       Postgres readiness check — returns 200/503
     sitemap.xml/+server.ts  prerendered sitemap
+    rss.xml/+server.ts      prerendered RSS feed
     robots.txt/+server.ts   prerendered robots.txt
     llms.txt/+server.ts     prerendered llms.txt
     styleguide/+page.svelte design system demo — keep updated
 scripts/
+  bootstrap.ts          local setup orchestrator
+  doctor.ts             read-only diagnostic
+  automation-worker.ts  outbox delivery/retry/dead-letter worker
   check-analytics.ts    validate analytics config (GTM format, docs exist, staging isolation)
   check-cms-config.ts   validate static/admin/config.yml
-  validate-content.ts   validate .md content files under content/
+  validate-content.ts   validate Markdown/YAML files under content/
   check-content-diff.ts detect destructive content changes in git diff
 ```
 
@@ -639,7 +665,7 @@ All six steps are required — partial completion breaks the content contract:
 3. Preserve or create a request ID for server-side request handling where practical — use `getOrCreateRequestId` from `src/lib/server/request-id.ts`.
 4. User-facing errors must be safe, calm, and non-diagnostic — use `toSafeError` from `src/lib/server/safe-error.ts`.
 5. Do not add Sentry, OpenTelemetry, Grafana, Prometheus, Loki, or other observability dependencies without explicit approval.
-6. Do not add `/readyz` checks until real runtime dependencies exist (Phase 5 minimum).
+6. Do not extend `/readyz` with fake checks; only add checks for real required runtime dependencies.
 7. When adding an automation-triggered feature, document provider, payload shape, retry behavior, failure behavior, and idempotency key.
 8. Automation workflows that mutate data or send external messages must have finite retry behavior and a manual recovery path.
 9. Do not implement "self-healing" behavior that mutates production data without explicit approval.

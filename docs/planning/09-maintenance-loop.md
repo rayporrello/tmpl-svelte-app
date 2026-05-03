@@ -1,5 +1,10 @@
 # Maintenance Loop
 
+> Historical note: this planning checklist is superseded by
+> [docs/template-maintenance.md](../template-maintenance.md),
+> [docs/operations/backups.md](../operations/backups.md), and
+> [docs/observability/runbook.md](../observability/runbook.md).
+
 Recurring operational checks for sites built from this template. Adapt frequency and scope to the site tier.
 
 ---

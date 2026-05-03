@@ -28,17 +28,18 @@ The template is unified, not bloated. Only what every project needs runs by defa
 - Bun (tooling and runtime)
 - CSS token/design-system baseline (hand-authored custom properties and explicit CSS layers)
 - Sveltia / file-based content conventions
+- Postgres + Drizzle runtime data
+- Business form, outbox, and backup/restore seams
 - SEO, accessibility, semantic HTML, and image baseline
 - Deployment-ready config and documentation
 - Agent-readable operating rules
 
 **Dormant/prepared modules (off by default, ready to activate):**
 
-- Postgres + Drizzle (runtime data)
 - n8n (automation workflows)
 - Postmark or equivalent (transactional email)
 - Better Auth (auth, member areas, admin)
-- Backup automation (pg_dump + media to R2)
+- R2 image storage, Pagefind search, and cookie-consent UI activation
 
 Activating a module should require uncommenting or enabling a defined seam — not structural rework.
 
@@ -47,8 +48,8 @@ Activating a module should require uncommenting or enabling a defined seam — n
 Data security is solved at the template level. Every project that activates runtime data automatically has a backup path available — not something to wire up later.
 
 - Backup scripts are part of the template.
-- Postgres dumps and media assets route to Cloudflare R2 via S3-compatible API.
-- Backup automation is a dormant module: present and ready, activated when Postgres is activated.
+- Postgres dumps and media assets can be pushed off-host through rclone to R2, B2, S3, or another configured remote.
+- Backup automation is shipped: scripts, verification, and systemd timer examples are present; projects activate off-host push by setting backup env vars and host rclone config.
 
 ## 5. AI-Native Readability
 

@@ -94,10 +94,10 @@ No image pull is needed if the previous image is still in the local store. For o
 A clone of this template must be able to:
 
 1. `bun install` — install all dependencies without errors
-2. `bun run validate` — pass all PR-grade checks (type, SEO, CMS, content, assets, build)
+2. `bun run validate` — pass all local-safe checks (formatting, type, bootstrap, secrets, route/form/SEO/analytics/CMS/content/assets/design-system, images, build, unit tests)
 3. `bun run build` — produce a complete `build/` directory
 4. `podman build -f Containerfile -t <name> .` — build a runnable image
-5. `podman run --rm -p 3000:3000 -e ORIGIN=http://127.0.0.1:3000 <name>` — start successfully
+5. `podman run --rm -p 3000:3000 -e ORIGIN=http://127.0.0.1:3000 -e PUBLIC_SITE_URL=http://127.0.0.1:3000 -e DATABASE_URL=postgres://... <name>` — start successfully
 6. `GET /healthz` → 200 `{"ok":true}` — pass the liveness check
 7. Roll back by changing the SHA in the Quadlet and restarting the unit
 

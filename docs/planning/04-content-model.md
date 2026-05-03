@@ -49,15 +49,15 @@ Automation interacts with the template through two interfaces:
   - CI rebuilds the site automatically.
 - **Key rule:** Content automation writes must follow the exact schema defined in `static/admin/config.yml`. AI-generated content must default to `draft: true` or `published: false`. See [docs/automations/content-automation-contract.md](../automations/content-automation-contract.md).
 
-### 3b. Runtime automations (webhook-based)
+### 3b. Runtime automations (outbox-delivered)
 
 - **What it is:** Background jobs, third-party API integrations, automated email sequences triggered by user actions.
 - **The Tool:** `AutomationProvider` selected by `AUTOMATION_PROVIDER`.
 - **How it works:**
-  - SvelteKit server actions save to Postgres, then emit a typed automation event (non-blocking from the user's perspective).
-  - The selected provider handles downstream tasks (email, CRM update, Slack alert, etc.).
+  - SvelteKit server actions save to Postgres and enqueue a minimized typed automation event in the same transaction.
+  - `bun run automation:worker` delivers pending events to the selected provider for downstream tasks (email, CRM update, Slack alert, etc.).
   - External providers store their own execution logs outside the SvelteKit app.
-  - Webhook delivery failures must not break user-facing form submissions.
+  - Provider delivery failures retry finitely, then write sanitized diagnostics to `automation_dead_letters` without breaking user-facing form submissions.
 - **Implemented contract:** See [docs/automations/runtime-event-contract.md](../automations/runtime-event-contract.md).
 
 ## Content safety rules

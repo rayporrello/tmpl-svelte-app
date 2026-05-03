@@ -47,7 +47,7 @@ Empty ADRs are forbidden — if a topic isn't worth writing 3 paragraphs of rati
 
 ## Decided (closed)
 
-- **Phase 5 — runtime data** — Postgres + Drizzle + `/readyz` + typed automation event emitter (`emitLeadCreated`) + HMAC signing + `automation_dead_letters` all shipped. See [11-template-build-backlog.md](11-template-build-backlog.md) Phase 5 section.
+- **Phase 5 — runtime data** — Postgres + Drizzle + `/readyz` + typed automation outbox (`enqueueLeadCreated` / compatibility alias `emitLeadCreated`) + HMAC signing + `automation_dead_letters` all shipped. See [11-template-build-backlog.md](11-template-build-backlog.md) Phase 5 section.
 - **Backup automation** — turnkey path shipped: rclone + systemd `.timer` + Healthchecks.io. See [docs/operations/backups.md](../operations/backups.md).
 - **PWA / service worker (no by default)** — [ADR-020](adrs/ADR-020-pwa-no-by-default.md). Manifest + icons stay; no service worker.
 - **Production hardening (audit pass)** — DB pool config, SIGTERM wrapper (`serve.js`), HSTS dual-write, contact form honeypot, Speculation Rules, `bun audit` advisory step, Caddy rate-limit snippet docs. Recorded in PR #11; see ADR-018 §"Graceful shutdown" and ADR-019 §"App vs edge header ownership".

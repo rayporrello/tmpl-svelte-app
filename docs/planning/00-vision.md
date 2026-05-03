@@ -42,22 +42,20 @@ Starting a new web project from scratch means re-solving the same problems every
 - Provider-agnostic automation env contract (`AUTOMATION_PROVIDER`, generic webhook vars, and n8n provider vars) — writes outbound event state to `automation_events`
 - Analytics spine: GTM + GA4 + Cloudflare Web Analytics + server conversion events (set `PUBLIC_ANALYTICS_ENABLED=true` in production — see `docs/analytics/README.md`)
 
-**Planned, not yet implemented:**
+**Deferred / per-project activation:**
 
 Independent of the database layer — small wins, can be picked up anytime:
 
 - Lighthouse CI gate (perf budget enforcement on PRs; today the perf gates in `08-quality-gates.md` are honor-system)
-- Backup automation (uploads → off-host storage on a schedule; extends to `pg_dump` once Postgres lands)
 
 Beyond the website-only baseline — each will be scoped in its own thread (see `12-post-v1-roadmap.md`):
 
 - i18n / localisation
-- Cookie consent / privacy banner (consent seam is implemented; full banner UI is per-project)
+- Cookie consent / privacy banner activation (dormant UI components ship; importing and legal copy are per-project)
 - Newsletter subscription dormant module
 - Site search (Pagefind)
 - Per-article OG image generation
-- Visual regression testing
-- Page archetypes / examples gallery
+- Full screenshot-baseline visual regression testing (visual smoke tests already ship)
 - Better Auth for gated/member areas
 - Edge image storage (R2 tier)
 
@@ -81,5 +79,5 @@ This template is successful if:
 - A new project never has to write a Caddyfile, container definition, or backup script from scratch.
 - The CSS and content conventions are already in place and ready to extend.
 - Agent operating rules are already wired so AI-assisted work is safe and consistent from day one.
-- Optional modules (Postgres, n8n, auth) can be activated without structural rework.
+- Optional modules (n8n, auth, search, consent UI, R2) can be activated without structural rework.
 - The repo is readable and navigable by both humans and AI agents.

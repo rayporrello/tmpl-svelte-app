@@ -7,7 +7,7 @@ The template is feature-complete for the **database-backed website baseline**. A
 **Ready to use today:**
 
 - Spin up a new project, run `bun run init:site`, provision a Postgres DB, set `DATABASE_URL`, run `bun run db:migrate`, edit `tokens.css`, register routes in `src/lib/seo/routes.ts`, and ship.
-- `bun run validate` and `bun run validate:launch` enforce all template invariants (SEO, CMS, content, assets, build, unit, e2e + axe). The validate pipeline uses a stub `DATABASE_URL` — no live DB required for CI.
+- `bun run validate` enforces the local-safe template invariants (formatting, type, bootstrap, secrets, route/form/SEO/analytics/CMS/content/assets/design-system, images, build, unit). `bun run validate:ci` adds built Playwright e2e, axe, and visual smoke. The validate pipeline uses a stub `DATABASE_URL` — no live DB required for CI.
 - CI (.github/workflows/ci.yml) runs validate, builds the container image, runs Trivy with CRITICAL gating, smoke-tests the live container, and pushes to GHCR.
 - Container + reverse proxy: Containerfile, Quadlets, Caddyfile.example, deployment runbook.
 - Sveltia CMS at `/admin` is wired; content safety scripts gate writes; Markdown rendering ships with sanitisation.
@@ -16,13 +16,13 @@ The template is feature-complete for the **database-backed website baseline**. A
 
 **Outstanding before tagging v1.0.0:**
 
-| #   | Area                                          | Status       | Notes                                                                                                                                                                                                                                                                                                                                                                                             |
-| --- | --------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Lighthouse CI gate                            | **deferred** | YAGNI for the v1 baseline: homepage ships <50KB JS and the site is a content/marketing template. Manual `bunx unlighthouse <staging-url>` pre-launch is sufficient. Re-evaluate when a project regression makes CI gating worth it. The honor-system perf gate in `08-quality-gates.md` stays.                                                                                                    |
-| 2   | Backup automation                             | **done**     | Turnkey path lives in `scripts/backup-{db,uploads,push,all,verify}.sh` + `deploy/systemd/backup.{service,timer}` + `docs/operations/backups.md`. Set `BACKUP_REMOTE` (rclone spec) and `BACKUP_HEALTHCHECK_URL` in `secrets.yaml`, copy the systemd units, and `systemctl --user enable --now <project>-backup.timer`. `bun run backup:all` auto-pushes off-host when `BACKUP_REMOTE` is set.     |
-| 3   | Automation event emitter                      | **done**     | `src/lib/server/automation/events.ts`, `signing.ts`, `automation-provider.ts`, and `providers/` ship. Contact form action calls `emitLeadCreated` and writes to `automation_events` and `automation_dead_letters`. HMAC signing is wired. First n8n workflow (contact form → email) and others documented in `docs/automations/n8n-patterns.md`. See ADR-015.                                     |
-| 4   | Decisions on "beyond website baseline" topics | **done**     | Module registry at `docs/modules/README.md`. Pagefind, cookie consent, R2, Better Auth, PWA documented. ADR-020 (PWA no-default) accepted. Consent banner UI added dormant. See Batch H in decision ledger.                                                                                                                                                                                       |
-| 5   | Final docs-vs-implementation audit            | **done**     | Production hardening + perf wins + CI hygiene landed (DB pool config, SIGTERM wrapper, HSTS dual-write, contact-form honeypot, Speculation Rules, `bun audit` advisory step, Caddy rate-limit snippet docs). Two adapter-side items confirmed already handled: `Cache-Control: immutable` for `/_app/immutable/*` and the `prefers-reduced-motion` universal kill switch in `animations.css:153`. |
+| #   | Area                                          | Status       | Notes                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --- | --------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Lighthouse CI gate                            | **deferred** | YAGNI for the v1 baseline: homepage ships <50KB JS and the site is a content/marketing template. Manual `bunx unlighthouse <staging-url>` pre-launch is sufficient. Re-evaluate when a project regression makes CI gating worth it. The honor-system perf gate in `08-quality-gates.md` stays.                                                                                                              |
+| 2   | Backup automation                             | **done**     | Turnkey path lives in `scripts/backup-{db,uploads,push,all,verify}.sh` + `deploy/systemd/backup.{service,timer}` + `docs/operations/backups.md`. Set `BACKUP_REMOTE` (rclone spec) and `BACKUP_HEALTHCHECK_URL` in `secrets.yaml`, copy the systemd units, and `systemctl --user enable --now <project>-backup.timer`. `bun run backup:all` auto-pushes off-host when `BACKUP_REMOTE` is set.               |
+| 3   | Automation event emitter                      | **done**     | `src/lib/server/automation/events.ts`, `envelopes.ts`, `registry.ts`, `signing.ts`, `automation-provider.ts`, and `providers/` ship. Contact form action calls `enqueueLeadCreated` and writes a minimized outbox row to `automation_events`; exhausted worker failures land in `automation_dead_letters`. HMAC signing is wired. n8n/webhook workflows are documented in `docs/automations/`. See ADR-015. |
+| 4   | Decisions on "beyond website baseline" topics | **done**     | Module registry at `docs/modules/README.md`. Pagefind, cookie consent, R2, Better Auth, PWA documented. ADR-020 (PWA no-default) accepted. Consent banner UI added dormant. See Batch H in decision ledger.                                                                                                                                                                                                 |
+| 5   | Final docs-vs-implementation audit            | **done**     | Production hardening + perf wins + CI hygiene landed (DB pool config, SIGTERM wrapper, HSTS dual-write, contact-form honeypot, Speculation Rules, `bun audit` advisory step, Caddy rate-limit snippet docs). Two adapter-side items confirmed already handled: `Cache-Control: immutable` for `/_app/immutable/*` and the `prefers-reduced-motion` universal kill switch in `animations.css:153`.           |
 
 **Ready to tag v1.0.0.** Per-project activation (Sveltia OAuth, brand swap, route registration, `rclone config`, R2 credentials) is **not** v1 work — those are deliberately left for the consumer of the template.
 
@@ -32,7 +32,7 @@ The template is feature-complete for the **database-backed website baseline**. A
 
 - [x] Create build decision ledger
 - [x] Mark each decision ACCEPTED / CHALLENGE / DEFER / REJECTED
-- [x] Update ADRs to match accepted decisions (ADR-001 through ADR-019)
+- [x] Update ADRs to match accepted decisions (ADR-001, 002, 004, 005, 007-021; ADR-003 and ADR-006 were skipped/superseded)
 - [x] Create permanent docs structure (docs/design-system/, docs/seo/, docs/cms/, docs/observability/, docs/automations/, docs/deployment/, docs/content/, docs/planning/adrs/)
 - [x] Move durable docs from planning into permanent locations (deployment/runbook + secrets, cms guides, observability tiers + runbook, content/markdown trust tiers, design-system accessibility)
 
@@ -67,7 +67,7 @@ The template is feature-complete for the **database-backed website baseline**. A
 - [x] Add Sveltia admin files (`static/admin/index.html`, `static/admin/config.yml`)
 - [x] Add content schema (config.yml collections: pages, articles, team, testimonials)
 - [x] Add content loaders (`src/lib/content/types.ts`, `pages.ts`, `articles.ts`, `index.ts`)
-- [x] Add starter content files (home.yml, sample-post.md, sample-person.yml, sample-testimonial.yml)
+- [x] Add starter content files (home.yml, getting-started.md, alex-rivera.yml, jordan-kim.yml)
 - [x] Add home page route (`src/routes/+page.server.ts`, `src/routes/+page.svelte`)
 - [x] Add CMS docs (`docs/cms/README.md`, `sveltia-content-contract.md`, `collection-patterns.md`)
 - [x] Add automation docs (`docs/automations/` — 5 files covering n8n patterns and contracts)
@@ -130,9 +130,9 @@ The template is feature-complete for the **database-backed website baseline**. A
 - [x] Register /contact in src/lib/seo/routes.ts as indexable — D
 - [x] Update CSP form-action and connect-src extension comments (src/lib/server/csp.ts) — D
 - [x] Update forms-guide.md with activation walkthrough and provider swap instructions — D
-- [x] Implement typed automation event emitter (`src/lib/server/automation/events.ts` — non-blocking webhook)
+- [x] Implement typed automation event enqueue helpers (`src/lib/server/automation/events.ts` — durable outbox)
 - [x] Implement HMAC signing (`src/lib/server/automation/signing.ts`)
-- [x] Add `lead.created` event emission from contact form server action (`emitLeadCreated`)
+- [x] Add `lead.created` outbox insertion from contact form server action (`enqueueLeadCreated`)
 - [ ] Add `newsletter.subscribed` event emission — deferred (no newsletter form in baseline; add per-project when needed)
 - [x] Document first n8n workflow (contact form → email notification — `docs/automations/n8n-patterns.md`)
 - [x] Add backup docs (`docs/operations/backups.md`) and turnkey off-host path (rclone + systemd timer + Healthchecks)

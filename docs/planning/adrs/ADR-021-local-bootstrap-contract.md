@@ -41,7 +41,7 @@ The model has these non-negotiable properties:
 - `bun run doctor` is always read-only and has no `--fix` mode.
 - `bun run validate` remains the PR-grade gate.
 - `bun run launch:check` is the release-grade gate and aliases
-  `validate:launch` once the docs flip lands.
+  `validate:launch`.
 - Skips are based on observed state, not remembered completion state.
 - Re-running bootstrap on an already bootstrapped repo must be idempotent.
 - Failures use stable `BOOT-*` or `LAUNCH-*` codes with `NEXT:` remediation

@@ -170,10 +170,11 @@ n8n is an optional external automation layer. The site works without it.
 - **Do not** add n8n to `package.json`
 - **Do not** import n8n packages in any SvelteKit module
 - **Content automations:** n8n writes to `content/` via GitHub API — must follow `config.yml` schema
-- **Runtime automations:** server action → Postgres (`automation_events`) → signed non-blocking webhook → n8n; failures land in `automation_dead_letters`
-- Webhook code must check `N8N_WEBHOOK_URL` and skip silently if unset
-- Webhook delivery failures must not break user-facing form submissions
-- Production webhooks must be HMAC-signed with `N8N_WEBHOOK_SECRET`
+- **Runtime automations:** server action → Postgres source row + minimized outbox row → `bun run automation:worker` → signed provider delivery; exhausted failures land in `automation_dead_letters`
+- User-facing actions must not call webhook providers directly
+- HTTP providers with no URL skip cleanly when the worker runs
+- Provider delivery failures must not break user-facing form submissions
+- Production HTTP delivery must be HMAC-signed with the selected provider secret
 - Do not commit real webhook URLs or secrets — use `.env.example` for variable names only
 - AI-generated content must default to `draft: true` / `published: false`
 

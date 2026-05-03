@@ -59,7 +59,7 @@ Receivers should verify the signature by computing the same digest over the raw 
 
 ## Local Development
 
-Use `AUTOMATION_PROVIDER=console` to inspect emitted events without making outbound calls.
+Use `AUTOMATION_PROVIDER=console` to inspect worker-built events without making outbound calls.
 
 Use `AUTOMATION_PROVIDER=noop` to disable automation explicitly.
 

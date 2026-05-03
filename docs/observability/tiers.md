@@ -6,18 +6,20 @@ The template uses three official observability tiers. Choose based on the site t
 
 ## Tier 1 — Small
 
-**Use for:** Static sites, content sites, landing pages, basic contact forms.
+**Use for:** Public content sites, landing pages, and basic lead-generation sites on the template baseline.
 
-**Risk profile:** Low. No critical workflows. No payments. No auth.
+**Risk profile:** Low. Postgres and contact capture are present, but there are no payments, auth, or revenue-critical workflows.
 
 ### Build / include
 
 - `src/routes/+error.svelte` — friendly user-facing error page
 - `src/routes/healthz/+server.ts` — process liveness check
+- `src/routes/readyz/+server.ts` — Postgres readiness check
 - `src/hooks.server.ts` — centralized error handling with structured logging
 - `src/lib/server/logger.ts` — structured JSON logs with request ID and redaction
 - `src/lib/server/request-id.ts` — request ID propagation
 - `src/lib/server/safe-error.ts` — prevents stack traces from reaching the browser
+- `automation_events` / `automation_dead_letters` — durable runtime automation diagnostics
 - Application logs via stdout (captured by container runtime or Caddy)
 - Caddy access logs (included in the deployment template)
 - Basic uptime monitor (UptimeRobot free tier, Better Uptime, or equivalent)
@@ -28,7 +30,6 @@ The template uses three official observability tiers. Choose based on the site t
 
 - OpenTelemetry
 - Dashboards
-- Workflow ledger or dead-letter tables
 - Complex alert routing
 - Sentry or equivalent error tracking SaaS
 
@@ -45,10 +46,7 @@ The template uses three official observability tiers. Choose based on the site t
 - **Sentry** (or equivalent): frontend + backend error tracking
   - Install per project: `bun add @sentry/sveltekit`
   - Do not add to the base template
-- **`/readyz` endpoint**: checks Postgres connectivity, Redis if used
-  - Add in Phase 5 when `DATABASE_URL` is active
-  - Do not add before runtime dependencies exist
-- **Postgres health probe**: fail `/readyz` when DB is unreachable
+- **Scheduled automation worker monitoring**: confirm `bun run automation:worker` runs and failed/dead-letter counts are reviewed
 - **n8n Error Workflow**: catch-all that alerts via Slack or email on unhandled workflow failures
 - **Scheduled workflow heartbeat checks**: a monitor workflow that fires on a cron and alerts when it stops
 - **Workflow failure alert channel**: Slack channel or email list for failed workflow notifications
@@ -69,7 +67,6 @@ The template uses three official observability tiers. Choose based on the site t
   - The base template already propagates `requestId` via `event.locals.requestId`; OpenTelemetry can use this as a root span attribute
 - **Alert severity levels**: P1 (revenue/auth down), P2 (degraded), P3 (minor anomaly)
 - **Incident runbook per critical path**: what to do when checkout fails, auth fails, email delivery fails
-- **Dead-letter / failed-event handling**: Postgres table for webhook events that could not be delivered to n8n
 - **Idempotency keys for workflow-triggering actions**: prevent double-processing on retries
 - **Deployment rollback docs**: step-by-step for rolling back a bad deploy
 - **SLOs**: define and track uptime, latency, error rate targets
@@ -94,17 +91,16 @@ The template uses three official observability tiers. Choose based on the site t
 
 When a site grows from Tier 1 to Tier 2:
 
-1. Add `DATABASE_URL` and implement Postgres (Phase 5)
-2. Add `/readyz` with a Postgres health check
-3. Install Sentry per the project CLAUDE.md
-4. Create an n8n Error Workflow before creating any automation that handles leads or payments
-5. Set up a workflow heartbeat check
-6. Document backup verification procedure
+1. Install Sentry or an equivalent error tracker per the project `CLAUDE.md`
+2. Schedule and monitor `bun run automation:worker`
+3. Create an n8n Error Workflow before creating any automation that handles leads or payments
+4. Set up a workflow heartbeat check
+5. Document backup verification and restore testing
 
 When a site grows from Tier 2 to Tier 3:
 
 1. Enable OpenTelemetry (instrument `hooks.server.ts` and key server actions)
-2. Attach `requestId` from `event.locals` to all outbound n8n webhook payloads
-3. Create a dead-letter table in Postgres for failed webhook deliveries
-4. Define SLOs and a monitoring dashboard
-5. Write incident runbooks for each critical user path
+2. Attach `requestId` from `event.locals` to all critical outbound events
+3. Define SLOs and a monitoring dashboard
+4. Write incident runbooks for each critical user path
+5. Add alert severity and escalation routing

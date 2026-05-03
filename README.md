@@ -73,6 +73,12 @@ The article feature image becomes the share image automatically — no extra wir
 
 Full docs: [docs/seo/README.md](docs/seo/README.md)
 
+## Documentation map
+
+[docs/documentation-map.md](docs/documentation-map.md) maps implemented systems
+to their source files, authoritative docs, validation commands, and planning
+files that can be archived or deleted.
+
 ## CMS and content
 
 The template ships a complete Git-backed content system:
@@ -197,17 +203,25 @@ bun run build                # production build (prebuild runs image optimizer)
 bun run check                # TypeScript + svelte-check
 bun run lint                 # ESLint
 bun run format               # Prettier
+bun run format:check         # verify formatting
 bun run test                 # Vitest unit tests
 bun run test:e2e             # Playwright + axe smoke tests
 bun run test:e2e:built       # Playwright against existing build/ output (used by validate:ci)
 bun run images:optimize      # run image optimizer manually (idempotent)
+bun run check:bootstrap      # bootstrap dry-run + mock-provisioner harness
+bun run check:db             # live Postgres connectivity check
 bun run check:seo            # validate SEO config
+bun run check:analytics      # validate analytics config
 bun run check:cms            # validate static/admin/config.yml
 bun run check:content        # validate content/ files
 bun run project:check        # validate site.project.json + generated-file drift
 bun run routes:check         # validate route policy coverage
 bun run forms:check          # validate business form registry and outbox references
 bun run check:assets         # verify favicon / og-default / manifest defaults exist
+bun run check:design-system  # validate design-system guardrails
+bun run check:init-site      # acceptance-test init:site on a temp copy
+bun run check:launch         # production placeholder/env launch gate
+bun run doctor               # read-only local/project diagnostic
 bun run init:site            # interactive/stdin compatibility initializer
 bun run automation:worker    # process pending automation outbox events
 bun run db:generate          # generate migration SQL from schema changes
@@ -338,7 +352,7 @@ Medium/large observability features (Sentry, OpenTelemetry, dashboards) are docu
 
 ```bash
 bun run check:cms          # validate static/admin/config.yml
-bun run check:content      # validate .md content files
+bun run check:content      # validate Markdown/YAML content files
 bun run check:content-diff # detect destructive content changes in git diff
 ```
 

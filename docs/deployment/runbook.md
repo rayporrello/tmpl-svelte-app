@@ -190,8 +190,8 @@ curl -fsS https://<domain>/robots.txt
 # Expected: User-agent: *
 
 # 4. Security headers (spot check)
-curl -sI https://<domain>/ | grep -E "x-frame-options|x-content-type-options|referrer-policy"
-# Expected: all four headers present; CSP present if Batch B is deployed
+curl -sI https://<domain>/ | grep -Ei "x-frame-options|x-content-type-options|referrer-policy|permissions-policy|content-security-policy"
+# Expected: security headers and CSP are present
 ```
 
 If any check fails:

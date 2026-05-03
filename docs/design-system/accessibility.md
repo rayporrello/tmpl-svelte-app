@@ -87,7 +87,7 @@ The design token system in `src/lib/styles/tokens.css` uses semantic tokens:
 
 **Do not use `--text-muted` for informational content** — it is intentionally near the contrast threshold. Reserve it for decorative or supplementary text (e.g. character counts, timestamps where a formatted date is already present).
 
-Axe accessibility tests run on home, `/articles/sample-post`, and `/styleguide` as part of `bun run test:e2e`. Zero violations are required for `validate:ci` to pass.
+Axe accessibility tests run on `/`, `/articles`, `/examples/homepage`, and `/contact` as part of `bun run test:e2e`. Zero violations are required for `validate:ci` to pass.
 
 ---
 
@@ -109,6 +109,6 @@ Accessibility tests run as part of the Playwright smoke suite (`tests/e2e/smoke.
 bun run test:e2e
 ```
 
-The axe-core integration (`@axe-core/playwright`) runs a full ruleset scan on three pages in `bun run validate:ci`. Any axe violation blocks CI — this is intentional so accessibility regressions surface at PR time, not in production.
+The axe-core integration (`@axe-core/playwright`) runs a full ruleset scan on the pages listed above in `bun run validate:ci`. Any axe violation blocks CI — this is intentional so accessibility regressions surface at PR time, not in production.
 
 For manual testing: keyboard-only navigation, screen reader testing (VoiceOver, NVDA), and browser zoom to 200% are the recommended complement to automated scanning.

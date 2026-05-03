@@ -1,5 +1,10 @@
 # Quality Gates
 
+> Historical note: this planning checklist is superseded by `package.json`,
+> `.github/workflows/ci.yml`, and
+> [docs/template-maintenance.md](../template-maintenance.md). Do not use it as
+> the current validation contract.
+
 Checks that must pass before a project built from this template ships or before changes land on `main`.
 
 ## Build gates (automated)

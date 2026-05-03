@@ -20,19 +20,27 @@ bun run preview                  # preview the production build
 bun run check                    # TypeScript type-check via svelte-check
 bun run lint                     # ESLint (flat config)
 bun run format                   # Prettier
+bun run format:check             # verify formatting
 bun run images:optimize          # run the image prebuild pipeline manually (idempotent)
 bun run test                     # Vitest unit tests
 bun run test:e2e                 # Playwright + axe e2e smoke tests (builds first; runs against bun ./build/index.js)
+bun run check:bootstrap          # bootstrap dry-run + mock-provisioner harness
+bun run check:bootstrap:podman   # optional/manual real-Podman bootstrap smoke
+bun run check:db                 # live Postgres connectivity check
 bun run project:check            # validate site.project.json and generated-file drift
 bun run routes:check             # validate explicit route policy coverage
 bun run forms:check              # validate business form registry and outbox references
 bun run check:seo                # validate SEO config and public route registry
+bun run check:analytics          # validate dormant/active analytics config
 bun run check:cms                # validate static/admin/config.yml (Sveltia)
 bun run check:content            # validate Markdown / YAML files under content/
 bun run check:content-diff       # detect destructive content changes (release-grade)
 bun run check:assets             # verify favicon / og-default / manifest defaults exist
+bun run check:design-system      # validate design-system guardrails
 bun run check:launch             # verify production env (ORIGIN/PUBLIC_SITE_URL look like real HTTPS)
 bun run check:init-site          # acceptance-test init:site on a temp copy
+bun run bootstrap                # run scripts/bootstrap.ts through package script
+bun run doctor                   # read-only local/project diagnostic
 bun run init:site                # interactive/stdin initializer that writes site.project.json
 bun run init:site -- --check     # check generated-file drift against site.project.json
 bun run init:site -- --write     # generate owned files from site.project.json
@@ -178,19 +186,24 @@ Both git commands should produce empty output.
 
 `bun run validate:core` / `bun run validate` (in order):
 
-| Step                      | What it validates                                                                      |
-| ------------------------- | -------------------------------------------------------------------------------------- |
-| `bun run check`           | TypeScript types; Svelte component types; `svelte-check`                               |
-| `bun run project:check`   | `site.project.json` shape and generated-file drift                                     |
-| `bun run routes:check`    | Every concrete SvelteKit route has an explicit route policy                            |
-| `bun run forms:check`     | Every registered business form has a source table, PII notes, and valid outbox event   |
-| `bun run check:seo`       | SEO source structure and route registry are valid; placeholder values warn only        |
-| `bun run check:cms`       | `static/admin/config.yml` schema is valid (no broken collection or field config)       |
-| `bun run check:content`   | content/ files parse and pass field validation; no blank required fields, no bad dates |
-| `bun run check:assets`    | Default static assets (favicon, og-default, manifest) exist and are non-empty          |
-| `bun run images:optimize` | Image pipeline runs, exits 0 on empty uploads                                          |
-| `bun run build`           | Vite build succeeds; adapter output is valid                                           |
-| `bun run test`            | Vitest unit tests (env validation, SEO metadata, articles loader)                      |
+| Step                          | What it validates                                                                      |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| `bun run format:check`        | Formatting drift before expensive checks                                               |
+| `bun run check`               | TypeScript types; Svelte component types; `svelte-check`                               |
+| `bun run check:bootstrap`     | Bootstrap dry-run and mock-provisioner idempotency                                     |
+| `bun run secrets:check`       | No plaintext secret files or tracked rendered env artifacts                            |
+| `bun run project:check`       | `site.project.json` shape and generated-file drift                                     |
+| `bun run routes:check`        | Every concrete SvelteKit route has an explicit route policy                            |
+| `bun run forms:check`         | Every registered business form has a source table, PII notes, and valid outbox event   |
+| `bun run check:seo`           | SEO source structure and route registry are valid; placeholder values warn only        |
+| `bun run check:analytics`     | GTM/GA4/Cloudflare analytics config is structurally safe                               |
+| `bun run check:cms`           | `static/admin/config.yml` schema is valid (no broken collection or field config)       |
+| `bun run check:content`       | content/ files parse and pass field validation; no blank required fields, no bad dates |
+| `bun run check:assets`        | Default static assets (favicon, og-default, manifest) exist and are non-empty          |
+| `bun run check:design-system` | CSS/HTML/Svelte design-system guardrails pass                                          |
+| `bun run images:optimize`     | Image pipeline runs, exits 0 on empty uploads                                          |
+| `bun run build`               | Vite build succeeds; adapter output is valid                                           |
+| `bun run test`                | Vitest unit tests                                                                      |
 
 `bun run validate:ci` adds:
 
@@ -205,7 +218,7 @@ Both git commands should produce empty output.
 | `bun run check:launch`       | `ORIGIN` and `PUBLIC_SITE_URL` look like a real HTTPS production URL (not placeholder, not `localhost`) |
 | `bun run check:content-diff` | No destructive content rewrites are about to ship (compares git diff against `content/`)                |
 
-CI runs `validate:ci` on every push/pull request and `validate:launch` on tags. See [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+CI runs `validate:ci` on every push/pull request, the real-Postgres bootstrap smoke on `main`, `check:init-site` when initializer-owned files change, image build/Trivy/container smoke on pushes, and `validate:launch` on tags. See [.github/workflows/ci.yml](../.github/workflows/ci.yml).
 
 ## Acceptance test for init:site
 
@@ -295,7 +308,9 @@ Before enabling a content automation on a new site:
 
 Before enabling a runtime webhook automation:
 
-1. Confirm the server action does not `await` the webhook call
-2. Test with the selected HTTP automation provider URL unset — form submission must still succeed
-3. Test with the receiver returning a 500 — form submission must still succeed
-4. Confirm the webhook call uses HMAC signing with the selected provider secret
+1. Confirm the server action writes the source record and minimized outbox row in one DB transaction.
+2. Confirm the action never calls the HTTP provider directly.
+3. Test with the selected HTTP automation provider URL unset — form submission must still succeed and the worker should mark delivery skipped.
+4. Test with the receiver returning a 500 — form submission must still succeed, and the worker should retry or dead-letter after max attempts.
+5. Confirm HTTP provider delivery uses HMAC signing with the selected provider secret.
+6. Confirm the receiver uses `idempotency_key` to deduplicate retries.

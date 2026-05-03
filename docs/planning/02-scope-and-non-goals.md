@@ -19,13 +19,14 @@ Every project spawned from this template includes these by default.
 
 These capabilities are part of the template but off by default. Activating them should require enabling a defined seam — not structural rework.
 
-| Module                | What it provides                          | Activation                                         |
-| --------------------- | ----------------------------------------- | -------------------------------------------------- |
-| n8n                   | Automation workflows and webhook handling | Add Quadlet service + configure webhook URLs       |
-| Postmark / email      | Transactional email delivery              | Add credentials + enable email module              |
-| Better Auth           | Auth, sessions, member areas, admin       | Add auth config + enable protected routes          |
-| Backup automation     | pg_dump + media to Cloudflare R2          | Enable when Postgres is activated                  |
-| GitHub Actions deploy | Automated CI/CD to production             | Optional; manual deploy documented as the baseline |
+| Module            | What it provides                              | Activation                                       |
+| ----------------- | --------------------------------------------- | ------------------------------------------------ |
+| n8n               | External automation workflows                 | Add service + configure provider URLs/secrets    |
+| Postmark / email  | Transactional email delivery                  | Add credentials; provider switches automatically |
+| Better Auth       | Auth, sessions, member areas, admin           | Add auth config + enable protected routes        |
+| Pagefind search   | Static content search                         | Install/index per project                        |
+| R2 image storage  | Object storage for large/multi-instance media | Add S3-compatible client and env vars            |
+| Cookie consent UI | Consent banner/preferences panel              | Import dormant components and project legal copy |
 
 ## 3. Per-Project Configurable
 
@@ -38,7 +39,7 @@ These decisions are intentionally left to the future project, not locked in the 
 - Deployment host, port allocation, and Caddy domain rules
 - Whether auth is required and which auth providers to configure
 - Whether n8n automation is enabled and which workflows to run
-- Whether advanced media storage (R2) is enabled
+- Whether advanced media storage (R2), search, auth, consent UI, or n8n automation is enabled
 
 ## 4. Non-Goals
 

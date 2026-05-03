@@ -74,7 +74,7 @@ In the server action, the attribution payload arrives as form data and can be fo
 
 ## Upgrade paths
 
-Once Postgres is active (Phase 5), attribution payloads can be persisted server-side in a leads table, making them available for:
+Because Postgres is part of the baseline, attribution payloads can be persisted server-side in a lead/source table when a project needs that reporting, making them available for:
 
 - CRM import
 - n8n automation enrichment

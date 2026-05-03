@@ -31,25 +31,27 @@ Adopt a **tiered observability model** with a lean default base spine.
 
 ### What is locked in the base template
 
-| Feature                                  | File                             |
-| ---------------------------------------- | -------------------------------- |
-| Friendly error page                      | `src/routes/+error.svelte`       |
-| Health endpoint (process liveness only)  | `src/routes/healthz/+server.ts`  |
-| Structured server logging with redaction | `src/lib/server/logger.ts`       |
-| Request ID propagation                   | `src/lib/server/request-id.ts`   |
-| Safe error normalization                 | `src/lib/server/safe-error.ts`   |
-| Shared observability types               | `src/lib/observability/types.ts` |
-| Centralized error handler                | `src/hooks.server.ts`            |
+| Feature                                  | File                                           |
+| ---------------------------------------- | ---------------------------------------------- |
+| Friendly error page                      | `src/routes/+error.svelte`                     |
+| Health endpoint (process liveness only)  | `src/routes/healthz/+server.ts`                |
+| Readiness endpoint (Postgres probe)      | `src/routes/readyz/+server.ts`                 |
+| Structured server logging with redaction | `src/lib/server/logger.ts`                     |
+| Request ID propagation                   | `src/lib/server/request-id.ts`                 |
+| Safe error normalization                 | `src/lib/server/safe-error.ts`                 |
+| Shared observability types               | `src/lib/observability/types.ts`               |
+| Centralized error handler                | `src/hooks.server.ts`                          |
+| Automation outbox and dead letters       | `automation_events`, `automation_dead_letters` |
 
 These are included in every site built from the template, regardless of tier.
 
 ### The three official tiers
 
-| Tier       | Site type                        | Additional tooling                                         |
-| ---------- | -------------------------------- | ---------------------------------------------------------- |
-| **Small**  | Static, content, landing         | (Base template only)                                       |
-| **Medium** | CMS, forms, Postgres, n8n        | Sentry, `/readyz`, n8n Error Workflow, backup verification |
-| **Large**  | Revenue-critical, auth, payments | OpenTelemetry, SLOs, incident runbooks, dead-letter tables |
+| Tier       | Site type                        | Additional tooling                                                                    |
+| ---------- | -------------------------------- | ------------------------------------------------------------------------------------- |
+| **Small**  | Public content/landing site      | Base template only: errors, logs, request IDs, `/healthz`, `/readyz`, Postgres outbox |
+| **Medium** | Lead generation, active CMS, n8n | Sentry, n8n Error Workflow, backup verification, scheduled worker monitoring          |
+| **Large**  | Revenue-critical, auth, payments | OpenTelemetry, SLOs, incident runbooks, alert escalation                              |
 
 See [docs/observability/tiers.md](../../../docs/observability/tiers.md) for the complete tier model.
 
@@ -65,7 +67,7 @@ n8n workflow naming, payload shape, failure policy, and security posture are doc
 
 - Every site has a minimal safety spine from day one.
 - Small sites do not carry infrastructure they do not need.
-- The seams (request IDs in `event.locals`, typed `WorkflowEventPayload`, structured log context) make it clean to add Tier 2/3 features later.
+- The seams (request IDs in `event.locals`, provider-neutral automation envelopes, structured log context) make it clean to add Tier 2/3 features later.
 - Agent rules prevent ad hoc `console.error` sprawl and secret leakage in logs.
 
 **Negative:**
@@ -97,7 +99,7 @@ Rejected. Silent failures and invisible errors are not acceptable even on small 
 - Uptime monitoring provider (UptimeRobot, Better Uptime, etc.)
 - Alert channel (Slack, email, PagerDuty)
 - Whether n8n is used and which workflows are enabled
-- Whether workflow events are logged to Postgres
+- Whether external error/trace providers are added
 - Log retention policy and destination
 
 ---
@@ -107,8 +109,6 @@ Rejected. Silent failures and invisible errors are not acceptable even on small 
 - OpenTelemetry implementation (Tier 3 only; seam is in place via `event.locals.requestId`)
 - Full dashboards and metrics aggregation
 - Pager-style escalation and on-call rotation
-- Dead-letter / failed-event tables (deferred until Postgres is active in Phase 5)
-- `/readyz` implementation (deferred until runtime dependencies exist in Phase 5)
 
 ---
 

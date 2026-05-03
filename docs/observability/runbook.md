@@ -2,7 +2,7 @@
 
 Practical troubleshooting guide for solo operators and small teams. Start at the top of each section and work down.
 
-This runbook assumes a Tier 1 (small) site as the baseline. Tier 2/3 additions are noted where relevant.
+This runbook assumes the current database-backed template baseline. Tier 2/3 additions are noted where relevant.
 
 ---
 
@@ -40,19 +40,22 @@ This runbook assumes a Tier 1 (small) site as the baseline. Tier 2/3 additions a
 
 1. Check app logs for `[FAIL]` or `error` level entries with the relevant route.
 2. Test the form manually and note the error message shown to the user.
-3. Check the environment: the selected HTTP automation provider URL may be unset in a new deployment.
+3. Check the environment: `DATABASE_URL` is required; provider URLs may be intentionally unset, but the worker should then mark events as skipped.
 
 **Logs to inspect:**
 
 - App logs filtered to the form route (e.g., `/contact`)
-- n8n execution log (Tier 2): check the last execution of `site:<project>:contact:*`
+- Postgres rows in `contact_submissions`, `automation_events`, and `automation_dead_letters`
+- n8n execution log (if n8n is enabled): check the last execution of `site:<project>:contact:*`
 
 **Safe recovery steps:**
 
-1. Verify the selected provider URL and secret are set in the running environment.
-2. Check Postgres connectivity if the form writes to the database.
-3. Re-submit the form manually to test recovery.
-4. For leads lost during an outage: check n8n execution history for failed webhook deliveries and re-trigger manually.
+1. Check Postgres connectivity and `/readyz`.
+2. Confirm the source row exists in `contact_submissions`.
+3. Confirm the outbox row exists in `automation_events`.
+4. Run `bun run automation:worker` manually and inspect the outcome.
+5. If provider delivery is skipped, verify the selected provider URL and secret.
+6. For events in `automation_dead_letters`, fix the receiver/configuration, then re-enqueue or manually replay from the source row.
 
 ---
 
@@ -73,10 +76,11 @@ This runbook assumes a Tier 1 (small) site as the baseline. Tier 2/3 additions a
 
 **Safe recovery steps:**
 
-1. For transient failures (network, rate limit): n8n should retry automatically; wait for the backoff.
-2. For permanent failures (invalid data, credential expired): fix the underlying issue, then re-run the execution manually from n8n.
-3. For credential expiry: rotate the credential in n8n and re-run.
-4. If the lead/event needs to be re-processed: check Postgres for the stored record and trigger the webhook manually.
+1. If the SvelteKit worker could not deliver to n8n, check `automation_events` retry state and `automation_dead_letters`.
+2. If n8n accepted the webhook but an internal workflow node failed, inspect n8n's own retry/error workflow behavior.
+3. For permanent failures (invalid data, credential expired): fix the underlying issue, then re-run the execution manually from n8n.
+4. For credential expiry: rotate the credential in n8n and re-run.
+5. If the lead/event needs to be re-processed: check Postgres for the stored record and trigger or re-enqueue manually.
 
 ---
 
@@ -132,8 +136,6 @@ This runbook assumes a Tier 1 (small) site as the baseline. Tier 2/3 additions a
 ## Postgres is unavailable
 
 **Symptoms:** `/readyz` returns unhealthy, form submissions fail with database errors.
-
-_(Tier 2+ only — base template does not have Postgres.)_
 
 **First checks:**
 
@@ -195,8 +197,6 @@ _(Tier 2+ only — base template does not have Postgres.)_
 ## Backup verification failed
 
 **Symptoms:** Scheduled backup check did not complete, or a test restore failed.
-
-_(Tier 2+ only — base template does not have backup infrastructure.)_
 
 **First checks:**
 

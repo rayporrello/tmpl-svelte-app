@@ -56,7 +56,7 @@ See [docs/analytics/README.md](../analytics/README.md).
 
 ## Deployment
 
-**Podman Quadlet + Caddy** — container-based, rootless. Templates planned for Phase 6.  
+**Podman Quadlet + Caddy** — container-based, rootless. Containerfile, Quadlet templates, Caddyfile example, runbook, and CI image smoke are shipped.
 See [ADR-007](adrs/ADR-007-podman-caddy-infrastructure.md).
 
 ## Search
