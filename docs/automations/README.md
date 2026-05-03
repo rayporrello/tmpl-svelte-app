@@ -11,11 +11,11 @@ The SvelteKit app owns one generic event contract. Providers only decide where t
 Runtime automation flow:
 
 1. A server action validates input and saves the primary record to Postgres.
-2. The action emits a typed automation event.
-3. The configured provider makes exactly one delivery attempt.
-4. Provider failure is logged and dead-lettered; the user-facing form stays successful after the DB save.
+2. The same transaction inserts a minimized outbox event in `automation_events`.
+3. `bun run automation:worker` claims pending rows with Postgres locking.
+4. The worker joins back to source tables, sends the typed event, retries with backoff, and dead-letters exhausted failures.
 
-Retries and outbox behavior are intentionally outside the provider. They belong in the separate retry wrapper around this layer.
+The user-facing form stays successful after the DB transaction commits. Provider downtime affects the worker, not the request lifecycle.
 
 ---
 
@@ -43,6 +43,7 @@ Every provider receives the same versioned JSON envelope:
 	event: 'lead.created',
 	version: 1,
 	occurred_at: '2026-04-29T12:00:00.000Z',
+	idempotency_key: 'lead.created:sub-123',
 	data: {
 		submission_id: 'sub-123',
 		name: 'Alice Example',
@@ -69,11 +70,12 @@ Update any active workflow expressions from `type`/`createdAt`/`payload` to `eve
 ## What Ships
 
 - A production-ready contact form at `src/routes/contact/`
-- `emitLeadCreated()` at `src/lib/server/automation/events.ts`
+- `enqueueLeadCreated()` / `emitLeadCreated()` at `src/lib/server/automation/events.ts`
+- `bun run automation:worker` for durable delivery, retry, and dead-lettering
 - `AutomationProvider` at `src/lib/server/automation/automation-provider.ts`
 - Static provider resolver at `src/lib/server/automation/providers/index.ts`
 - Four providers: `n8n`, `webhook`, `console`, `noop`
-- `automation_events` table for minimized delivery state
+- `automation_events` table for minimized outbox state
 - `automation_dead_letters` table for failed delivery diagnostics without full payload copies
 
 Dead letters store `event_id`, `event_type`, and `error` only. They do not store full payloads because runtime event data can contain contact information.

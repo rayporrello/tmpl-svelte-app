@@ -50,10 +50,12 @@ Step-by-step guide for turning `tmpl-svelte-app` into a production site.
    ```
 3. Verify the scaffold works:
    ```bash
-   bun run dev       # starts at http://127.0.0.1:5173
-   bun run validate  # full PR-grade pipeline: typecheck, SEO/CMS/content/asset checks, build, unit + e2e tests
+   bun run dev            # starts at http://127.0.0.1:5173
+   bun run validate:core  # local-safe pipeline: typecheck, SEO/CMS/content/asset checks, build, unit tests
    ```
-   `bun run validate` is the green-light check before any commit. It must succeed locally before pushing.
+   `bun run validate` is an alias of `validate:core` and is the green-light
+   check before any commit. CI runs `bun run validate:ci`, which adds built
+   Playwright e2e and visual smoke checks.
 
 ---
 
@@ -77,8 +79,10 @@ values).
 
 ## Step 3 — Run init:site
 
-`init:site` rewrites project placeholders across ten files at once. Run it once
-per project and commit the result.
+`site.project.json` is the durable project contract. `init:site` can still ask
+the original setup prompts, but it now writes `site.project.json` first and then
+generates owned files from that manifest. Run it once per project and commit the
+result.
 
 ```bash
 bun run init:site
@@ -123,23 +127,34 @@ proc.stdin.end();
 process.exit(await proc.exited);
 ```
 
-Re-running `init:site` with the same answers is a no-op: the files converge to
-the same bytes. After init, `bun run validate:launch` will still fail until you
-replace `static/og-default.png` with a real 1200×630 OG image. That failure is
+Re-running `init:site` with the same answers is a no-op: the manifest and
+generated files converge to the same bytes.
+
+For manifest-first edits, update `site.project.json` and run:
+
+```bash
+bun run init:site -- --write
+bun run project:check
+```
+
+After init, `bun run validate:launch` will still fail until you replace
+`static/og-default.png` with a real 1200×630 OG image. That failure is
 intentional because the share image is a manual brand asset.
 
 ---
 
-## Step 4 — Edit site.ts
+## Step 4 — Review generated site config
 
-Open [src/lib/config/site.ts](../src/lib/config/site.ts) and replace any
-remaining placeholder values that `init:site` does not cover (OG image path,
-social handles, locale, etc.).
+Open [src/lib/config/site.ts](../src/lib/config/site.ts) and confirm generated
+values from `site.project.json` look right. Hand-edit only project-specific
+fields that are intentionally not manifest-owned, such as social profile URLs,
+locale, or Search Console verification.
 
 Verify SEO structure, then run the launch check before shipping:
 
 ```bash
 bun run check:seo
+bun run project:check
 bun run check:launch   # fails loudly on launch-blocking placeholders
 ```
 
@@ -165,30 +180,37 @@ complete token reference and the swap checklist.
 
 ---
 
-## Step 6 — Update app.html
+## Step 6 — Review app.html
 
-In [src/app.html](../src/app.html) replace:
+`init:site -- --write` updates the `theme-color` meta value from
+`site.project.json`. In [src/app.html](../src/app.html), hand-edit only:
 
-- The `<title>` tag with your site name (the SEO component overrides this per-page,
-  but it is the fallback for `<noscript>` crawlers)
-- The `theme-color` meta hex value with your brand accent color
 - The favicon `href` if you replace the default SVG at `static/favicon.svg`
 
 ---
 
-## Step 7 — Register routes in routes.ts
+## Step 7 — Register route policy and public routes
 
-Every URL the site will serve must be registered in
-[src/lib/seo/routes.ts](../src/lib/seo/routes.ts) with `indexable: true` or
-`indexable: false`. The sitemap only includes `indexable: true` routes;
-`robots.txt` and `llms.txt` derive from the same registry.
+Every SvelteKit route must be covered in
+[src/lib/seo/route-policy.ts](../src/lib/seo/route-policy.ts) as `indexable`,
+`noindex`, `private`, `api`, `feed`, `health`, or `ignored`.
+
+Public page routes also belong in [src/lib/seo/routes.ts](../src/lib/seo/routes.ts)
+with `indexable: true` or `indexable: false`. The sitemap only includes
+`indexable: true` routes; `robots.txt` and `llms.txt` derive from the same
+registry.
+
+```bash
+bun run routes:check
+```
 
 ---
 
-## Step 8 — Update static/admin/config.yml
+## Step 8 — Verify static/admin/config.yml
 
-Sveltia CMS needs to know which GitHub repo to write to. Open
-[static/admin/config.yml](../static/admin/config.yml) and set:
+Sveltia CMS needs to know which GitHub repo to write to. `init:site` generates
+`backend.repo` from `site.project.json`. Open
+[static/admin/config.yml](../static/admin/config.yml) and verify:
 
 ```yaml
 backend:
@@ -376,8 +398,8 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
 
 1. Build and verify locally:
    ```bash
-   bun run validate          # PR-grade: typecheck, SEO/CMS/content/assets, build, unit + e2e
-   bun run validate:launch   # release-grade: validate + check:launch + check:content-diff
+   bun run validate:core     # local-safe: typecheck, SEO/CMS/content/assets, build, unit
+   bun run validate:launch   # release-grade: validate:core + check:launch + check:content-diff
    ```
 2. Build the container image:
    ```bash
@@ -392,7 +414,7 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
    # visit http://127.0.0.1:3000/readyz  — DB connectivity check, should return 200
    ```
 3. Follow the full deployment runbook: [docs/deployment/runbook.md](deployment/runbook.md)
-4. CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) runs `validate` on every push, builds the image, runs Trivy with CRITICAL gating, smoke-tests the running container, and pushes to GHCR on `main`. `validate:launch` is gated on tags.
+4. CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) runs `validate:ci` on every push, builds the image, runs Trivy with CRITICAL gating, smoke-tests the running container, and pushes to GHCR on `main`. `validate:launch` is gated on tags.
 
 ---
 

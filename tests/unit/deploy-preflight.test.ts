@@ -43,6 +43,44 @@ function writeReadyProject(): string {
 	write(rootDir, 'package.json', JSON.stringify({ name: 'ready-site' }, null, 2));
 	write(
 		rootDir,
+		'site.project.json',
+		JSON.stringify(
+			{
+				schemaVersion: 1,
+				project: {
+					packageName: 'ready-site',
+					projectSlug: 'ready-site',
+					githubOwner: 'acme',
+					githubRepo: 'ready-site',
+				},
+				site: {
+					name: 'Ready Site',
+					productionUrl: 'https://ready.example',
+					productionDomain: 'ready.example',
+					defaultDescription: 'Ready site fixture.',
+					supportEmail: 'support@ready.example',
+					pwaShortName: 'Ready',
+					themeColor: '#0B1120',
+				},
+				deployment: {
+					unitName: 'ready-site-web',
+					containerImage: 'ghcr.io/acme/ready-site:abc123',
+				},
+				cms: {
+					backendRepo: 'acme/ready-site',
+					branch: 'main',
+				},
+				assets: {
+					defaultOgImage: '/og-default.png',
+					organizationLogoPath: '/images/logo.png',
+				},
+			},
+			null,
+			'\t'
+		)
+	);
+	write(
+		rootDir,
 		'src/lib/config/site.ts',
 		"export const site = { url: 'https://ready.example', defaultTitle: 'Ready Site' };\n"
 	);

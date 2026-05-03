@@ -1,5 +1,6 @@
 /**
- * EmailProvider seam — swap implementations without touching form actions.
+ * Transactional email provider seam — swap implementations without touching
+ * form actions.
  *
  * Usage:
  *   1. Default: console provider (logs to stdout). Works out of the box.

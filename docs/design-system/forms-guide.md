@@ -9,7 +9,7 @@ live, indexable, and wired to Postgres from day one. No rename or activation ste
 
 - Valid submissions are saved to `contact_submissions` in Postgres.
 - Email notifications are logged to stdout via the console provider.
-- Automation delivery is skipped cleanly (default n8n provider with no `N8N_WEBHOOK_URL` configured).
+- A pending `lead.created` automation outbox event is inserted in the same DB transaction.
 - Rate limiting is disabled (set `RATE_LIMIT_ENABLED=true` to enable).
 
 **Action flow:**
@@ -18,21 +18,20 @@ live, indexable, and wired to Postgres from day one. No rename or activation ste
 validate (Superforms + Valibot)
   → honeypot check                 ← silent 200 success if `website` field is non-empty
   → rate limit check
-  → DB insert (contact_submissions) ← must succeed; failure returns error to user
+  → DB transaction                  ← contact_submissions + automation_events
   → send email                      ← failure is logged; user still sees success
-  → emit lead.created automation    ← fire-and-forget; failure is dead-lettered
   → return success
 ```
 
-The DB insert always happens first. Email and automation delivery failures never erase a saved submission.
+The DB transaction must succeed before the user sees success. Email delivery failures never erase a saved submission. Automation delivery happens later through `bun run automation:worker`.
 
-**Honeypot — bot defense by default.** The schema (`src/lib/forms/contact.schema.ts`) includes an optional `website` field that real users never see — it's positioned off-screen via CSS, has `tabindex="-1"`, `autocomplete="off"`, and lives inside `aria-hidden="true"` markup. Bots scanning for common contact-form fields fill it in; the action returns the same success message it returns for legit submissions, but skips DB persistence, email, and automation events. Silent success keeps bots from learning they've been caught and tuning around the trap.
+**Honeypot — bot defense by default.** The schema (`src/lib/forms/contact.schema.ts`) includes an optional `website` field that real users never see — it's positioned off-screen via CSS, has `tabindex="-1"`, `autocomplete="off"`, and lives inside `aria-hidden="true"` markup. Bots scanning for common contact-form fields fill it in; the action returns the same success message it returns for legit submissions, but skips DB persistence, email, and outbox events. Silent success keeps bots from learning they've been caught and tuning around the trap.
 
 To copy this pattern into a new form: add an optional empty-string field to the schema, render a hidden DOM input bound to `$form.<field>`, and early-`return message(form, "<success copy>")` in the action when the value is non-empty.
 
 ---
 
-### To send real email — configure Postmark
+### To send real transactional email — configure Postmark
 
 Set in `.env` (or via Infisical):
 
@@ -59,10 +58,17 @@ N8N_WEBHOOK_URL=https://your-n8n.com/webhook/YOUR_TRIGGER_ID
 N8N_WEBHOOK_SECRET=a-long-random-string
 ```
 
-The contact form emits a signed `lead.created` event after every successful submission.
-If the HTTP provider is unreachable, minimized delivery state is written to `automation_events` and
-diagnostic metadata is written to `automation_dead_letters` without storing the full
-contact payload. The form always succeeds once the DB insert completes.
+The contact form inserts a minimized `lead.created` outbox row after every successful
+submission. Run the worker from a timer, cron job, process supervisor, or manual
+operator command:
+
+```bash
+bun run automation:worker
+```
+
+The worker signs and sends events to the configured provider, retries failures with
+backoff, and writes exhausted failures to `automation_dead_letters` without storing
+the full contact payload. The form always succeeds once the DB transaction completes.
 
 Set `AUTOMATION_PROVIDER=webhook` with `AUTOMATION_WEBHOOK_URL` and
 `AUTOMATION_WEBHOOK_SECRET` for Make, Zapier, or a custom receiver.

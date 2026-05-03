@@ -6,12 +6,13 @@ Every route created in this template must satisfy this contract. No exceptions f
 
 ## Required for every public page
 
-| Field                | Where it goes           | Notes                                                                 |
-| -------------------- | ----------------------- | --------------------------------------------------------------------- |
-| `title`              | SEO component prop      | Unique per page. Applied through `site.titleTemplate`.                |
-| `description`        | SEO component prop      | 50–160 characters. Unique per page. Not duplicated from another page. |
-| `canonicalPath`      | SEO component prop      | Site-relative path only — no domain. E.g. `/about`, `/blog/my-post`.  |
-| Route registry entry | `src/lib/seo/routes.ts` | Must declare `indexable: true` or `false`.                            |
+| Field                | Where it goes                 | Notes                                                                                                |
+| -------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `title`              | SEO component prop            | Unique per page. Applied through `site.titleTemplate`.                                               |
+| `description`        | SEO component prop            | 50–160 characters. Unique per page. Not duplicated from another page.                                |
+| `canonicalPath`      | SEO component prop            | Site-relative path only — no domain. E.g. `/about`, `/blog/my-post`.                                 |
+| Route policy entry   | `src/lib/seo/route-policy.ts` | Must classify the route as `indexable`, `noindex`, `private`, `api`, `feed`, `health`, or `ignored`. |
+| Route registry entry | `src/lib/seo/routes.ts`       | Public page routes must declare `indexable: true` or `false`.                                        |
 
 ## Optional but expected for most pages
 
@@ -33,7 +34,8 @@ Article detail routes are generated from `content/articles/*.md`. Do not add ind
 For internal, admin, or dev-only pages, set both:
 
 1. `robots: 'noindex, nofollow'` in the SEO component
-2. `indexable: false` in the route registry
+2. `indexable: false` in the route registry when it is a page route
+3. `policy: 'noindex'` or `policy: 'private'` in `route-policy.ts`
 
 ```svelte
 <SEO
@@ -49,6 +51,9 @@ For internal, admin, or dev-only pages, set both:
 ```ts
 // routes.ts
 { path: '/admin', indexable: false }
+
+// route-policy.ts
+{ path: '/admin/*', policy: 'private', reason: 'CMS admin.' }
 ```
 
 ## Minimum example — public page
@@ -103,13 +108,15 @@ For internal, admin, or dev-only pages, set both:
 - Missing `title`: the page can ship without a document title; Google may generate its own title
 - Missing `description`: Google may use page body text; often a bad excerpt
 - Missing `canonicalPath`: canonicals default to `/`; duplicate content issues across URL variants
-- Missing route registry: route excluded from sitemap even if it should be indexed
+- Missing route policy: `bun run routes:check` fails before the page can launch
+- Missing public route registry: route excluded from sitemap even if it should be indexed
 
 ## What agents must check before adding a route
 
 1. Is this a public-facing page? → Add SEO component with required fields.
 2. Is this an internal/admin/preview page? → Set `robots: 'noindex, nofollow'` and `indexable: false`.
-3. Did you add the route to `src/lib/seo/routes.ts`? → Required for all routes, indexable or not.
-4. Does the page need schema? → Read [schema-guide.md](schema-guide.md) before adding.
+3. Did you add policy coverage in `src/lib/seo/route-policy.ts`? → Required for every SvelteKit route.
+4. Did you add public page metadata in `src/lib/seo/routes.ts`? → Required for public page routes.
+5. Does the page need schema? → Read [schema-guide.md](schema-guide.md) before adding.
 
 For article files, also confirm `content/articles/{slug}.md` matches frontmatter `slug` and that `draft: false` is only used for content ready to appear in sitemap, llms.txt, and RSS.

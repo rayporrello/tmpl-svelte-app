@@ -26,7 +26,7 @@ Most archetypes are a single `+page.svelte` file. The flow is:
 1. **Pick the example** that's closest to what you want.
 2. **Copy the file** into the real route — for example,
    `src/routes/examples/about/+page.svelte` → `src/routes/about/+page.svelte`.
-3. **Register the route** in [src/lib/seo/routes.ts](../../src/lib/seo/routes.ts):
+3. **Register route policy** in [src/lib/seo/route-policy.ts](../../src/lib/seo/route-policy.ts), then register public page metadata in [src/lib/seo/routes.ts](../../src/lib/seo/routes.ts):
    ```ts
    { path: '/about', indexable: true, changefreq: 'monthly', priority: 0.8 }
    ```
@@ -52,7 +52,7 @@ The `/examples` directory is fine to ship in dev — it's `noindex, nofollow` ev
 rm -rf src/routes/examples
 ```
 
-Then remove `'/examples'` from the entries in [src/lib/seo/routes.ts](../../src/lib/seo/routes.ts) and the dev-only nav link in [src/routes/+layout.svelte](../../src/routes/+layout.svelte).
+Then remove `'/examples'` from the entries in [src/lib/seo/routes.ts](../../src/lib/seo/routes.ts), remove the `/examples/*` route policy from [src/lib/seo/route-policy.ts](../../src/lib/seo/route-policy.ts), and remove the dev-only nav link in [src/routes/+layout.svelte](../../src/routes/+layout.svelte).
 
 `bun run validate` will keep passing — the route registry rule for `/examples` only applies to entries that exist.
 
@@ -71,7 +71,7 @@ Then remove `'/examples'` from the entries in [src/lib/seo/routes.ts](../../src/
 1. Create `src/routes/examples/<name>/+page.svelte` and follow the conventions above.
 2. Set `robots: 'noindex, nofollow'` in the SEO call.
 3. Add an entry to the `examples` array in [src/routes/examples/+page.svelte](../../src/routes/examples/+page.svelte) so it appears in the index.
-4. The route registry entry is not required — `/examples` is already covered as a noindex prefix.
+4. A per-page route policy entry is not required — `/examples/*` is already covered as a noindex prefix.
 
 ## Why these are kept separate from the styleguide
 

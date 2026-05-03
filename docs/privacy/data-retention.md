@@ -11,8 +11,8 @@ The code source of truth for default retention windows is `src/lib/server/privac
 | Store                                         | Personal data risk                                                  | Purpose                                                  | Default retention                    |
 | --------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------ |
 | `contact_submissions`                         | Name, email, free-text message, source path, user agent, request ID | Respond to contact requests and diagnose delivery issues | `contactSubmissions`: 90 days        |
-| `automation_events` with `status='completed'` | Operational event record with minimized payload by default          | Confirm outbound webhook delivery                        | `automationEventsCompleted`: 30 days |
-| `automation_events` with `status='failed'`    | Failed operational event record with minimized payload by default   | Investigate failed webhook delivery                      | `automationEventsFailed`: 60 days    |
+| `automation_events` with `status='completed'` | Outbox record with source record reference and delivery metadata    | Confirm outbound webhook delivery                        | `automationEventsCompleted`: 30 days |
+| `automation_events` with `status='failed'`    | Exhausted outbox record with source record reference and error text | Investigate failed webhook delivery                      | `automationEventsFailed`: 60 days    |
 | `automation_dead_letters`                     | Event type, source event reference, and error text only             | Diagnose webhook failures after delivery attempts fail   | `automationDeadLetters`: 30 days     |
 
 Reasonable alternatives for `contact_submissions` are 30 days for simple inquiry sites, 180 days for longer sales cycles, and 365 days when the business has a documented follow-up or dispute-handling reason. Do not retain contact submissions indefinitely "just in case."

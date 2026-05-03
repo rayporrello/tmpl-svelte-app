@@ -74,11 +74,11 @@ describe('bootstrap orchestrator helpers', () => {
 		guardedWriteText(root, '.env', 'ORIGIN=http://127.0.0.1:5173\n');
 		expect(readFileSync(join(root, '.env'), 'utf8')).toBe('ORIGIN=http://127.0.0.1:5173\n');
 
-		expect(() => guardedWriteText(root, 'src/app.html', '<title>Nope</title>\n')).toThrow(
+		expect(() => guardedWriteText(root, 'src/routes/+page.svelte', '<h1>Nope</h1>\n')).toThrow(
 			BootstrapScriptError
 		);
 		try {
-			guardedWriteText(root, 'src/app.html', '<title>Nope</title>\n');
+			guardedWriteText(root, 'src/routes/+page.svelte', '<h1>Nope</h1>\n');
 		} catch (error) {
 			expect((error as BootstrapScriptError).code).toBe('BOOT-GUARD-001');
 			expect((error as BootstrapScriptError).hint).toContain('NEXT:');

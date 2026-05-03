@@ -76,6 +76,8 @@ const BASE_COPY_PATHS = [
 	'package.json',
 	'README.md',
 	'scripts',
+	'site.project.json',
+	'src/app.html',
 	'src/lib/config/site.ts',
 	'static/admin/config.yml',
 	'static/site.webmanifest',

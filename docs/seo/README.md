@@ -6,11 +6,13 @@ SEO is built into this template. It is not optional and not a checklist item —
 
 | File                                | Purpose                                                                                        |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `src/lib/config/site.ts`            | Single source of truth for site name, domain, OG image, organization, locale                   |
+| `site.project.json`                 | Project contract for site name, domain, default OG image, deploy, and CMS identity             |
+| `src/lib/config/site.ts`            | Generated runtime config for site name, domain, OG image, organization, locale                 |
 | `src/lib/seo/types.ts`              | TypeScript types for page and resolved SEO metadata                                            |
 | `src/lib/seo/metadata.ts`           | Helpers: canonical URL, image URL, title template, robots directive                            |
 | `src/lib/seo/schemas.ts`            | JSON-LD schema helpers: Organization, WebSite, Article, Breadcrumb, Person, LocalBusiness, FAQ |
-| `src/lib/seo/routes.ts`             | Static route registry — declares every route and its indexability                              |
+| `src/lib/seo/routes.ts`             | Public page route registry — declares indexable/noindex marketing/content pages                |
+| `src/lib/seo/route-policy.ts`       | Complete route policy registry — indexable, noindex, private, api, feed, health, ignored       |
 | `src/lib/seo/public-routes.ts`      | Merges static routes with published article routes for sitemap, llms.txt, and feeds            |
 | `src/lib/seo/sitemap.ts`            | Generates `sitemap.xml` content from public routes                                             |
 | `src/lib/seo/feed.ts`               | Generates the RSS 2.0 article feed                                                             |
@@ -19,17 +21,24 @@ SEO is built into this template. It is not optional and not a checklist item —
 | `src/routes/robots.txt/+server.ts`  | Prerendered `/robots.txt` endpoint                                                             |
 | `src/routes/llms.txt/+server.ts`    | Prerendered `/llms.txt` endpoint for AI discovery                                              |
 | `src/routes/rss.xml/+server.ts`     | Prerendered RSS 2.0 feed for published articles                                                |
+| `scripts/check-routes.ts`           | Validation script — fails when a SvelteKit route lacks explicit route policy coverage          |
 | `scripts/check-seo.ts`              | Validation script — warns on placeholders and fails on structural/indexability errors          |
 
 ## How to add a new public route
 
-1. **Add the route to the registry** in [src/lib/seo/routes.ts](../../src/lib/seo/routes.ts):
+1. **Add policy coverage** in [src/lib/seo/route-policy.ts](../../src/lib/seo/route-policy.ts):
+
+```ts
+{ path: '/about', policy: 'indexable', reason: 'Public company overview.' }
+```
+
+2. **Add public page metadata** in [src/lib/seo/routes.ts](../../src/lib/seo/routes.ts):
 
 ```ts
 { path: '/about', indexable: true, changefreq: 'monthly', priority: 0.8 }
 ```
 
-2. **Add the SEO component** to the route's `+page.svelte`:
+3. **Add the SEO component** to the route's `+page.svelte`:
 
 ```svelte
 <script lang="ts">
@@ -70,7 +79,14 @@ The git timestamp path is best-effort. It falls back cleanly when a build enviro
 
 ## How to configure for a new project
 
-Open [src/lib/config/site.ts](../../src/lib/config/site.ts) and replace all placeholder values:
+Edit root [site.project.json](../../site.project.json), then run:
+
+```bash
+bun run init:site -- --write
+bun run project:check
+```
+
+Review [src/lib/config/site.ts](../../src/lib/config/site.ts) after generation:
 
 ```ts
 export const site: SiteConfig = {
@@ -186,9 +202,9 @@ bun run check:launch    # release-grade: confirms ORIGIN/PUBLIC_SITE_URL look li
 
 Both scripts are wired into the validation pipeline:
 
-- `bun run validate` (PR-grade) runs `check:seo`
-- `bun run validate:launch` (release-grade) runs `check:seo` **and** `check:launch`
-- `.github/workflows/ci.yml` runs `validate` on every push and `validate:launch` on tags
+- `bun run validate:core` / `bun run validate` run `check:seo`
+- `bun run validate:launch` runs `check:seo` **and** `check:launch`
+- `.github/workflows/ci.yml` runs `validate:ci` on every push and `validate:launch` on tags
 
 Run `validate:launch` before going live. The launch checks fail loudly on placeholder URLs.
 

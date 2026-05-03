@@ -82,18 +82,19 @@ Before generating any UI markup or components, read:
 
 ## What agents may edit
 
-| Target                               | What to do                                            |
-| ------------------------------------ | ----------------------------------------------------- |
-| `tokens.css`                         | Edit freely for brand customization                   |
-| `src/lib/config/site.ts`             | Replace all placeholder values for each project       |
-| `src/lib/seo/routes.ts`              | Add new routes; set `indexable` correctly             |
-| `src/lib/analytics/events.ts`        | Add new typed event names and helpers                 |
-| `src/lib/analytics/consent.ts`       | Wire consent state to a project's consent UI          |
-| `src/lib/server/analytics/events.ts` | Activate a real provider via `setAnalyticsProvider()` |
-| Component `<style>` blocks           | Write component-specific styles here                  |
-| Brand sections in architecture files | Add after the `BRAND-SPECIFIC` marker comment         |
-| `+layout.svelte`                     | Add global layout wrapper, header, footer             |
-| `app.html`                           | Update title, `theme-color` hex, favicon              |
+| Target                               | What to do                                              |
+| ------------------------------------ | ------------------------------------------------------- |
+| `tokens.css`                         | Edit freely for brand customization                     |
+| `site.project.json`                  | Project identity/source manifest for generated files    |
+| `src/lib/config/site.ts`             | Generated from manifest; review or add non-owned fields |
+| `src/lib/seo/routes.ts`              | Add new routes; set `indexable` correctly               |
+| `src/lib/analytics/events.ts`        | Add new typed event names and helpers                   |
+| `src/lib/analytics/consent.ts`       | Wire consent state to a project's consent UI            |
+| `src/lib/server/analytics/events.ts` | Activate a real provider via `setAnalyticsProvider()`   |
+| Component `<style>` blocks           | Write component-specific styles here                    |
+| Brand sections in architecture files | Add after the `BRAND-SPECIFIC` marker comment           |
+| `+layout.svelte`                     | Add global layout wrapper, header, footer               |
+| `app.html`                           | Update title, `theme-color` hex, favicon                |
 
 ## What agents must NOT edit
 
@@ -265,16 +266,17 @@ Schema guide: [docs/seo/schema-guide.md](docs/seo/schema-guide.md)
 
 ### Always
 
-- Add every new route to `src/lib/seo/routes.ts` and declare `indexable: true` or `false`
+- Add every SvelteKit route to `src/lib/seo/route-policy.ts` with one of: `indexable`, `noindex`, `private`, `api`, `feed`, `health`, `ignored`
+- Add public page routes to `src/lib/seo/routes.ts` and declare `indexable: true` or `false`
 - Add the `SEO` component to every new `+page.svelte` with `title`, `description`, and `canonicalPath`
-- Use `site.ts` as the single source of truth — never hardcode domain or site name in SEO files
+- Use root `site.project.json` as the project contract; `site.ts` is generated from it for SEO runtime config
 - Use schema helpers from `src/lib/seo/schemas.ts` — never write raw JSON-LD by hand
 - Add schema only when the visible page content supports it (article schema on articles, FAQ schema on FAQ pages)
-- Run `bun run check:seo` before deploying
+- Run `bun run project:check`, `bun run routes:check`, and `bun run check:seo` before deploying
 
 ### Never
 
-- Do not create a public page without `title`, `description`, `canonicalPath`, and a route registry entry
+- Do not create a public page without `title`, `description`, `canonicalPath`, route policy coverage, and a route registry entry
 - Do not hardcode `yourdomain.com`, `example.com`, or site name strings inside SEO components or schemas
 - Do not mark `/styleguide`, `/admin`, `/preview`, or draft-like routes as `indexable: true`
 - Do not use `$page.url.href` as the canonical URL — it leaks dev/staging URLs into production metadata
@@ -429,10 +431,14 @@ bun run check:analytics         # analytics config validation (GTM format, stagi
 bun run check:cms               # CMS config validation
 bun run check:content           # content file validation
 bun run check:content-diff      # destructive content diff check
+bun run project:check           # site.project.json + generated-file drift
+bun run routes:check            # explicit route policy coverage
+bun run check:assets            # favicon / OG / webmanifest validation
 bun run check:design-system     # design-system guardrail validation
 ```
 
-Or run everything at once: `bun run validate`
+Or run the listener-free local gate: `bun run validate` / `bun run validate:core`.
+CI runs `bun run validate:ci`, which adds built Playwright and visual smoke tests.
 
 ---
 
@@ -453,7 +459,7 @@ src/
       attribution.client.ts first-touch UTM/click ID capture and localStorage storage
       consent.ts            Consent Mode v2 types and dataLayer helpers
     config/
-      site.ts       BRAND FILE — SEO/site config single source of truth
+      site.ts       generated SEO/site config derived from site.project.json
     observability/
       types.ts      ObservabilityTier, LogLevel, HealthResponse, WorkflowEventPayload
     server/
@@ -469,7 +475,8 @@ src/
       types.ts      SEO TypeScript types
       metadata.ts   canonical URL, image URL, title, robots helpers
       schemas.ts    JSON-LD schema helpers
-      routes.ts     static route registry — declare all routes here
+      routes.ts     public page route registry
+      route-policy.ts full SvelteKit route policy coverage
       sitemap.ts    sitemap XML generator
     styles/
       tokens.css    BRAND FILE — edit to rebrand
@@ -673,7 +680,7 @@ Full reference: [docs/automations/README.md](docs/automations/README.md)
 - **Do not add n8n to `package.json`** — n8n is the default external operator, not an app dependency
 - **Do not import n8n packages** in any SvelteKit module
 - **The site must work without an automation receiver** — HTTP providers with no URL must skip cleanly
-- **Do not make webhook calls blocking** — use fire-and-forget from user-facing actions; never let automation downtime break a form submission
+- **Do not call webhook providers from user-facing actions** — insert an outbox row in the same DB transaction as the primary record, then deliver with `bun run automation:worker`
 - **Content automation files must match the CMS schema** — follow `static/admin/config.yml`; do not invent fields
 - **AI-generated content defaults to draft** — `draft: true` for articles, `published: false` for testimonials
 - **Do not commit webhook URLs or secrets** — use `.env.example` for variable names only; real values go in `secrets.yaml`
@@ -683,7 +690,7 @@ Full reference: [docs/automations/README.md](docs/automations/README.md)
 
 ```
 Content automations → automation provider writes to content/ via GitHub API
-Runtime automations → SvelteKit server action → Postgres → non-blocking provider delivery
+	Runtime automations → SvelteKit server action → Postgres outbox → automation worker → provider delivery
 ```
 
 Content automation writes must pass the same schema validation as a human Sveltia CMS edit. They are not a separate path.

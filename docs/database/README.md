@@ -32,11 +32,11 @@ A `statement_timeout` is intentionally not set client-side — enforce it on the
 
 Starter tables live in [src/lib/server/db/schema.ts](../../src/lib/server/db/schema.ts):
 
-| Table                     | Purpose                                                                          |
-| ------------------------- | -------------------------------------------------------------------------------- |
-| `contact_submissions`     | Persists contact form submissions for audit and follow-up                        |
-| `automation_events`       | Tracks outbound webhook events with retry state (`pending → completed / failed`) |
-| `automation_dead_letters` | Captures events that exceeded retry limits                                       |
+| Table                     | Purpose                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| `contact_submissions`     | Persists contact form submissions for audit and follow-up                    |
+| `automation_events`       | Durable automation outbox with retry, locking, and idempotency state         |
+| `automation_dead_letters` | Captures events that exceeded retry limits without duplicating full payloads |
 
 Extend the schema by adding tables to `schema.ts` and running `bun run db:generate`.
 
@@ -44,6 +44,8 @@ The runtime tables include pruning indexes for privacy retention:
 
 - `contact_submissions(created_at)`
 - `automation_events(status, created_at)`
+- `automation_events(status, next_attempt_at, created_at)`
+- `automation_events(idempotency_key)`
 - `automation_dead_letters(created_at)`
 
 Default retention windows live in `src/lib/server/privacy/retention.ts` and are documented in [docs/privacy/data-retention.md](../privacy/data-retention.md). Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` to delete expired rows.

@@ -1,0 +1,513 @@
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+export const SITE_PROJECT_SCHEMA_VERSION = 1;
+export const SITE_PROJECT_PATH = 'site.project.json';
+
+export type SiteProjectManifest = {
+	schemaVersion: 1;
+	project: {
+		packageName: string;
+		projectSlug: string;
+		githubOwner: string;
+		githubRepo: string;
+	};
+	site: {
+		name: string;
+		productionUrl: string;
+		productionDomain: string;
+		defaultDescription: string;
+		supportEmail: string;
+		pwaShortName: string;
+		themeColor: string;
+	};
+	deployment: {
+		unitName: string;
+		containerImage: string;
+	};
+	cms: {
+		backendRepo: string;
+		branch: string;
+	};
+	assets: {
+		defaultOgImage: string;
+		organizationLogoPath: string;
+	};
+};
+
+export type InitSiteAnswers = {
+	packageName: string;
+	siteName: string;
+	siteUrl: string;
+	description: string;
+	ghOwner: string;
+	ghRepo: string;
+	contactEmail: string;
+	project: string;
+	domain: string;
+	shortName: string;
+	themeColor?: string;
+};
+
+export type ProjectFileUpdate = {
+	path: string;
+	current: string;
+	next: string;
+	ownership: 'full' | 'region';
+};
+
+export type ProjectCheckResult = {
+	manifest: SiteProjectManifest;
+	errors: string[];
+	updates: ProjectFileUpdate[];
+};
+
+const REQUIRED_STRING_PATHS = [
+	'project.packageName',
+	'project.projectSlug',
+	'project.githubOwner',
+	'project.githubRepo',
+	'site.name',
+	'site.productionUrl',
+	'site.productionDomain',
+	'site.defaultDescription',
+	'site.supportEmail',
+	'site.pwaShortName',
+	'site.themeColor',
+	'deployment.unitName',
+	'deployment.containerImage',
+	'cms.backendRepo',
+	'cms.branch',
+	'assets.defaultOgImage',
+	'assets.organizationLogoPath',
+] as const;
+
+export const PROJECT_GENERATED_FILES = [
+	'package.json',
+	'src/lib/config/site.ts',
+	'static/admin/config.yml',
+	'static/site.webmanifest',
+	'.env.example',
+	'deploy/env.example',
+	'deploy/Caddyfile.example',
+	'deploy/quadlets/web.container',
+	'deploy/quadlets/web.network',
+	'deploy/systemd/backup.service',
+	'deploy/systemd/backup.timer',
+] as const;
+
+export const PROJECT_REGION_FILES = ['README.md', 'src/app.html'] as const;
+
+function readFile(rootDir: string, relPath: string): string {
+	const path = resolve(rootDir, relPath);
+	if (!existsSync(path)) return '';
+	return readFileSync(path, 'utf8');
+}
+
+function getPath(input: unknown, path: string): unknown {
+	return path.split('.').reduce<unknown>((current, key) => {
+		if (!current || typeof current !== 'object') return undefined;
+		return (current as Record<string, unknown>)[key];
+	}, input);
+}
+
+function normalizeUrl(value: string): string {
+	return value.replace(/\/+$/u, '');
+}
+
+function assertString(errors: string[], input: unknown, path: string): string {
+	const value = getPath(input, path);
+	if (typeof value !== 'string' || value.trim().length === 0) {
+		errors.push(`${path} is required.`);
+		return '';
+	}
+	return value.trim();
+}
+
+function validateUrl(errors: string[], path: string, value: string): void {
+	try {
+		const parsed = new URL(value);
+		if (parsed.protocol !== 'https:') {
+			errors.push(`${path} must use https://.`);
+		}
+		if (value.endsWith('/')) {
+			errors.push(`${path} must not include a trailing slash.`);
+		}
+	} catch {
+		errors.push(`${path} must be a valid URL.`);
+	}
+}
+
+function validateHex(errors: string[], path: string, value: string): void {
+	if (!/^#[0-9a-f]{6}$/iu.test(value)) {
+		errors.push(`${path} must be a 6-digit hex color, for example #0B1120.`);
+	}
+}
+
+function validateRepo(errors: string[], path: string, value: string): void {
+	if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(value)) {
+		errors.push(`${path} must be in owner/repo form.`);
+	}
+}
+
+export function validateProjectManifest(input: unknown): {
+	manifest: SiteProjectManifest | null;
+	errors: string[];
+} {
+	const errors: string[] = [];
+	const schemaVersion = getPath(input, 'schemaVersion');
+	if (schemaVersion !== SITE_PROJECT_SCHEMA_VERSION) {
+		errors.push(`schemaVersion must be ${SITE_PROJECT_SCHEMA_VERSION}.`);
+	}
+
+	const values = Object.fromEntries(
+		REQUIRED_STRING_PATHS.map((path) => [path, assertString(errors, input, path)])
+	);
+
+	const productionUrl = normalizeUrl(values['site.productionUrl']);
+	const cmsRepo = values['cms.backendRepo'];
+	const ownerRepo = `${values['project.githubOwner']}/${values['project.githubRepo']}`;
+
+	if (productionUrl) validateUrl(errors, 'site.productionUrl', productionUrl);
+	if (values['site.themeColor']) validateHex(errors, 'site.themeColor', values['site.themeColor']);
+	if (cmsRepo) validateRepo(errors, 'cms.backendRepo', cmsRepo);
+	if (ownerRepo !== cmsRepo && cmsRepo) {
+		errors.push('cms.backendRepo must match project.githubOwner/project.githubRepo.');
+	}
+	if (
+		values['deployment.unitName'] &&
+		values['deployment.unitName'] !== `${values['project.projectSlug']}-web`
+	) {
+		errors.push('deployment.unitName must be project.projectSlug + "-web".');
+	}
+	if (
+		values['deployment.containerImage'] &&
+		!values['deployment.containerImage'].includes(ownerRepo)
+	) {
+		errors.push('deployment.containerImage must include project.githubOwner/project.githubRepo.');
+	}
+
+	if (errors.length > 0) return { manifest: null, errors };
+
+	return {
+		errors,
+		manifest: {
+			schemaVersion: SITE_PROJECT_SCHEMA_VERSION,
+			project: {
+				packageName: values['project.packageName'],
+				projectSlug: values['project.projectSlug'],
+				githubOwner: values['project.githubOwner'],
+				githubRepo: values['project.githubRepo'],
+			},
+			site: {
+				name: values['site.name'],
+				productionUrl,
+				productionDomain: values['site.productionDomain'],
+				defaultDescription: values['site.defaultDescription'],
+				supportEmail: values['site.supportEmail'],
+				pwaShortName: values['site.pwaShortName'],
+				themeColor: values['site.themeColor'].toUpperCase(),
+			},
+			deployment: {
+				unitName: values['deployment.unitName'],
+				containerImage: values['deployment.containerImage'],
+			},
+			cms: {
+				backendRepo: cmsRepo,
+				branch: values['cms.branch'],
+			},
+			assets: {
+				defaultOgImage: values['assets.defaultOgImage'],
+				organizationLogoPath: values['assets.organizationLogoPath'],
+			},
+		},
+	};
+}
+
+export function readProjectManifest(rootDir: string): SiteProjectManifest {
+	const path = resolve(rootDir, SITE_PROJECT_PATH);
+	if (!existsSync(path)) {
+		throw new Error(`${SITE_PROJECT_PATH} is missing.`);
+	}
+	const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+	const result = validateProjectManifest(parsed);
+	if (!result.manifest) {
+		throw new Error(
+			`Invalid ${SITE_PROJECT_PATH}:\n${result.errors.map((e) => `  - ${e}`).join('\n')}`
+		);
+	}
+	return result.manifest;
+}
+
+export function isTemplateProjectManifest(manifest: SiteProjectManifest): boolean {
+	return (
+		manifest.project.packageName === 'tmpl-svelte-app' &&
+		manifest.site.name === 'Your Site Name' &&
+		manifest.site.productionUrl === 'https://example.com'
+	);
+}
+
+export function writeProjectManifest(rootDir: string, manifest: SiteProjectManifest): void {
+	writeFileSync(resolve(rootDir, SITE_PROJECT_PATH), JSON.stringify(manifest, null, '\t') + '\n');
+}
+
+export function manifestFromAnswers(answers: InitSiteAnswers): SiteProjectManifest {
+	const productionUrl = normalizeUrl(answers.siteUrl);
+	const domain = answers.domain || new URL(productionUrl).hostname;
+	const ownerRepo = `${answers.ghOwner}/${answers.ghRepo}`;
+	return {
+		schemaVersion: SITE_PROJECT_SCHEMA_VERSION,
+		project: {
+			packageName: answers.packageName,
+			projectSlug: answers.project,
+			githubOwner: answers.ghOwner,
+			githubRepo: answers.ghRepo,
+		},
+		site: {
+			name: answers.siteName,
+			productionUrl,
+			productionDomain: domain,
+			defaultDescription: answers.description,
+			supportEmail: answers.contactEmail,
+			pwaShortName: answers.shortName,
+			themeColor: answers.themeColor ?? '#0B1120',
+		},
+		deployment: {
+			unitName: `${answers.project}-web`,
+			containerImage: `ghcr.io/${ownerRepo}:<sha>`,
+		},
+		cms: {
+			backendRepo: ownerRepo,
+			branch: 'main',
+		},
+		assets: {
+			defaultOgImage: '/og-default.png',
+			organizationLogoPath: '/images/logo.png',
+		},
+	};
+}
+
+function rewritePackageJson(content: string, manifest: SiteProjectManifest): string {
+	return content.replace(/"name":\s*"[^"]*"/u, `"name": "${manifest.project.packageName}"`);
+}
+
+function rewriteSiteTs(content: string, manifest: SiteProjectManifest): string {
+	let out = content;
+	const logoUrl = `${manifest.site.productionUrl}${manifest.assets.organizationLogoPath}`;
+	out = out.replace(/(name:\s*')[^']*(')/gu, `$1${manifest.site.name}$2`);
+	out = out.replace(/(url:\s*')[^']*(')/gu, `$1${manifest.site.productionUrl}$2`);
+	out = out.replace(/(defaultTitle:\s*')[^']*(')/gu, `$1${manifest.site.name}$2`);
+	out = out.replace(/(titleTemplate:\s*')[^']*(')/gu, `$1%s — ${manifest.site.name}$2`);
+	out = out.replace(
+		/(defaultDescription:\s*')[^']*(')/gu,
+		`$1${manifest.site.defaultDescription}$2`
+	);
+	out = out.replace(/(defaultOgImage:\s*')[^']*(')/gu, `$1${manifest.assets.defaultOgImage}$2`);
+	out = out.replace(/(logo:\s*')[^']*(')/gu, `$1${logoUrl}$2`);
+	out = out.replace(/(email:\s*')[^']*(')/gu, `$1${manifest.site.supportEmail}$2`);
+	return out;
+}
+
+function rewriteConfigYml(content: string, manifest: SiteProjectManifest): string {
+	let out = content.replace(
+		/^(\s*repo:\s*)([^\s#]+)(.*)$/mu,
+		(_, prefix, _old, rest) => `${prefix}${manifest.cms.backendRepo}${rest}`
+	);
+	out = out.replace(/^(\s*branch:\s*)([^\s#]+)(.*)$/mu, (_, prefix, _old, rest) => {
+		return `${prefix}${manifest.cms.branch}${rest}`;
+	});
+	return out;
+}
+
+function rewriteWebmanifest(content: string, manifest: SiteProjectManifest): string {
+	const parsed = JSON.parse(content) as Record<string, unknown>;
+	parsed.name = manifest.site.name;
+	parsed.short_name = manifest.site.pwaShortName;
+	if (
+		typeof parsed.description !== 'string' ||
+		parsed.description.includes('REPLACE PER PROJECT') ||
+		parsed.description === 'Your Site Name'
+	) {
+		parsed.description = `${manifest.site.name} — website`;
+	}
+	return JSON.stringify(parsed, null, 2) + '\n';
+}
+
+function rewriteReadme(content: string, manifest: SiteProjectManifest): string {
+	return content.replace(/^# .+$/mu, `# ${manifest.site.name}`);
+}
+
+function rewriteAppHtml(content: string, manifest: SiteProjectManifest): string {
+	return content.replace(
+		/(<meta name="theme-color" content=")[^"]*(" \/>)/u,
+		`$1${manifest.site.themeColor}$2`
+	);
+}
+
+function rewriteEnvExample(content: string, manifest: SiteProjectManifest): string {
+	let out = content;
+	out = out.replace(/^ORIGIN=.*/mu, `ORIGIN=${manifest.site.productionUrl}`);
+	out = out.replace(/^PUBLIC_SITE_URL=.*/mu, `PUBLIC_SITE_URL=${manifest.site.productionUrl}`);
+	return out;
+}
+
+function rewriteDeployEnvExample(content: string, manifest: SiteProjectManifest): string {
+	let out = rewriteEnvExample(content, manifest);
+	out = out.replace(/<project>/gu, manifest.project.projectSlug);
+	return out;
+}
+
+function rewriteCaddyfile(content: string, manifest: SiteProjectManifest): string {
+	const apex = manifest.site.productionDomain.replace(/^www\./u, '');
+	let out = content;
+	out = out.replace(
+		'Replace example.com with the real domain before use.',
+		`Configured for ${apex}.`
+	);
+	out = out.replace(/^www\.[a-z0-9][a-z0-9.-]+\.[a-z]{2,}\s*\{/gmu, `www.${apex} {`);
+	out = out.replace(/^(?!www\.)([a-z0-9][a-z0-9.-]+\.[a-z]{2,})\s*\{/gmu, `${apex} {`);
+	out = out.replace(
+		/(redir https:\/\/)[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(\{uri\} permanent)/u,
+		`$1${apex}$2`
+	);
+	return out;
+}
+
+function rewriteQuadlet(content: string, manifest: SiteProjectManifest): string {
+	let out = content;
+	out = out.replace(/<unit-name>/gu, manifest.deployment.unitName);
+	out = out.replace(/<owner>/gu, manifest.project.githubOwner);
+	out = out.replace(/<name>/gu, manifest.project.githubRepo);
+	out = out.replace(/<project>/gu, manifest.project.projectSlug);
+	out = out.replace(
+		/^(Image=)(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.deployment.containerImage}`
+	);
+	out = out.replace(
+		/^(EnvironmentFile=%h\/secrets\/)([^.]+)(\.prod\.env)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	out = out.replace(
+		/^(Network=)([^.]+)(\.network)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	out = out.replace(
+		/^(HostName=)(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.deployment.unitName}`
+	);
+	out = out.replace(
+		/^(Description=SvelteKit web app — )(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	return out;
+}
+
+function rewriteQuadletNetwork(content: string, manifest: SiteProjectManifest): string {
+	let out = content;
+	out = out.replace(/<project>/gu, manifest.project.projectSlug);
+	out = out.replace(
+		/^(Description=Project network — )(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	return out;
+}
+
+function rewriteBackupSystemd(content: string, manifest: SiteProjectManifest): string {
+	let out = content;
+	out = out.replace(/<project>/gu, manifest.project.projectSlug);
+	out = out.replace(
+		/^(Description=Nightly backup .+? — )(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	out = out.replace(
+		/^(WorkingDirectory=%h\/)([^\s]+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	out = out.replace(
+		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	out = out.replace(
+		/^(Unit=)([^\s]+?)(-backup\.service)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	return out;
+}
+
+const REWRITERS: Record<string, (content: string, manifest: SiteProjectManifest) => string> = {
+	'package.json': rewritePackageJson,
+	'src/lib/config/site.ts': rewriteSiteTs,
+	'static/admin/config.yml': rewriteConfigYml,
+	'static/site.webmanifest': rewriteWebmanifest,
+	'.env.example': rewriteEnvExample,
+	'deploy/env.example': rewriteDeployEnvExample,
+	'deploy/Caddyfile.example': rewriteCaddyfile,
+	'deploy/quadlets/web.container': rewriteQuadlet,
+	'deploy/quadlets/web.network': rewriteQuadletNetwork,
+	'deploy/systemd/backup.service': rewriteBackupSystemd,
+	'deploy/systemd/backup.timer': rewriteBackupSystemd,
+	'README.md': rewriteReadme,
+	'src/app.html': rewriteAppHtml,
+};
+
+export function plannedProjectUpdates(
+	rootDir: string,
+	manifest: SiteProjectManifest
+): ProjectFileUpdate[] {
+	if (isTemplateProjectManifest(manifest)) return [];
+
+	const updates: ProjectFileUpdate[] = [];
+	for (const path of [...PROJECT_GENERATED_FILES, ...PROJECT_REGION_FILES]) {
+		const current = readFile(rootDir, path);
+		if (!current) continue;
+		const next = REWRITERS[path](current, manifest);
+		if (next !== current) {
+			updates.push({
+				path,
+				current,
+				next,
+				ownership: PROJECT_REGION_FILES.includes(path as (typeof PROJECT_REGION_FILES)[number])
+					? 'region'
+					: 'full',
+			});
+		}
+	}
+	return updates;
+}
+
+export function applyProjectUpdates(rootDir: string, updates: readonly ProjectFileUpdate[]): void {
+	for (const update of updates) {
+		writeFileSync(resolve(rootDir, update.path), update.next, 'utf8');
+	}
+}
+
+export function evaluateProjectManifest(rootDir: string): ProjectCheckResult {
+	const errors: string[] = [];
+	let manifest: SiteProjectManifest;
+	try {
+		manifest = readProjectManifest(rootDir);
+	} catch (error) {
+		return {
+			manifest: manifestFromAnswers({
+				packageName: '',
+				siteName: '',
+				siteUrl: 'https://example.com',
+				description: '',
+				ghOwner: '',
+				ghRepo: '',
+				contactEmail: '',
+				project: '',
+				domain: '',
+				shortName: '',
+			}),
+			errors: [error instanceof Error ? error.message : String(error)],
+			updates: [],
+		};
+	}
+
+	return {
+		manifest,
+		errors,
+		updates: plannedProjectUpdates(rootDir, manifest),
+	};
+}

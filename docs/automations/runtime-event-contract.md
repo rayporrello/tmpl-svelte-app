@@ -27,6 +27,7 @@ export type AutomationEvent<TName extends AutomationEventName = AutomationEventN
 	event: TName;
 	version: 1;
 	occurred_at: string;
+	idempotency_key?: string;
 	data: AutomationEventDataMap[TName];
 };
 
@@ -73,6 +74,7 @@ Add new events only when a real form/action emits them.
 	"event": "lead.created",
 	"version": 1,
 	"occurred_at": "2026-04-29T12:00:00.000Z",
+	"idempotency_key": "lead.created:sub-123",
 	"data": {
 		"submission_id": "sub-123",
 		"name": "Alice Example",
@@ -86,6 +88,7 @@ Add new events only when a real form/action emits them.
 Field notes:
 
 - `submission_id` is the Postgres contact submission ID.
+- `idempotency_key` is stable for the source record and lets receivers deduplicate retries.
 - `source_path` is the page path that produced the lead when known.
 - `request_id` correlates receiver logs with SvelteKit server logs.
 
@@ -93,10 +96,10 @@ Field notes:
 
 ## Delivery Rules
 
-- Providers make exactly one delivery attempt.
+- Providers make one delivery attempt per worker attempt.
 - HTTP providers send `Content-Type: application/json`.
 - HTTP providers sign with `X-Webhook-Signature` when a secret is configured.
 - HTTP providers with no URL return `not_configured`.
 - `console` returns delivered after logging metadata.
 - `noop` returns `disabled`.
-- Retries, backoff, and outbox scheduling belong outside providers.
+- Retries, backoff, and outbox scheduling are owned by `bun run automation:worker`.

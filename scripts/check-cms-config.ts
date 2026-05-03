@@ -239,6 +239,10 @@ function checkCmsFieldsAgainstSchema(
 	const schemaFields = flattenSchemaFields(schema);
 	const cmsPaths = new Set(cmsFields.map((field) => field.path));
 	const schemaPaths = new Set(schemaFields.map((field) => field.path));
+	const cmsHasSchemaPath = (path: string) => {
+		if (cmsPaths.has(path)) return true;
+		return path.endsWith('[]') && cmsPaths.has(path.slice(0, -2));
+	};
 
 	for (const field of cmsFields) {
 		if (!schemaPaths.has(field.path)) {
@@ -249,9 +253,9 @@ function checkCmsFieldsAgainstSchema(
 	}
 
 	for (const field of schemaFields) {
-		if (field.required && !cmsPaths.has(field.path)) {
+		if (!cmsHasSchemaPath(field.path)) {
 			fail(
-				`Collection "${location}" is missing schema-required field "${field.path}" from static/admin/config.yml.`
+				`Collection "${location}" is missing schema field "${field.path}" from static/admin/config.yml.`
 			);
 		}
 	}

@@ -20,7 +20,7 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 # ── validate ──────────────────────────────────────────────────────────────────
-# Runs on every PR and every push. Installs deps and runs bun run validate.
+# Runs on every PR and every push. Installs deps and runs bun run validate:ci.
 # Uploads the production build as an artifact for potential downstream use.
 
 jobs:
@@ -62,8 +62,8 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
-      - name: Run validate
-        run: bun run validate
+      - name: Run validate:ci
+        run: bun run validate:ci
         env:
           # Stub values so prerendering and env validation pass without real secrets.
           # check:launch is the gate for placeholder URLs.
@@ -161,8 +161,8 @@ jobs:
       - name: Check /readyz
         run: curl -sf http://127.0.0.1:3000/readyz
 
-      - name: Run validate
-        run: bun run validate
+      - name: Run validate:core
+        run: bun run validate:core
 
   init-site-acceptance:
     name: init:site acceptance
@@ -193,10 +193,14 @@ jobs:
           while IFS= read -r file; do
             case "$file" in
               scripts/init-site.ts|\
+              scripts/check-project.ts|\
               scripts/check-init-site.ts|\
               scripts/check-launch.ts|\
               scripts/check-assets.ts|\
+              scripts/lib/site-project.ts|\
+              site.project.json|\
               package.json|\
+              src/app.html|\
               src/lib/config/site.ts|\
               static/admin/config.yml|\
               static/site.webmanifest|\

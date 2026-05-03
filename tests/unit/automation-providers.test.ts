@@ -7,6 +7,7 @@ vi.mock('$lib/server/logger', () => ({
 
 import { consoleAutomationProvider } from '$lib/server/automation/providers/console';
 import { emitLeadCreated } from '$lib/server/automation/events';
+import { buildLeadCreatedEvent } from '$lib/server/automation/envelopes';
 import { makeN8nProvider } from '$lib/server/automation/providers/n8n';
 import { noopAutomationProvider } from '$lib/server/automation/providers/noop';
 import { resolveAutomationProvider } from '$lib/server/automation/providers';
@@ -49,9 +50,10 @@ function resetAutomationEnv() {
 }
 
 function makeMockDb() {
-	const mockValues = vi.fn().mockResolvedValue([]);
+	const mockOnConflictDoNothing = vi.fn().mockResolvedValue([]);
+	const mockValues = vi.fn().mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing });
 	const mockInsert = vi.fn().mockReturnValue({ values: mockValues });
-	return { db: { insert: mockInsert }, mockInsert, mockValues };
+	return { db: { insert: mockInsert }, mockInsert, mockValues, mockOnConflictDoNothing };
 }
 
 function readFetchInit(
@@ -210,7 +212,7 @@ describe('automation providers', () => {
 	});
 });
 
-describe('emitLeadCreated()', () => {
+describe('automation outbox', () => {
 	beforeEach(() => {
 		resetAutomationEnv();
 		vi.restoreAllMocks();
@@ -221,18 +223,52 @@ describe('emitLeadCreated()', () => {
 		resetAutomationEnv();
 	});
 
-	it('uses the provider-agnostic event envelope', async () => {
-		process.env.AUTOMATION_PROVIDER = 'webhook';
-		process.env.AUTOMATION_WEBHOOK_URL = 'https://receiver.example.com/hook';
+	it('enqueues a minimized lead.created payload without provider delivery', async () => {
 		vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 202 } as Response);
+		const { db, mockValues, mockOnConflictDoNothing } = makeMockDb();
 
-		await emitLeadCreated(leadPayload, makeMockDb().db as never);
+		await emitLeadCreated(leadPayload, db as never);
 
-		const init = readFetchInit();
-		expect(JSON.parse(init.body)).toEqual({
+		expect(global.fetch).not.toHaveBeenCalled();
+		expect(mockValues).toHaveBeenCalledWith(
+			expect.objectContaining({
+				eventType: 'lead.created',
+				status: 'pending',
+				attemptCount: 0,
+				maxAttempts: 5,
+				idempotencyKey: 'lead.created:sub-123',
+				payload: {
+					submission_id: 'sub-123',
+					source_path: '/contact',
+					request_id: 'req-abc',
+				},
+			})
+		);
+		expect(mockValues.mock.calls[0][0].payload).not.toHaveProperty('name');
+		expect(mockValues.mock.calls[0][0].payload).not.toHaveProperty('email');
+		expect(mockOnConflictDoNothing).toHaveBeenCalled();
+	});
+
+	it('builds the provider envelope at worker time from source data', () => {
+		const envelope = buildLeadCreatedEvent({
+			createdAt: '2026-04-29T12:00:00.000Z',
+			idempotencyKey: 'lead.created:sub-123',
+			payload: {
+				submission_id: 'sub-123',
+				source_path: '/contact',
+				request_id: 'req-abc',
+			},
+			contact: {
+				name: 'Alice',
+				email: 'alice@example.com',
+			},
+		});
+
+		expect(envelope).toEqual({
 			event: 'lead.created',
 			version: 1,
-			occurred_at: expect.any(String),
+			occurred_at: '2026-04-29T12:00:00.000Z',
+			idempotency_key: 'lead.created:sub-123',
 			data: {
 				submission_id: 'sub-123',
 				name: 'Alice',
@@ -241,71 +277,5 @@ describe('emitLeadCreated()', () => {
 				request_id: 'req-abc',
 			},
 		});
-		expect(JSON.parse(init.body)).not.toHaveProperty('payload');
-		expect(JSON.parse(init.body)).not.toHaveProperty('type');
-		expect(JSON.parse(init.body)).not.toHaveProperty('createdAt');
-	});
-
-	it('can swap providers without changing the emitLeadCreated call path', async () => {
-		const scenarios = [
-			{
-				provider: 'n8n',
-				env: { N8N_WEBHOOK_URL: 'https://n8n.example.com/webhook/lead' },
-				delivered: true,
-			},
-			{
-				provider: 'webhook',
-				env: { AUTOMATION_WEBHOOK_URL: 'https://receiver.example.com/hook' },
-				delivered: true,
-			},
-			{ provider: 'console', env: {}, delivered: true },
-			{ provider: 'noop', env: {}, delivered: false },
-		] as const;
-
-		for (const scenario of scenarios) {
-			resetAutomationEnv();
-			process.env.AUTOMATION_PROVIDER = scenario.provider;
-			Object.assign(process.env, scenario.env);
-			vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 202 } as Response);
-			const { db, mockValues } = makeMockDb();
-
-			await expect(emitLeadCreated(leadPayload, db as never)).resolves.toBeUndefined();
-
-			if (scenario.delivered) {
-				expect(mockValues).toHaveBeenCalledWith(
-					expect.objectContaining({ eventType: 'lead.created', status: 'completed' })
-				);
-			} else {
-				expect(mockValues).not.toHaveBeenCalled();
-			}
-			vi.restoreAllMocks();
-		}
-	});
-
-	it('dead-letters failed provider results without throwing', async () => {
-		process.env.AUTOMATION_PROVIDER = 'webhook';
-		process.env.AUTOMATION_WEBHOOK_URL = 'https://receiver.example.com/hook';
-		vi.spyOn(global, 'fetch').mockRejectedValue(new Error('ECONNREFUSED'));
-
-		const { db, mockValues } = makeMockDb();
-		await expect(emitLeadCreated(leadPayload, db as never)).resolves.toBeUndefined();
-
-		expect(mockValues).toHaveBeenNthCalledWith(
-			1,
-			expect.objectContaining({
-				eventType: 'lead.created',
-				status: 'failed',
-				attemptCount: 1,
-				lastError: 'Error: ECONNREFUSED',
-			})
-		);
-		expect(mockValues).toHaveBeenNthCalledWith(
-			2,
-			expect.objectContaining({
-				eventType: 'lead.created',
-				error: 'Error: ECONNREFUSED',
-			})
-		);
-		expect(mockValues.mock.calls[1][0]).not.toHaveProperty('payload');
 	});
 });

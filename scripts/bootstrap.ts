@@ -826,7 +826,7 @@ async function mainWithOptions(rootDir: string, options: CliOptions): Promise<nu
 
 	await stepPreflight(rootDir);
 	if (process.env.BOOTSTRAP_TEST_GUARD_WRITE === '1') {
-		guardedWriteText(rootDir, 'src/app.html', '<title>not allowed</title>\n');
+		guardedWriteText(rootDir, 'src/routes/+page.svelte', '<h1>not allowed</h1>\n');
 	}
 
 	const site = await stepSiteInit(rootDir, options);

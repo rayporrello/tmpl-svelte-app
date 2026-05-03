@@ -80,7 +80,7 @@ extracting:
 Some things should never become a shared package because they are
 project-specific by nature:
 
-- `src/lib/config/site.ts` — one set of values per project
+- `site.project.json` / generated `src/lib/config/site.ts` — one set of values per project
 - `src/lib/styles/tokens.css` — one brand per project
 - `src/lib/seo/routes.ts` — one route registry per project
 - `src/lib/server/csp.ts` — one CSP policy per project

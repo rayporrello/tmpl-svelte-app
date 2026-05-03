@@ -4,7 +4,7 @@ import { valibot } from 'sveltekit-superforms/adapters';
 import { contactSchema } from '$lib/forms/contact.schema';
 import { checkRateLimit } from '$lib/server/forms/rate-limit';
 import { resolveEmailProvider } from '$lib/server/forms/providers/index';
-import { emitLeadCreated } from '$lib/server/automation/events';
+import { enqueueLeadCreated } from '$lib/server/automation/events';
 import { db } from '$lib/server/db';
 import { contactSubmissions } from '$lib/server/db/schema';
 import { privateEnv } from '$lib/server/env';
@@ -53,24 +53,36 @@ export const actions: Actions = {
 		}
 		const userAgent = event.request.headers.get('user-agent');
 
-		// 1. Persist to DB — must succeed before anything else. If this fails,
-		//    the submission is lost and we return an error to the user.
+		// 1. Persist the lead and outbox event together. If this fails, the
+		//    submission is not saved and no automation event can drift from it.
 		let submissionId: string;
 		try {
-			const [inserted] = await db
-				.insert(contactSubmissions)
-				.values({
-					name: form.data.name,
-					email: form.data.email,
-					message: form.data.message,
-					sourcePath,
-					userAgent,
-					requestId,
-				})
-				.returning({ id: contactSubmissions.id });
-			submissionId = inserted.id;
+			submissionId = await db.transaction(async (tx) => {
+				const [inserted] = await tx
+					.insert(contactSubmissions)
+					.values({
+						name: form.data.name,
+						email: form.data.email,
+						message: form.data.message,
+						sourcePath,
+						userAgent,
+						requestId,
+					})
+					.returning({ id: contactSubmissions.id });
+
+				await enqueueLeadCreated(
+					{
+						submissionId: inserted.id,
+						sourcePath,
+						requestId,
+					},
+					tx
+				);
+
+				return inserted.id;
+			});
 		} catch (err) {
-			logger.error('Contact form DB insert failed', { error: String(err), requestId });
+			logger.error('Contact form DB/outbox transaction failed', { error: String(err), requestId });
 			return message(form, 'Something went wrong — please try again later.', { status: 500 });
 		}
 
@@ -90,16 +102,6 @@ export const actions: Actions = {
 			logger.error('Contact form email failed', { error: String(err), submissionId, requestId });
 			// Submission is saved — continue to success response
 		}
-
-		// 3. Emit automation event. Fire-and-forget: delivery failures are
-		//    dead-lettered internally and never make the contact form fail.
-		void emitLeadCreated({
-			submissionId,
-			name: form.data.name,
-			email: form.data.email,
-			sourcePath,
-			requestId,
-		});
 
 		return message(form, "Message sent! We'll get back to you soon.");
 	},

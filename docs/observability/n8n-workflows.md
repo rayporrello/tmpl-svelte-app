@@ -102,17 +102,17 @@ See [docs/automations/runtime-event-contract.md](../automations/runtime-event-co
 ## Webhook delivery posture from the SvelteKit side
 
 ```ts
-// Provider delivery happens through src/lib/server/automation/providers/.
-void emitLeadCreated({
+// Request handlers enqueue. Provider delivery happens in automation:worker.
+await enqueueLeadCreated({
 	submissionId,
-	name: formData.name,
-	email: formData.email,
 	sourcePath: '/contact',
 	requestId: locals.requestId,
 });
 ```
 
-Never `await` the webhook call in a user-facing server action. Use fire-and-forget.
+Never call the webhook provider directly in a user-facing server action. Insert an
+outbox row in the same transaction as the primary write, then let `bun run
+automation:worker` deliver and retry.
 
 ---
 

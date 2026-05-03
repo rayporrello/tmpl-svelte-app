@@ -1,106 +1,73 @@
 import { db as defaultDb } from '$lib/server/db';
-import { automationDeadLetters, automationEvents } from '$lib/server/db/schema';
+import { automationEvents } from '$lib/server/db/schema';
 import { logger } from '$lib/server/logger';
-import { resolveAutomationProvider } from './providers';
-import type { AutomationEvent, LeadCreatedAutomationData } from './automation-provider';
+import {
+	leadCreatedIdempotencyKey,
+	toLeadCreatedOutboxPayload,
+	type LeadCreatedOutboxPayload,
+} from './envelopes';
 
 export interface LeadCreatedPayload {
 	submissionId: string;
-	name: string;
-	email: string;
+	/**
+	 * Kept for backwards-compatible call sites; PII is not persisted in the
+	 * outbox. The worker joins back to contact_submissions when delivering.
+	 */
+	name?: string;
+	email?: string;
 	sourcePath?: string | null;
 	requestId?: string | null;
 }
 
-interface StoredLeadCreatedPayload {
-	submission_id: string;
-	source_path?: string | null;
-	request_id?: string | null;
-}
+type AutomationEventInsertClient = Pick<typeof defaultDb, 'insert'>;
 
-function toStoredLeadCreatedPayload(payload: LeadCreatedPayload): StoredLeadCreatedPayload {
-	return {
-		submission_id: payload.submissionId,
-		source_path: payload.sourcePath,
-		request_id: payload.requestId,
-	};
-}
-
-function toLeadCreatedData(payload: LeadCreatedPayload): LeadCreatedAutomationData {
-	return {
-		submission_id: payload.submissionId,
-		name: payload.name,
-		email: payload.email,
-		source_path: payload.sourcePath,
-		request_id: payload.requestId,
-	};
+function outboxPayload(payload: LeadCreatedPayload): LeadCreatedOutboxPayload {
+	return toLeadCreatedOutboxPayload({
+		submissionId: payload.submissionId,
+		sourcePath: payload.sourcePath,
+		requestId: payload.requestId,
+	});
 }
 
 /**
- * Emit a `lead.created` event to the configured automation provider.
+ * Insert a pending `lead.created` outbox event.
  *
- * Guarantees:
- * - If the provider is not configured or disabled: returns immediately.
- * - If delivery fails: writes a dead-letter record to the DB and logs
- *   the error. The caller always gets a resolved promise.
- *
- * The `dbOverride` parameter is injectable for unit tests. In production the
- * global `db` singleton is used.
+ * This is intentionally delivery-free. Call it inside the same transaction as
+ * the primary write so a saved lead and its automation event commit together.
+ */
+export async function enqueueLeadCreated(
+	payload: LeadCreatedPayload,
+	dbOverride?: AutomationEventInsertClient
+): Promise<void> {
+	const client = dbOverride ?? defaultDb;
+	const idempotencyKey = leadCreatedIdempotencyKey(payload.submissionId);
+
+	await client
+		.insert(automationEvents)
+		.values({
+			eventType: 'lead.created',
+			payload: outboxPayload(payload) as unknown,
+			status: 'pending',
+			attemptCount: 0,
+			maxAttempts: 5,
+			idempotencyKey,
+		})
+		.onConflictDoNothing({ target: automationEvents.idempotencyKey });
+
+	logger.info('automation event enqueued', {
+		event: 'lead.created',
+		submissionId: payload.submissionId,
+		idempotencyKey,
+	});
+}
+
+/**
+ * Backwards-compatible name for older call sites. It now enqueues an outbox
+ * event instead of attempting provider delivery in the request lifecycle.
  */
 export async function emitLeadCreated(
 	payload: LeadCreatedPayload,
-	dbOverride?: typeof defaultDb
+	dbOverride?: AutomationEventInsertClient
 ): Promise<void> {
-	const eventId = crypto.randomUUID();
-	const event: AutomationEvent<'lead.created'> = {
-		event: 'lead.created',
-		version: 1,
-		occurred_at: new Date().toISOString(),
-		data: toLeadCreatedData(payload),
-	};
-
-	const result = await resolveAutomationProvider().send(event);
-	if (result.ok && !result.delivered) return;
-
-	const client = dbOverride ?? defaultDb;
-	let persistedEventId: string | null = null;
-
-	try {
-		await client.insert(automationEvents).values({
-			id: eventId,
-			eventType: event.event,
-			payload: toStoredLeadCreatedPayload(payload) as unknown,
-			status: result.ok ? 'completed' : 'failed',
-			attemptCount: 1,
-			lastError: result.ok ? null : result.error,
-		});
-		persistedEventId = eventId;
-	} catch (err) {
-		logger.error('automation event insert failed', { eventId, error: String(err) });
-	}
-
-	if (result.ok) {
-		logger.info('automation event delivered', {
-			eventId,
-			event: event.event,
-			provider: result.provider,
-		});
-		return;
-	}
-
-	logger.error('automation event delivery failed — writing dead-letter', {
-		eventId,
-		event: event.event,
-		provider: result.provider,
-		error: result.error,
-	});
-	try {
-		await client.insert(automationDeadLetters).values({
-			eventId: persistedEventId,
-			eventType: event.event,
-			error: result.error,
-		});
-	} catch (dlErr) {
-		logger.error('dead-letter insert failed', { eventId, error: String(dlErr) });
-	}
+	await enqueueLeadCreated(payload, dbOverride);
 }

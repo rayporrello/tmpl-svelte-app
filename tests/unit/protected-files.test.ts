@@ -13,7 +13,8 @@ describe('protected file allowlist', () => {
 	it('allows bootstrap-owned and init-site-owned paths', () => {
 		expect(isAllowed('.env')).toBe(true);
 		expect(isAllowed('src/lib/config/site.ts')).toBe(true);
-		expect(isAllowed('src/app.html')).toBe(false);
+		expect(isAllowed('src/app.html')).toBe(true);
+		expect(isAllowed('site.project.json')).toBe(true);
 	});
 
 	it('normalizes absolute paths relative to the repo root', () => {

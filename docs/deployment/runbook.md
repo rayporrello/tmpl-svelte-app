@@ -56,7 +56,7 @@ chmod 600 ~/secrets/<project>.prod.env
 ```bash
 mkdir -p ~/.config/containers/systemd
 
-# Copy and fill in placeholders (init:site does this automatically in Batch B)
+# Copy generated units after init:site has rendered project-specific values
 cp deploy/quadlets/web.container ~/.config/containers/systemd/<project>-web.container
 cp deploy/quadlets/web.network   ~/.config/containers/systemd/<project>.network
 

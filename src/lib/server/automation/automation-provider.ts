@@ -18,6 +18,7 @@ export type AutomationEvent<TName extends AutomationEventName = AutomationEventN
 	event: TName;
 	version: 1;
 	occurred_at: string;
+	idempotency_key?: string;
 	data: AutomationEventDataMap[TName];
 };
 

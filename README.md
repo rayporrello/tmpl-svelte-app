@@ -1,6 +1,6 @@
 # tmpl-svelte-app
 
-Database-backed SvelteKit website template. Targets websites, landing pages, content sites, and product marketing sites — with Postgres + Drizzle, forms, n8n-ready events, SEO, CMS, deployment, and examples built in.
+Database-backed SvelteKit website template for serious lead-generation sites — with Postgres + Drizzle, Superforms, transactional email, durable n8n/webhook automation, SEO, CMS, deployment, and examples built in.
 
 ## What's included
 
@@ -18,11 +18,11 @@ Database-backed SvelteKit website template. Targets websites, landing pages, con
 - **Observability spine** — friendly error page (with request ID + support link), `/healthz`, `/readyz`, structured logging, safe error handling
 - **Security baseline** — Valibot env schemas, per-route CSP (`/admin`-aware for Sveltia CDN), minimal HTTP security headers
 - **CMS content safety** — validation scripts that catch blank fields, bad dates, and destructive diffs before deploy
-- **Automation-ready** — n8n patterns and contracts documented; `automation_events` table ready for outbound webhook tracking
+- **Automation-ready** — transactional outbox in `automation_events`, `automation:worker` delivery/retry/dead-letter flow, n8n/webhook providers
 - **Production runtime contract** — Containerfile (multi-stage, non-root, HEALTHCHECK), Podman Quadlet templates, Caddyfile example
 - **CI** — GitHub Actions workflow with validate / image / launch jobs, Trivy CRITICAL gating, smoke tests, GHCR push
-- **Tests** — Vitest unit tests + Playwright e2e smoke (with axe accessibility checks) wired into `bun run validate`
-- **Ergonomics** — Lefthook pre-commit (prettier + eslint --fix on staged files), interactive or stdin-driven `bun run init:site`
+- **Tests** — Vitest unit tests in `validate:core`; Playwright e2e smoke (with axe accessibility and visual smoke checks) in `validate:ci`
+- **Ergonomics** — root `site.project.json` manifest, generated-file drift checks, Lefthook pre-commit, interactive/stdin-compatible `init:site`
 - Agent-readable operating rules (`AGENTS.md`, `CLAUDE.md.template`)
 
 ## Design system
@@ -49,14 +49,18 @@ Every site built from this template inherits a complete SEO system:
 
 | File                                       | Purpose                                                                  |
 | ------------------------------------------ | ------------------------------------------------------------------------ |
-| `src/lib/config/site.ts`                   | Site name, domain, OG image, org info — replace all values per project   |
-| `src/lib/seo/routes.ts`                    | Register every route; declare `indexable: true/false`                    |
+| `site.project.json`                        | Project contract for name, domain, repo, deploy, CMS, and launch assets  |
+| `src/lib/config/site.ts`                   | Generated SEO runtime config derived from the project manifest           |
+| `src/lib/seo/routes.ts`                    | Register public page routes; declare `indexable: true/false`             |
+| `src/lib/seo/route-policy.ts`              | Classify every SvelteKit route as indexable/noindex/private/api/feed/etc |
 | `src/lib/components/seo/SEO.svelte`        | Add to every `+page.svelte` with `title`, `description`, `canonicalPath` |
 | `src/lib/seo/schemas.ts`                   | JSON-LD helpers — use when visible page content supports the schema type |
 | `/sitemap.xml`, `/robots.txt`, `/llms.txt` | Auto-generated from config and route registry                            |
 
 ```bash
-bun run check:seo   # structural SEO checks; launch placeholders are enforced by check:launch
+bun run project:check # manifest + generated-file drift
+bun run routes:check  # route policy coverage
+bun run check:seo     # structural SEO checks; launch placeholders are enforced by check:launch
 ```
 
 **Share / OG images** follow a fall-through chain:
@@ -112,7 +116,7 @@ Full docs: [docs/database/README.md](docs/database/README.md) · [docs/privacy/d
 n8n is an optional automation layer. When needed:
 
 - **Content automations:** n8n writes files to `content/` via the GitHub API, following the same schema as Sveltia CMS
-- **Runtime automations:** SvelteKit server actions write to `automation_events`, then emit outbound webhooks to n8n; dead events land in `automation_dead_letters`
+- **Runtime automations:** SvelteKit server actions insert outbox rows in `automation_events`; `bun run automation:worker` delivers, retries with backoff, and dead-letters exhausted failures
 
 Env vars `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.example`. See [docs/automations/README.md](docs/automations/README.md).
 
@@ -142,11 +146,14 @@ See [docs/getting-started.md](docs/getting-started.md) for the full guide,
 including the manual setup path if you want to understand or override what
 bootstrap does.
 
-`init:site` asks these ten prompts in order: package name, site name,
-production URL, default meta description, GitHub owner, GitHub repository name,
-support contact email, project slug, production domain, and PWA short name.
-It is idempotent; running it twice with the same answers is a no-op. It does
-not update `src/app.html`.
+`site.project.json` is the durable project contract. `init:site` can still ask
+the original ten prompts for compatibility; it writes the manifest, then
+generates owned files from it. For manifest-only flows:
+
+```bash
+bun run init:site -- --check
+bun run init:site -- --write
+```
 
 For deterministic non-interactive setup, feed answers through stdin:
 
@@ -191,22 +198,27 @@ bun run lint                 # ESLint
 bun run format               # Prettier
 bun run test                 # Vitest unit tests
 bun run test:e2e             # Playwright + axe smoke tests
-bun run test:e2e:built       # Playwright against existing build/ output (used by validate)
+bun run test:e2e:built       # Playwright against existing build/ output (used by validate:ci)
 bun run images:optimize      # run image optimizer manually (idempotent)
 bun run check:seo            # validate SEO config
 bun run check:cms            # validate static/admin/config.yml
 bun run check:content        # validate content/ files
+bun run project:check        # validate site.project.json + generated-file drift
+bun run routes:check         # validate route policy coverage
 bun run check:assets         # verify favicon / og-default / manifest defaults exist
-bun run init:site            # interactive/stdin site initializer (rewrites 10 files)
+bun run init:site            # interactive/stdin compatibility initializer
+bun run automation:worker    # process pending automation outbox events
 bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)
 bun run db:studio            # open Drizzle Studio
-bun run validate             # PR-grade: check → seo → analytics → cms → content → assets → design-system → images → build → unit → e2e
-bun run validate:launch      # release-grade: validate + check:launch + check:content-diff
+bun run validate:core        # local-safe gate: checks → build → unit tests; no local listener
+bun run validate             # alias of validate:core
+bun run validate:ci          # CI gate: validate:core + built Playwright/visual smoke
+bun run validate:launch      # release-grade: validate:core + init-site/launch/content-diff checks
 ```
 
-The validation lifecycle has two tiers: `validate` runs on every PR/push; `validate:launch` runs before tagging or shipping a release. See [docs/template-maintenance.md](docs/template-maintenance.md) and [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
+The validation lifecycle has three useful entry points: `validate:core`/`validate` for daily local work, `validate:ci` for CI with built e2e and visual smoke, and `validate:launch` before tagging or shipping a release. See [docs/template-maintenance.md](docs/template-maintenance.md) and [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
 
 ## E2E environment variables
 
@@ -218,7 +230,7 @@ The validation lifecycle has two tiers: `validate` runs on every PR/push; `valid
 | `PLAYWRIGHT_BASE_URL`     | Run against an already-running or deployed site; skips local webServer. |
 | `PLAYWRIGHT_REUSE_SERVER` | Set to `1` to reuse an existing local server on the configured URL.     |
 | `PLAYWRIGHT_DATABASE_URL` | Optional DB URL for E2E. Defaults to an inert stub value.               |
-| `PLAYWRIGHT_SKIP_BUILD`   | Set to `1` only when `build/` already exists; used by `validate`.       |
+| `PLAYWRIGHT_SKIP_BUILD`   | Set to `1` only when `build/` already exists; used by `validate:ci`.    |
 
 `/readyz` is intentionally not part of default E2E because it verifies live Postgres connectivity. The DB health probe is covered by unit tests; add a separate integration job before testing `/readyz` end to end.
 

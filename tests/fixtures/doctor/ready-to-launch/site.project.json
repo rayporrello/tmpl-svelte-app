@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"project": {
+		"packageName": "ready-to-launch-site",
+		"projectSlug": "ready-to-launch-site",
+		"githubOwner": "acme",
+		"githubRepo": "ready-to-launch-site"
+	},
+	"site": {
+		"name": "Ready Launch Site",
+		"productionUrl": "https://ready.example",
+		"productionDomain": "ready.example",
+		"defaultDescription": "A launch-ready project fixture.",
+		"supportEmail": "support@ready.example",
+		"pwaShortName": "Ready",
+		"themeColor": "#0B1120"
+	},
+	"deployment": {
+		"unitName": "ready-to-launch-site-web",
+		"containerImage": "ghcr.io/acme/ready-to-launch-site:<sha>"
+	},
+	"cms": {
+		"backendRepo": "acme/ready-to-launch-site",
+		"branch": "main"
+	},
+	"assets": {
+		"defaultOgImage": "/og-default.png",
+		"organizationLogoPath": "/images/logo.png"
+	}
+}

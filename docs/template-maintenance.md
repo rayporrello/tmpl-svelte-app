@@ -23,23 +23,40 @@ bun run format                   # Prettier
 bun run images:optimize          # run the image prebuild pipeline manually (idempotent)
 bun run test                     # Vitest unit tests
 bun run test:e2e                 # Playwright + axe e2e smoke tests (builds first; runs against bun ./build/index.js)
-bun run check:seo                # validate SEO config and route registry
+bun run project:check            # validate site.project.json and generated-file drift
+bun run routes:check             # validate explicit route policy coverage
+bun run check:seo                # validate SEO config and public route registry
 bun run check:cms                # validate static/admin/config.yml (Sveltia)
 bun run check:content            # validate Markdown / YAML files under content/
 bun run check:content-diff       # detect destructive content changes (release-grade)
 bun run check:assets             # verify favicon / og-default / manifest defaults exist
 bun run check:launch             # verify production env (ORIGIN/PUBLIC_SITE_URL look like real HTTPS)
 bun run check:init-site          # acceptance-test init:site on a temp copy
-bun run init:site                # interactive/stdin site initializer (rewrites 10 files)
+bun run init:site                # interactive/stdin initializer that writes site.project.json
+bun run init:site -- --check     # check generated-file drift against site.project.json
+bun run init:site -- --write     # generate owned files from site.project.json
+bun run automation:worker        # process pending automation outbox events
 bun run secrets:render           # decrypt secrets.yaml → .env (requires SOPS + age)
 bun run secrets:check            # verify no plaintext secrets are tracked
-bun run validate                 # PR-grade: check → seo → cms → content → assets → images → build → unit → e2e
-bun run validate:launch          # release-grade: validate + check:launch + check:content-diff
+bun run validate:core            # local-safe: checks → images → build → unit tests; no listener
+bun run validate                 # alias of validate:core
+bun run validate:ci              # CI-grade: validate:core + built Playwright/visual smoke
+bun run validate:launch          # release-grade: validate:core + check:launch + check:content-diff
 ```
 
-### init:site prompt order
+### Project manifest and init:site
 
-`bun run init:site` prompts in this order:
+Root `site.project.json` is the durable project contract. It stores project,
+site, deployment, CMS, and asset values with `schemaVersion: 1`. `init:site`
+supports two durable modes:
+
+```bash
+bun run init:site -- --check
+bun run init:site -- --write
+```
+
+For compatibility with bootstrap and older automation, `bun run init:site` still
+prompts in this order, then writes `site.project.json` and generates owned files:
 
 1. Package name (`package.json` `"name"`)
 2. Site name (shown in titles and OG tags)
@@ -78,11 +95,11 @@ proc.stdin.end();
 process.exit(await proc.exited);
 ```
 
-`init:site` is idempotent: running it twice with the same answers produces no
-file changes. It does not update `src/app.html`. `validate:launch` still fails
-after init until `static/og-default.png` is replaced with a real 1200×630 OG
-image; that is intentional because the default OG image is a manual launch
-asset.
+`init:site` is idempotent: running it twice with the same answers or same
+manifest produces no file changes. It updates manifest-owned regions, including
+`src/app.html` `theme-color`. `validate:launch` still fails after init until
+`static/og-default.png` is replaced with a real 1200×630 OG image; that is
+intentional because the default OG image is a manual launch asset.
 
 ### Updating dependencies
 
@@ -141,7 +158,9 @@ If a future project separates CMS uploads from the repo (e.g. all uploads stay i
 The template has a two-tier validation lifecycle (see [ADR-018](planning/adrs/ADR-018-production-runtime-and-deployment-contract.md)):
 
 ```bash
-bun run validate          # PR-grade — runs on every push and pull request
+bun run validate:core     # local-safe PR-grade checks; no local listener
+bun run validate          # alias of validate:core
+bun run validate:ci       # CI-grade checks, including built Playwright/visual smoke
 bun run validate:launch   # release-grade — run before tagging or shipping a release
 ```
 
@@ -156,11 +175,13 @@ Both git commands should produce empty output.
 
 ### What each pipeline runs
 
-`bun run validate` (in order):
+`bun run validate:core` / `bun run validate` (in order):
 
 | Step                      | What it validates                                                                      |
 | ------------------------- | -------------------------------------------------------------------------------------- |
 | `bun run check`           | TypeScript types; Svelte component types; `svelte-check`                               |
+| `bun run project:check`   | `site.project.json` shape and generated-file drift                                     |
+| `bun run routes:check`    | Every concrete SvelteKit route has an explicit route policy                            |
 | `bun run check:seo`       | SEO source structure and route registry are valid; placeholder values warn only        |
 | `bun run check:cms`       | `static/admin/config.yml` schema is valid (no broken collection or field config)       |
 | `bun run check:content`   | content/ files parse and pass field validation; no blank required fields, no bad dates |
@@ -168,7 +189,12 @@ Both git commands should produce empty output.
 | `bun run images:optimize` | Image pipeline runs, exits 0 on empty uploads                                          |
 | `bun run build`           | Vite build succeeds; adapter output is valid                                           |
 | `bun run test`            | Vitest unit tests (env validation, SEO metadata, articles loader)                      |
-| `bun run test:e2e`        | Playwright smoke + `@axe-core/playwright` zero-violation gate                          |
+
+`bun run validate:ci` adds:
+
+| Step                     | What it validates                                                   |
+| ------------------------ | ------------------------------------------------------------------- |
+| `bun run test:e2e:built` | Playwright smoke + axe + desktop/mobile visual layout sanity checks |
 
 `bun run validate:launch` adds:
 
@@ -177,7 +203,7 @@ Both git commands should produce empty output.
 | `bun run check:launch`       | `ORIGIN` and `PUBLIC_SITE_URL` look like a real HTTPS production URL (not placeholder, not `localhost`) |
 | `bun run check:content-diff` | No destructive content rewrites are about to ship (compares git diff against `content/`)                |
 
-CI runs `validate` on every push and `validate:launch` on tags. See [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+CI runs `validate:ci` on every push/pull request and `validate:launch` on tags. See [.github/workflows/ci.yml](../.github/workflows/ci.yml).
 
 ## Acceptance test for init:site
 
@@ -189,7 +215,7 @@ working tree.
 It verifies:
 
 1. The host repo's tracked-file hash is unchanged before and after the test.
-2. The ten templated files receive the deterministic project values.
+2. `site.project.json` and generated files receive the deterministic project values.
 3. Running `init:site` twice with the same answers is byte-for-byte idempotent.
 4. `check:launch` fails with only the manual `static/og-default.png` placeholder.
 5. After a temp-only deterministic OG replacement, `check:assets` and `check:launch` pass.
@@ -224,7 +250,7 @@ When adding new capabilities to the base template:
 2. **Write or update the relevant doc** in `docs/design-system/`, `docs/seo/`, `docs/cms/`, or `docs/automations/`.
 3. **Update `AGENTS.md`** — add or update the relevant section so agents know the new rule.
 4. **Write an ADR** if the decision involves a third-party tool, a non-obvious tradeoff, or overrides a previous decision.
-5. **Run `bun run validate`** and confirm it exits 0.
+5. **Run `bun run validate:core`** and confirm it exits 0. CI will run `validate:ci`.
 6. **Verify `git ls-files node_modules .svelte-kit build`** returns nothing.
 
 Never add Tailwind, shadcn, React, Prisma, SQLite, or a pre-built component library to the base template.

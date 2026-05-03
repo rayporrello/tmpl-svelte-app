@@ -32,7 +32,8 @@ bun run check:design-system  # validate design-system guardrails
 bun run check:cms            # validate CMS config
 bun run check:content        # validate content files
 bun run check:content-diff   # check for destructive content changes
-bun run validate             # PR-grade pipeline: checks, build, unit tests, Playwright/axe e2e
+bun run validate             # local-safe PR-grade pipeline: checks, build, unit tests
+bun run validate:ci          # CI-grade pipeline: validate:core + Playwright/axe/visual e2e
 bun run lint                 # ESLint
 bun run format               # Prettier
 ```
@@ -90,7 +91,7 @@ Quick rules:
 - Do not build custom form submission handlers.
 - Do not add validation logic to CSS or components.
 - Put form schemas in `src/lib/forms/` (for example, `src/lib/forms/contact.schema.ts`).
-- Reuse the live contact form at `src/routes/contact/` as the reference pattern for validation, DB persistence, email notification, automation events, honeypot handling, and rate limiting.
+- Reuse the live contact form at `src/routes/contact/` as the reference pattern for validation, DB persistence, email notification, transactional outbox events, honeypot handling, and rate limiting.
 
 ## Content and CMS
 
@@ -236,16 +237,18 @@ Full rules: `docs/design-system/typography.md`
 
 Full docs: `docs/seo/README.md` · Page contract: `docs/seo/page-contract.md`
 
-- Site config (domain, name, OG image, org) lives in `src/lib/config/site.ts` — it is the single source of truth.
+- Project identity lives in root `site.project.json`; generate/check owned files with `bun run init:site -- --write` and `bun run project:check`.
+- Site config (domain, name, OG image, org) lives in `src/lib/config/site.ts` and is generated from the project manifest.
 - Every new public route needs the `SEO` component with `title`, `description`, `canonicalPath`.
-- Every route (indexable or not) must be registered in `src/lib/seo/routes.ts`.
+- Every SvelteKit route must have explicit policy coverage in `src/lib/seo/route-policy.ts`; public indexable/noindex page routes also live in `src/lib/seo/routes.ts`.
 - Internal/admin/preview/draft routes must be `indexable: false` and use `robots: 'noindex, nofollow'`.
 - Do not use `$page.url.href` as canonical. Do not hardcode domain in SEO files.
 - Schema helpers are in `src/lib/seo/schemas.ts`. Only add schema when visible page content supports it.
 - Run `bun run check:seo` before deploying. It warns on placeholder site values and fails on structural/indexability errors. `bun run check:launch` is the placeholder gate for real project launches.
 
 ```bash
-bun run check:seo  # validate SEO config and route registry
+bun run routes:check  # validate route policy coverage
+bun run check:seo     # validate SEO config and route registry
 ```
 
 ## CMS content safety
@@ -344,7 +347,7 @@ bun run backup:verify  # integrity + checksum check on most recent backup
 - Do not add n8n as a package dependency — it is an external operator, not an app dependency.
 - Do not use gray-matter for pure YAML files (`content/pages/`, `content/team/`, `content/testimonials/`).
 - Do not rename CMS fields without updating config, content files, types, loaders, components, and docs.
-- Do not make webhook calls blocking — n8n downtime must not break user-facing forms.
+- Do not call webhook providers from user-facing actions — insert automation outbox rows and deliver with `bun run automation:worker`.
 - Do not add Sentry, OpenTelemetry, Grafana, Prometheus, Loki, or pino without explicit approval.
 - Do not log secrets, tokens, cookies, authorization headers, or raw form payloads.
 - Do not use `console.error` directly for server-side errors — use `logger.error()`.

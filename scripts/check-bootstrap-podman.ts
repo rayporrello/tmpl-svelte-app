@@ -73,6 +73,7 @@ const COPY_PATHS = [
 	'package.json',
 	'README.md',
 	'scripts',
+	'site.project.json',
 	'src',
 	'static',
 	'svelte.config.js',

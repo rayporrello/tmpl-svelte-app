@@ -14,8 +14,11 @@ export interface RouteEntry {
 }
 
 /**
- * Static route registry. Add every new route here and declare whether it is
- * indexable. Non-indexable routes are excluded from sitemap.xml.
+ * Public page route registry. Add public page routes here and declare whether
+ * they are indexable. Non-indexable routes are excluded from sitemap.xml.
+ *
+ * Every SvelteKit route, including endpoints and internal routes, must also be
+ * covered in route-policy.ts.
  *
  * Rules:
  * - /styleguide, /admin, /preview, /examples, and draft-like routes must be indexable: false.

@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"project": {
+		"packageName": "tmpl-svelte-app",
+		"projectSlug": "project",
+		"githubOwner": "owner",
+		"githubRepo": "repo-name"
+	},
+	"site": {
+		"name": "Your Site Name",
+		"productionUrl": "https://example.com",
+		"productionDomain": "example.com",
+		"defaultDescription": "A short description of what this site is about.",
+		"supportEmail": "support@example.com",
+		"pwaShortName": "Site",
+		"themeColor": "#0B1120"
+	},
+	"deployment": {
+		"unitName": "project-web",
+		"containerImage": "ghcr.io/owner/repo-name:<sha>"
+	},
+	"cms": {
+		"backendRepo": "owner/repo-name",
+		"branch": "main"
+	},
+	"assets": {
+		"defaultOgImage": "/og-default.png",
+		"organizationLogoPath": "/images/logo.png"
+	}
+}

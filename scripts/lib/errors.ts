@@ -11,6 +11,8 @@ export const ERRORS = {
 	'BOOT-DB-004': 'schema privilege error (Postgres SQLSTATE 42501)',
 	'BOOT-MIG-001': 'drizzle-kit migrate failed',
 	'BOOT-GUARD-001': 'bootstrap attempted to mutate a non-allowlisted file',
+	'LAUNCH-PROJECT-001': 'site.project.json invalid or generated files drifted',
+	'LAUNCH-ROUTES-001': 'route policy coverage incomplete',
 	'LAUNCH-OG-001': 'static/og-default.png is still the template asset',
 	'LAUNCH-SEO-001': 'site.defaultTitle still placeholder',
 	'LAUNCH-CMS-001': 'static/admin/config.yml backend.repo still placeholder',

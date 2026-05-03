@@ -36,7 +36,9 @@ Acme
 `;
 
 const TARGET_FILES = [
+	'site.project.json',
 	'package.json',
+	'src/app.html',
 	'src/lib/config/site.ts',
 	'static/admin/config.yml',
 	'static/site.webmanifest',
@@ -51,7 +53,17 @@ const TARGET_FILES = [
 ];
 
 const EXPECTED_STRINGS: Record<string, string[]> = {
+	'site.project.json': [
+		'"schemaVersion": 1',
+		'"packageName": "my-cool-site"',
+		'"projectSlug": "my-cool-site"',
+		'"githubOwner": "acme-org"',
+		'"githubRepo": "my-cool-site"',
+		'"productionUrl": "https://acme-studio.dev"',
+		'"backendRepo": "acme-org/my-cool-site"',
+	],
 	'package.json': ['"name": "my-cool-site"'],
+	'src/app.html': ['<meta name="theme-color" content="#0B1120" />'],
 	'src/lib/config/site.ts': [
 		"name: 'Acme Studio'",
 		"url: 'https://acme-studio.dev'",
@@ -170,11 +182,15 @@ function hashTrackedFiles(root: string, paths: string[]): string {
 function copyTrackedFiles(): void {
 	mkdirSync(TEMP_REPO, { recursive: true });
 
-	const fileList = spawnSync('git', ['ls-files', '-z'], {
-		cwd: ROOT,
-		encoding: 'buffer',
-		maxBuffer: ARCHIVE_MAX_BYTES,
-	});
+	const fileList = spawnSync(
+		'git',
+		['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+		{
+			cwd: ROOT,
+			encoding: 'buffer',
+			maxBuffer: ARCHIVE_MAX_BYTES,
+		}
+	);
 	if (fileList.status !== 0) {
 		fail(`git ls-files failed while preparing temp copy:\n${String(fileList.stderr)}`);
 	}
@@ -284,18 +300,18 @@ async function setupDependencies(): Promise<void> {
 
 	if (existsSync(rootNodeModules)) {
 		symlinkSync(rootNodeModules, tempNodeModules, 'dir');
-		const probe = await runCommand(['bun', 'run', 'check'], {
-			cwd: TEMP_REPO,
-			allowFailure: true,
-		});
-		if (probe.exitCode === 0) {
-			dependencyMode = 'node_modules symlink';
-			return;
-		}
-		rmSync(tempNodeModules, { recursive: true, force: true });
+		dependencyMode = 'node_modules symlink';
+		return;
 	}
 
-	await runCommand(['bun', 'install', '--backend=symlink'], { cwd: TEMP_REPO });
+	const bunHome = join(TEMP_ROOT, '.bun-home');
+	const bunTmp = join(TEMP_ROOT, '.bun-tmp');
+	mkdirSync(bunHome, { recursive: true });
+	mkdirSync(bunTmp, { recursive: true });
+	await runCommand(['bun', 'install', '--backend=symlink'], {
+		cwd: TEMP_REPO,
+		env: { BUN_INSTALL: bunHome, BUN_TMPDIR: bunTmp },
+	});
 	await runCommand(['bun', 'run', 'check'], { cwd: TEMP_REPO });
 	dependencyMode = 'bun install --backend=symlink';
 }

@@ -4,7 +4,9 @@ export const PROTECTED_FILES = [
 	'.env',
 	'.bootstrap.state.json',
 	'.template/project.json',
+	'site.project.json',
 	'package.json',
+	'src/app.html',
 	'src/lib/config/site.ts',
 	'static/admin/config.yml',
 	'static/site.webmanifest',
@@ -20,7 +22,9 @@ export const PROTECTED_FILES = [
 ] as const;
 
 export const INIT_SITE_OWNED_FILES = [
+	'site.project.json',
 	'package.json',
+	'src/app.html',
 	'src/lib/config/site.ts',
 	'static/admin/config.yml',
 	'static/site.webmanifest',

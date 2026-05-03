@@ -1,0 +1,355 @@
+#!/usr/bin/env bun
+/**
+ * Process pending automation outbox events.
+ *
+ * Run one batch:
+ *   bun run automation:worker
+ */
+
+import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+import postgres from 'postgres';
+import {
+	buildLeadCreatedEvent,
+	type LeadCreatedContactSnapshot,
+	type LeadCreatedOutboxPayload,
+} from '../src/lib/server/automation/envelopes';
+import { resolveAutomationProvider } from '../src/lib/server/automation/providers';
+
+export interface AutomationWorkerOptions {
+	batchSize: number;
+	staleAfterSeconds: number;
+	workerId: string;
+}
+
+export interface AutomationWorkerResult {
+	claimed: number;
+	delivered: number;
+	retried: number;
+	deadLettered: number;
+	skipped: number;
+}
+
+interface ClaimedEventRow {
+	id: string;
+	created_at: Date;
+	event_type: string;
+	payload: unknown;
+	attempt_count: number;
+	max_attempts: number;
+	idempotency_key: string;
+}
+
+const DEFAULT_OPTIONS: AutomationWorkerOptions = {
+	batchSize: 10,
+	staleAfterSeconds: 15 * 60,
+	workerId: `automation-worker-${randomUUID()}`,
+};
+
+export function nextBackoffSeconds(attemptCount: number): number {
+	const baseSeconds = 60;
+	const maxSeconds = 60 * 60;
+	return Math.min(maxSeconds, baseSeconds * 2 ** Math.max(0, attemptCount));
+}
+
+function parsePositiveInteger(raw: string | undefined, flag: string): number {
+	if (!raw || !/^\d+$/u.test(raw)) throw new Error(`${flag} must be a positive integer.`);
+	const value = Number(raw);
+	if (!Number.isSafeInteger(value) || value < 1) {
+		throw new Error(`${flag} must be a positive integer.`);
+	}
+	return value;
+}
+
+function readFlagValue(args: string[], index: number, flag: string): [string | undefined, number] {
+	const current = args[index];
+	const prefix = `${flag}=`;
+	if (current.startsWith(prefix)) return [current.slice(prefix.length), index];
+	if (current === flag) return [args[index + 1], index + 1];
+	return [undefined, index];
+}
+
+export function parseWorkerArgs(args: string[]): AutomationWorkerOptions & { help: boolean } {
+	const options = { ...DEFAULT_OPTIONS, help: false };
+
+	for (let index = 0; index < args.length; index += 1) {
+		const arg = args[index];
+		if (arg === '--help' || arg === '-h') {
+			options.help = true;
+			continue;
+		}
+
+		let value: string | undefined;
+		[value, index] = readFlagValue(args, index, '--batch-size');
+		if (value !== undefined) {
+			options.batchSize = parsePositiveInteger(value, '--batch-size');
+			continue;
+		}
+
+		[value, index] = readFlagValue(args, index, '--stale-after-seconds');
+		if (value !== undefined) {
+			options.staleAfterSeconds = parsePositiveInteger(value, '--stale-after-seconds');
+			continue;
+		}
+
+		[value, index] = readFlagValue(args, index, '--worker-id');
+		if (value !== undefined) {
+			options.workerId = value.trim();
+			if (!options.workerId) throw new Error('--worker-id must not be empty.');
+			continue;
+		}
+
+		throw new Error(`Unknown option: ${arg}`);
+	}
+
+	return options;
+}
+
+function usage(): string {
+	return `Usage: bun run automation:worker -- [options]
+
+Options:
+  --batch-size=N             Events to claim in one run (default: 10)
+  --stale-after-seconds=N    Recover processing rows older than N seconds (default: 900)
+  --worker-id=ID             Lock owner label (default: generated UUID)
+  --help                     Show this help
+`;
+}
+
+function asLeadCreatedPayload(value: unknown): LeadCreatedOutboxPayload | null {
+	if (!value || typeof value !== 'object') return null;
+	const record = value as Record<string, unknown>;
+	if (typeof record.submission_id !== 'string' || record.submission_id.length === 0) return null;
+	return {
+		submission_id: record.submission_id,
+		source_path: typeof record.source_path === 'string' ? record.source_path : null,
+		request_id: typeof record.request_id === 'string' ? record.request_id : null,
+	};
+}
+
+async function recoverStaleProcessing(
+	sql: postgres.Sql,
+	staleAfterSeconds: number
+): Promise<number> {
+	const rows = await sql`
+		with recovered as (
+			update automation_events
+			set
+				status = 'pending',
+				locked_at = null,
+				locked_by = null,
+				next_attempt_at = now(),
+				updated_at = now()
+			where status = 'processing'
+				and locked_at < now() - (${staleAfterSeconds} * interval '1 second')
+			returning 1
+		)
+		select count(*)::int as count from recovered
+	`;
+	return Number(rows[0]?.count ?? 0);
+}
+
+async function claimEvents(
+	sql: postgres.Sql,
+	options: AutomationWorkerOptions
+): Promise<ClaimedEventRow[]> {
+	return (await sql`
+		with candidates as (
+			select id
+			from automation_events
+			where status = 'pending'
+				and next_attempt_at <= now()
+				and attempt_count < max_attempts
+			order by created_at asc
+			for update skip locked
+			limit ${options.batchSize}
+		)
+		update automation_events
+		set
+			status = 'processing',
+			locked_at = now(),
+			locked_by = ${options.workerId},
+			updated_at = now()
+		where id in (select id from candidates)
+		returning id, created_at, event_type, payload, attempt_count, max_attempts, idempotency_key
+	`) as ClaimedEventRow[];
+}
+
+async function loadContact(
+	sql: postgres.Sql,
+	submissionId: string
+): Promise<LeadCreatedContactSnapshot | null> {
+	const rows = await sql`
+		select name, email
+		from contact_submissions
+		where id = ${submissionId}
+		limit 1
+	`;
+	const row = rows[0] as { name?: unknown; email?: unknown } | undefined;
+	if (typeof row?.name !== 'string' || typeof row.email !== 'string') return null;
+	return { name: row.name, email: row.email };
+}
+
+async function markCompleted(
+	sql: postgres.Sql,
+	eventId: string,
+	attemptCount: number
+): Promise<void> {
+	await sql`
+		update automation_events
+		set
+			status = 'completed',
+			attempt_count = ${attemptCount + 1},
+			last_error = null,
+			locked_at = null,
+			locked_by = null,
+			updated_at = now()
+		where id = ${eventId}
+	`;
+}
+
+async function markFailedOrRetry(
+	sql: postgres.Sql,
+	row: ClaimedEventRow,
+	error: string
+): Promise<'retry' | 'dead-letter'> {
+	const nextAttemptCount = row.attempt_count + 1;
+	const exhausted = nextAttemptCount >= row.max_attempts;
+
+	if (exhausted) {
+		await sql.begin(async (tx) => {
+			await tx`
+				update automation_events
+				set
+					status = 'failed',
+					attempt_count = ${nextAttemptCount},
+					last_error = ${error},
+					locked_at = null,
+					locked_by = null,
+					updated_at = now()
+				where id = ${row.id}
+			`;
+			await tx`
+				insert into automation_dead_letters (event_id, event_type, error)
+				values (${row.id}, ${row.event_type}, ${error})
+			`;
+		});
+		return 'dead-letter';
+	}
+
+	const backoffSeconds = nextBackoffSeconds(row.attempt_count);
+	await sql`
+		update automation_events
+		set
+			status = 'pending',
+			attempt_count = ${nextAttemptCount},
+			last_error = ${error},
+			next_attempt_at = now() + (${backoffSeconds} * interval '1 second'),
+			locked_at = null,
+			locked_by = null,
+			updated_at = now()
+		where id = ${row.id}
+	`;
+	return 'retry';
+}
+
+async function deliverEvent(
+	sql: postgres.Sql,
+	row: ClaimedEventRow
+): Promise<'delivered' | 'retry' | 'dead-letter' | 'skipped'> {
+	if (row.event_type !== 'lead.created') {
+		return await markFailedOrRetry(
+			sql,
+			row,
+			`Unsupported automation event type: ${row.event_type}`
+		);
+	}
+
+	const payload = asLeadCreatedPayload(row.payload);
+	if (!payload) {
+		return await markFailedOrRetry(sql, row, 'Invalid lead.created outbox payload.');
+	}
+
+	const contact = await loadContact(sql, payload.submission_id);
+	if (!contact) {
+		return await markFailedOrRetry(
+			sql,
+			row,
+			`Contact submission not found for ${payload.submission_id}.`
+		);
+	}
+
+	const provider = resolveAutomationProvider();
+	const event = buildLeadCreatedEvent({
+		createdAt: row.created_at,
+		idempotencyKey: row.idempotency_key,
+		payload,
+		contact,
+	});
+	const result = await provider.send(event);
+
+	if (result.ok) {
+		await markCompleted(sql, row.id, row.attempt_count);
+		return result.delivered ? 'delivered' : 'skipped';
+	}
+
+	return await markFailedOrRetry(sql, row, result.error);
+}
+
+export async function runAutomationWorker(
+	sql: postgres.Sql,
+	options: AutomationWorkerOptions = DEFAULT_OPTIONS
+): Promise<AutomationWorkerResult> {
+	await recoverStaleProcessing(sql, options.staleAfterSeconds);
+	const rows = await claimEvents(sql, options);
+	const result: AutomationWorkerResult = {
+		claimed: rows.length,
+		delivered: 0,
+		retried: 0,
+		deadLettered: 0,
+		skipped: 0,
+	};
+
+	for (const row of rows) {
+		const outcome = await deliverEvent(sql, row);
+		if (outcome === 'delivered') result.delivered += 1;
+		else if (outcome === 'retry') result.retried += 1;
+		else if (outcome === 'dead-letter') result.deadLettered += 1;
+		else result.skipped += 1;
+	}
+
+	return result;
+}
+
+export async function main(argv = process.argv.slice(2)): Promise<number> {
+	const options = parseWorkerArgs(argv);
+	if (options.help) {
+		console.log(usage());
+		return 0;
+	}
+
+	if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set.');
+	const sql = postgres(process.env.DATABASE_URL, { max: 2 });
+	try {
+		const result = await runAutomationWorker(sql, options);
+		console.log(
+			`automation:worker claimed ${result.claimed}; delivered ${result.delivered}; skipped ${result.skipped}; retried ${result.retried}; dead-lettered ${result.deadLettered}`
+		);
+		return 0;
+	} finally {
+		await sql.end();
+	}
+}
+
+const currentFile = fileURLToPath(import.meta.url);
+const invokedFile = process.argv[1] ? resolve(process.argv[1]) : '';
+
+if (invokedFile === currentFile) {
+	main()
+		.then((code) => process.exit(code))
+		.catch((error) => {
+			console.error(error instanceof Error ? error.message : String(error));
+			process.exit(1);
+		});
+}

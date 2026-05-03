@@ -1,6 +1,7 @@
 /**
  * SEO structural validation script. Fails on structural issues: hardcoded
  * domains in SEO source files, route registry indexability errors.
+ * Full route policy coverage is owned by scripts/check-routes.ts.
  * Warns on placeholder values in site config — those are launch-time concerns
  * enforced as errors by check:launch (validate:launch path).
  *

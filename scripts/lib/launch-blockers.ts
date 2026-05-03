@@ -8,6 +8,8 @@ import ts from 'typescript';
 
 import type { LaunchErrorCode } from './errors';
 import { type EnvMap, readEnv } from './env-file';
+import { runCheckProject } from '../check-project';
+import { evaluateRoutePolicyCoverage } from './route-scanner';
 
 export type LaunchBlockerStatus = 'pass' | 'warn' | 'fail';
 export type LaunchBlockerSeverity = 'required' | 'recommended';
@@ -446,7 +448,50 @@ async function checkPostmarkToken(
 	);
 }
 
+async function checkProjectManifestDrift(
+	context?: LaunchBlockerCheckContext
+): Promise<LaunchBlockerResult> {
+	const rootDir = rootDirFrom(context);
+	const result = runCheckProject(rootDir);
+	if (result.exitCode !== 0) {
+		const details = [...result.errors, ...result.driftFiles].slice(0, 4).join(', ');
+		return fail(`site.project.json is invalid or generated files drifted: ${details}`);
+	}
+	return pass('site.project.json is valid and generated files are in sync.');
+}
+
+async function checkRoutePolicyCoverage(
+	context?: LaunchBlockerCheckContext
+): Promise<LaunchBlockerResult> {
+	const rootDir = rootDirFrom(context);
+	const result = evaluateRoutePolicyCoverage(rootDir);
+	if (result.issues.length > 0) {
+		const details = result.issues
+			.slice(0, 4)
+			.map((issue) => `${issue.path}: ${issue.message}`)
+			.join(', ');
+		return fail(`Route policy coverage failed: ${details}`);
+	}
+	return pass(`${result.routes.length} SvelteKit routes have explicit route policies.`);
+}
+
 export const LAUNCH_BLOCKERS: LaunchBlocker[] = [
+	{
+		id: 'LAUNCH-PROJECT-001',
+		label: 'Project manifest drift is present',
+		severity: 'required',
+		check: checkProjectManifestDrift,
+		fixHint: 'NEXT: Run bun run init:site -- --write, then re-run bun run project:check.',
+		docsPath: 'docs/getting-started.md',
+	},
+	{
+		id: 'LAUNCH-ROUTES-001',
+		label: 'Route policy coverage is incomplete',
+		severity: 'required',
+		check: checkRoutePolicyCoverage,
+		fixHint: 'NEXT: Add missing route policies in src/lib/seo/route-policy.ts.',
+		docsPath: 'docs/seo/page-contract.md',
+	},
 	{
 		id: 'LAUNCH-OG-001',
 		label: 'Default OG image is still the template asset',
