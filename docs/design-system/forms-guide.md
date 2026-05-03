@@ -275,6 +275,11 @@ Disabled controls use `opacity: 0.5` — this is intentional whole-element dimmi
 
 Superforms is already installed. The typical pattern for a SvelteKit server-action form:
 
+For business forms that save submissions or start automations, also follow
+[docs/forms/README.md](../forms/README.md). That guide covers source tables,
+the form registry, outbox events, worker handlers, retention, and operator
+inspection.
+
 ### Schema (Valibot)
 
 ```ts

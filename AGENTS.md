@@ -200,6 +200,8 @@ Full reference: [docs/design-system/typography.md](docs/design-system/typography
 
 Superforms owns: validation, data binding, submission, progressive enhancement, server errors, constraint API.
 
+Business-form architecture is documented in `docs/forms/README.md`. For any form that captures a lead or starts a workflow, use a form-specific source table plus the shared automation outbox. Add the form to `src/lib/server/forms/registry.ts`, add any outbox event handler to `src/lib/server/automation/registry.ts`, and run `bun run forms:check`.
+
 Do not:
 
 - Add form validation logic to `forms.css` or any CSS file
@@ -433,6 +435,7 @@ bun run check:content           # content file validation
 bun run check:content-diff      # destructive content diff check
 bun run project:check           # site.project.json + generated-file drift
 bun run routes:check            # explicit route policy coverage
+bun run forms:check             # business form registry + outbox references
 bun run check:assets            # favicon / OG / webmanifest validation
 bun run check:design-system     # design-system guardrail validation
 ```

@@ -25,6 +25,7 @@ bun run test                     # Vitest unit tests
 bun run test:e2e                 # Playwright + axe e2e smoke tests (builds first; runs against bun ./build/index.js)
 bun run project:check            # validate site.project.json and generated-file drift
 bun run routes:check             # validate explicit route policy coverage
+bun run forms:check              # validate business form registry and outbox references
 bun run check:seo                # validate SEO config and public route registry
 bun run check:cms                # validate static/admin/config.yml (Sveltia)
 bun run check:content            # validate Markdown / YAML files under content/
@@ -182,6 +183,7 @@ Both git commands should produce empty output.
 | `bun run check`           | TypeScript types; Svelte component types; `svelte-check`                               |
 | `bun run project:check`   | `site.project.json` shape and generated-file drift                                     |
 | `bun run routes:check`    | Every concrete SvelteKit route has an explicit route policy                            |
+| `bun run forms:check`     | Every registered business form has a source table, PII notes, and valid outbox event   |
 | `bun run check:seo`       | SEO source structure and route registry are valid; placeholder values warn only        |
 | `bun run check:cms`       | `static/admin/config.yml` schema is valid (no broken collection or field config)       |
 | `bun run check:content`   | content/ files parse and pass field validation; no blank required fields, no bad dates |
@@ -247,7 +249,7 @@ If a future project needs a fully static output (no server), swap to `@sveltejs/
 When adding new capabilities to the base template:
 
 1. **Implement in `src/`** — implementation is truth.
-2. **Write or update the relevant doc** in `docs/design-system/`, `docs/seo/`, `docs/cms/`, or `docs/automations/`.
+2. **Write or update the relevant doc** in `docs/forms/`, `docs/design-system/`, `docs/seo/`, `docs/cms/`, or `docs/automations/`.
 3. **Update `AGENTS.md`** — add or update the relevant section so agents know the new rule.
 4. **Write an ADR** if the decision involves a third-party tool, a non-obvious tradeoff, or overrides a previous decision.
 5. **Run `bun run validate:core`** and confirm it exits 0. CI will run `validate:ci`.

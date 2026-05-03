@@ -10,12 +10,11 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import postgres from 'postgres';
-import {
-	buildLeadCreatedEvent,
-	type LeadCreatedContactSnapshot,
-	type LeadCreatedOutboxPayload,
-} from '../src/lib/server/automation/envelopes';
 import { resolveAutomationProvider } from '../src/lib/server/automation/providers';
+import {
+	getAutomationEventHandler,
+	type AutomationOutboxRow,
+} from '../src/lib/server/automation/registry';
 
 export interface AutomationWorkerOptions {
 	batchSize: number;
@@ -31,7 +30,7 @@ export interface AutomationWorkerResult {
 	skipped: number;
 }
 
-interface ClaimedEventRow {
+interface ClaimedEventRow extends AutomationOutboxRow {
 	id: string;
 	created_at: Date;
 	event_type: string;
@@ -117,17 +116,6 @@ Options:
 `;
 }
 
-function asLeadCreatedPayload(value: unknown): LeadCreatedOutboxPayload | null {
-	if (!value || typeof value !== 'object') return null;
-	const record = value as Record<string, unknown>;
-	if (typeof record.submission_id !== 'string' || record.submission_id.length === 0) return null;
-	return {
-		submission_id: record.submission_id,
-		source_path: typeof record.source_path === 'string' ? record.source_path : null,
-		request_id: typeof record.request_id === 'string' ? record.request_id : null,
-	};
-}
-
 async function recoverStaleProcessing(
 	sql: postgres.Sql,
 	staleAfterSeconds: number
@@ -174,21 +162,6 @@ async function claimEvents(
 		where id in (select id from candidates)
 		returning id, created_at, event_type, payload, attempt_count, max_attempts, idempotency_key
 	`) as ClaimedEventRow[];
-}
-
-async function loadContact(
-	sql: postgres.Sql,
-	submissionId: string
-): Promise<LeadCreatedContactSnapshot | null> {
-	const rows = await sql`
-		select name, email
-		from contact_submissions
-		where id = ${submissionId}
-		limit 1
-	`;
-	const row = rows[0] as { name?: unknown; email?: unknown } | undefined;
-	if (typeof row?.name !== 'string' || typeof row.email !== 'string') return null;
-	return { name: row.name, email: row.email };
 }
 
 async function markCompleted(
@@ -258,7 +231,8 @@ async function deliverEvent(
 	sql: postgres.Sql,
 	row: ClaimedEventRow
 ): Promise<'delivered' | 'retry' | 'dead-letter' | 'skipped'> {
-	if (row.event_type !== 'lead.created') {
+	const handler = getAutomationEventHandler(row.event_type);
+	if (!handler) {
 		return await markFailedOrRetry(
 			sql,
 			row,
@@ -266,28 +240,11 @@ async function deliverEvent(
 		);
 	}
 
-	const payload = asLeadCreatedPayload(row.payload);
-	if (!payload) {
-		return await markFailedOrRetry(sql, row, 'Invalid lead.created outbox payload.');
-	}
-
-	const contact = await loadContact(sql, payload.submission_id);
-	if (!contact) {
-		return await markFailedOrRetry(
-			sql,
-			row,
-			`Contact submission not found for ${payload.submission_id}.`
-		);
-	}
+	const built = await handler.buildEvent(sql, row);
+	if (!built.ok) return await markFailedOrRetry(sql, row, built.error);
 
 	const provider = resolveAutomationProvider();
-	const event = buildLeadCreatedEvent({
-		createdAt: row.created_at,
-		idempotencyKey: row.idempotency_key,
-		payload,
-		contact,
-	});
-	const result = await provider.send(event);
+	const result = await provider.send(built.event);
 
 	if (result.ok) {
 		await markCompleted(sql, row.id, row.attempt_count);

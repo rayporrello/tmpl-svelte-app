@@ -53,7 +53,9 @@ export interface AutomationProvider {
 }
 ```
 
-The implemented source of truth is `src/lib/server/automation/automation-provider.ts`.
+The implemented type source of truth is
+`src/lib/server/automation/automation-provider.ts`. Worker delivery handlers are
+registered in `src/lib/server/automation/registry.ts`.
 
 ---
 
@@ -63,7 +65,9 @@ The implemented source of truth is `src/lib/server/automation/automation-provide
 | -------------- | ------- | -------------------------------------------- |
 | `lead.created` | `1`     | Contact form submitted and saved to Postgres |
 
-Add new events only when a real form/action emits them.
+Add new events only when a real form/action emits them. Follow
+[docs/forms/README.md](../forms/README.md) for the source table, outbox,
+registry, and testing checklist.
 
 ---
 

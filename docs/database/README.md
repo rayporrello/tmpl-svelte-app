@@ -39,6 +39,9 @@ Starter tables live in [src/lib/server/db/schema.ts](../../src/lib/server/db/sch
 | `automation_dead_letters` | Captures events that exceeded retry limits without duplicating full payloads |
 
 Extend the schema by adding tables to `schema.ts` and running `bun run db:generate`.
+For business forms, prefer one typed source table per meaningful workflow and
+register it in `src/lib/server/forms/registry.ts`; see
+[docs/forms/README.md](../forms/README.md).
 
 The runtime tables include pruning indexes for privacy retention:
 

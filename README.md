@@ -19,6 +19,7 @@ Database-backed SvelteKit website template for serious lead-generation sites —
 - **Security baseline** — Valibot env schemas, per-route CSP (`/admin`-aware for Sveltia CDN), minimal HTTP security headers
 - **CMS content safety** — validation scripts that catch blank fields, bad dates, and destructive diffs before deploy
 - **Automation-ready** — transactional outbox in `automation_events`, `automation:worker` delivery/retry/dead-letter flow, n8n/webhook providers
+- **Business form registry** — documented pattern for source tables, Superforms schemas, outbox events, PII, retention, and operator inspection
 - **Production runtime contract** — Containerfile (multi-stage, non-root, HEALTHCHECK), Podman Quadlet templates, Caddyfile example
 - **CI** — GitHub Actions workflow with validate / image / launch jobs, Trivy CRITICAL gating, smoke tests, GHCR push
 - **Tests** — Vitest unit tests in `validate:core`; Playwright e2e smoke (with axe accessibility and visual smoke checks) in `validate:ci`
@@ -205,6 +206,7 @@ bun run check:cms            # validate static/admin/config.yml
 bun run check:content        # validate content/ files
 bun run project:check        # validate site.project.json + generated-file drift
 bun run routes:check         # validate route policy coverage
+bun run forms:check          # validate business form registry and outbox references
 bun run check:assets         # verify favicon / og-default / manifest defaults exist
 bun run init:site            # interactive/stdin compatibility initializer
 bun run automation:worker    # process pending automation outbox events

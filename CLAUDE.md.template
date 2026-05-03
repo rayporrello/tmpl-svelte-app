@@ -92,6 +92,7 @@ Quick rules:
 - Do not add validation logic to CSS or components.
 - Put form schemas in `src/lib/forms/` (for example, `src/lib/forms/contact.schema.ts`).
 - Reuse the live contact form at `src/routes/contact/` as the reference pattern for validation, DB persistence, email notification, transactional outbox events, honeypot handling, and rate limiting.
+- For lead-capture or workflow-starting forms, follow `docs/forms/README.md`: add a typed source table, register the form in `src/lib/server/forms/registry.ts`, add outbox handlers in `src/lib/server/automation/registry.ts`, and run `bun run forms:check`.
 
 ## Content and CMS
 
