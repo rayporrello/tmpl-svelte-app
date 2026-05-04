@@ -439,14 +439,17 @@ bun run check:analytics         # analytics config validation (GTM format, stagi
 bun run check:cms               # CMS config validation
 bun run check:content           # content file validation
 bun run check:assets            # favicon / OG / webmanifest validation
+bun run check:security-headers  # app security header policy validation
+bun run check:accessibility     # source-level accessibility guardrails
 bun run check:design-system     # design-system guardrail validation
+bun run check:performance       # built bundle/static asset performance budgets
 bun run images:optimize         # prebuild image pipeline (idempotent)
 bun run build                   # production build
 bun run test                    # Vitest unit tests
 ```
 
 Or run the listener-free local gate: `bun run validate` / `bun run validate:core`.
-CI runs `bun run validate:ci`, which adds built Playwright, axe, and visual smoke tests. Release-grade checks also run `bun run check:init-site`, `bun run check:launch`, and `bun run check:content-diff`.
+CI runs `bun run validate:ci`, which adds built Playwright, axe, and visual smoke tests. Release-grade checks also run `bun run check:init-site`, `bun run check:launch`, and `bun run check:content-diff`. Deployment readiness is explicit: run `bun run deploy:preflight` before installing units and `bun run deploy:smoke -- --url https://your-domain.example` after deploy.
 
 ---
 

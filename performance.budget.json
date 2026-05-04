@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"budgets": {
+		"totalClientJsGzipWarnKb": 200,
+		"totalClientJsGzipFailKb": 350,
+		"largestClientJsGzipWarnKb": 120,
+		"largestClientJsGzipFailKb": 180,
+		"totalCssGzipWarnKb": 80,
+		"totalCssGzipFailKb": 140,
+		"staticImageWarnKb": 500,
+		"staticImageFailKb": 1024,
+		"singleAssetFailKb": 2048
+	},
+	"allowLargeAssets": [
+		{
+			"path": "static/og-default.png",
+			"reason": "Required 1200x630 default social sharing image."
+		}
+	]
+}

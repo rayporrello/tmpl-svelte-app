@@ -32,6 +32,9 @@ bun run check:design-system  # validate design-system guardrails
 bun run check:cms            # validate CMS config
 bun run check:content        # validate content files
 bun run check:content-diff   # check for destructive content changes
+bun run check:security-headers # validate app security header policy
+bun run check:accessibility  # source-level accessibility guardrails
+bun run check:performance    # built bundle/static asset performance budgets
 bun run validate             # local-safe PR-grade pipeline: checks, build, unit tests
 bun run validate:ci          # CI-grade pipeline: validate:core + Playwright/axe/visual e2e
 bun run lint                 # ESLint

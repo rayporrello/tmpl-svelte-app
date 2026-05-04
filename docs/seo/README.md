@@ -56,6 +56,11 @@ SEO is built into this template. It is not optional and not a checklist item —
 
 That is the minimum. `title`, `description`, and `canonicalPath` are required. Everything else defaults from `site.ts`.
 
+For a quick planning pass before building a page, copy
+[page-brief.template.md](page-brief.template.md). It keeps route policy, title,
+description, canonical path, OG image, visible headings, and schema justification
+in one small checklist.
+
 ## Dynamic article routes
 
 Static marketing routes live in [src/lib/seo/routes.ts](../../src/lib/seo/routes.ts). Published article routes are generated automatically from `content/articles/*.md` by [src/lib/seo/public-routes.ts](../../src/lib/seo/public-routes.ts).
@@ -197,6 +202,12 @@ bun run check:launch    # release-grade: confirms ORIGIN/PUBLIC_SITE_URL look li
 - `site.defaultOgImage` is set
 - SEO source files do not contain hardcoded `yourdomain.com`
 - `/styleguide`, `/admin`, `/preview`, `/draft` routes are not marked indexable
+- concrete page routes have route policy coverage
+- indexable page routes are registered in `src/lib/seo/routes.ts`
+- route pages render the `SEO` component
+- literal `canonicalPath` values match their static route paths
+- noindex page policies use `robots: 'noindex, nofollow'`
+- sitemap and `llms.txt` derive from `indexableRoutes()`
 
 `check:content` checks article filename/slug alignment, draft state, required dates, future-dated published articles, duplicate slugs, and image alt text.
 

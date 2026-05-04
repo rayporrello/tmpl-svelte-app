@@ -58,6 +58,9 @@ chmod 600 ~/secrets/<project>.prod.env
 git clone git@github.com:<owner>/<name>.git ~/<project>
 cd ~/<project>
 
+# On the project checkout, after init:site and env rendering:
+bun run deploy:preflight
+
 mkdir -p ~/.config/containers/systemd
 mkdir -p ~/.config/systemd/user
 
@@ -244,26 +247,12 @@ sudo systemctl reload caddy
 Run these after every deploy to verify the site is up and healthy. This is where reachability is tested — `check:launch` is structural-only and does not make network requests.
 
 ```bash
-# 1. Health endpoint (process liveness)
-curl -fsS https://<domain>/healthz
-# Expected: {"ok":true,...}
-
-# 2. Readiness endpoint (Postgres connectivity)
-curl -fsS https://<domain>/readyz
-# Expected: {"ok":true,...}
-
-# 3. Sitemap (valid XML)
-curl -fsS https://<domain>/sitemap.xml | head -5
-# Expected: <?xml version="1.0"...
-
-# 4. Robots.txt
-curl -fsS https://<domain>/robots.txt
-# Expected: User-agent: *
-
-# 5. Security headers (spot check)
-curl -sI https://<domain>/ | grep -Ei "x-frame-options|x-content-type-options|referrer-policy|permissions-policy|content-security-policy"
-# Expected: security headers and CSP are present
+bun run deploy:smoke -- --url https://<domain>
 ```
+
+The smoke checks `/healthz`, `/readyz`, `/sitemap.xml`, `/robots.txt`,
+`/contact`, and baseline security headers. Use `--skip-readyz` only when
+database readiness is intentionally checked through a separate production probe.
 
 If any check fails:
 

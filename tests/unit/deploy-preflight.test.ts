@@ -9,11 +9,13 @@ import {
 	checkAutomationWorkerArtifact,
 	checkCaddyfileDomain,
 	checkDatabaseUrlShape,
+	checkEnvExamples,
 	checkGhcrImageShape,
 	checkHttpsOrigins,
 	checkPostgresArtifacts,
 	checkPostgresEnvShape,
 	checkProductionEnvFile,
+	checkQuadletNetwork,
 	checkQuadletProject,
 	checkRequiredLaunchBlockers,
 	checkRuntimeReachability,
@@ -106,6 +108,16 @@ function writeReadyProject(): string {
 	);
 	write(
 		rootDir,
+		'.env.example',
+		'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nDATABASE_URL=postgres://ready:secret@127.0.0.1:5432/ready\n'
+	);
+	write(
+		rootDir,
+		'deploy/env.example',
+		'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nDATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready\n'
+	);
+	write(
+		rootDir,
 		'deploy/Caddyfile.example',
 		'ready.example {\n  reverse_proxy 127.0.0.1:3000\n}\nwww.ready.example {\n  redir https://ready.example{uri} permanent\n}\n'
 	);
@@ -122,6 +134,11 @@ function writeReadyProject(): string {
 			'StopTimeout=15',
 			'',
 		].join('\n')
+	);
+	write(
+		rootDir,
+		'deploy/quadlets/web.network',
+		'[Unit]\nDescription=Project network - ready-site\n\n[Network]\nInternal=false\n'
 	);
 	write(
 		rootDir,
@@ -264,6 +281,20 @@ describe('deploy preflight', () => {
 					'Image=ghcr.io/acme/ready-site:abc123\nEnvironmentFile=%h/secrets/ready-site.prod.env\nNetwork=ready-site.network\nHostName=ready-site-web\n'
 				),
 			id: 'PREFLIGHT-RUNTIME-001',
+		},
+		{
+			name: 'network Quadlet',
+			check: checkQuadletNetwork,
+			mutate: (rootDir: string) =>
+				write(rootDir, 'deploy/quadlets/web.network', '[Unit]\nDescription=<project>\n'),
+			id: 'PREFLIGHT-QUADLET-002',
+		},
+		{
+			name: 'env examples',
+			check: checkEnvExamples,
+			mutate: (rootDir: string) =>
+				write(rootDir, 'deploy/env.example', 'ORIGIN=https://ready.example\n'),
+			id: 'PREFLIGHT-ENV-003',
 		},
 		{
 			name: 'Postgres artifacts',

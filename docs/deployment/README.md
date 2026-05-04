@@ -34,6 +34,8 @@ Documentation for deploying sites built from this template. The deployment model
 | `deploy/systemd/backup.service`            | `deploy/systemd/`  | Plain systemd user unit — runs `privacy:prune` then `backup:all` (with off-host push)                    |
 | `deploy/systemd/backup.timer`              | `deploy/systemd/`  | Daily 03:00 timer (with jitter) that fires `backup.service`                                              |
 | `deploy/Caddyfile.example`                 | `deploy/`          | Caddy reverse proxy with TLS, HSTS, compression, optional rate-limit and immutable-asset header snippets |
+| `scripts/deploy-preflight.ts`              | `scripts/`         | Local structural deploy readiness: env, Caddy, Quadlet, Postgres, worker, launch blockers                |
+| `scripts/deploy-smoke.ts`                  | `scripts/`         | URL-driven post-deploy smoke: health, readiness, discovery files, contact GET, security headers          |
 
 ---
 
@@ -55,6 +57,18 @@ curl -fsS http://127.0.0.1:3000/healthz
 ```
 
 For production bootstrap, rolling deploys, rollback by SHA, and post-deploy smoke testing — see [runbook.md](runbook.md).
+
+Before copying units to a host, run:
+
+```bash
+bun run deploy:preflight
+```
+
+After the site is live, run:
+
+```bash
+bun run deploy:smoke -- --url https://your-domain.example
+```
 
 ---
 

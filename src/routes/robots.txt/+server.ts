@@ -2,7 +2,7 @@ import { site } from '$lib/config/site';
 
 export const prerender = true;
 
-const DISALLOWED_PATHS = ['/styleguide', '/admin', '/preview', '/draft'];
+const DISALLOWED_PATHS = ['/styleguide', '/admin', '/preview', '/draft', '/examples'];
 
 export function GET(): Response {
 	const sitemapUrl = `${site.url.replace(/\/$/, '')}/sitemap.xml`;

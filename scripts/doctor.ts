@@ -11,6 +11,7 @@ import { evaluateLaunchBlockers, type LaunchEnvSource } from './lib/launch-block
 import { checkBun, detectContainerRuntime, gitWorkingTreeDirty } from './lib/preflight';
 import type { PrintStream } from './lib/print';
 import { redactSecrets, run as runCommand, type RunOptions, type RunResult } from './lib/run';
+import { REQUIRED_PRIVATE_ENV_VARS, REQUIRED_PUBLIC_ENV_VARS } from '../src/lib/server/env';
 
 type DoctorStatus = 'pass' | 'warn' | 'fail';
 type DoctorSeverity = 'required' | 'recommended';
@@ -80,9 +81,26 @@ const REQUIRED_TABLES = [
 	'automation_dead_letters',
 ] as const;
 const VALIDATION_FORECAST_COMMANDS = [
+	{
+		id: 'doctor-project-check',
+		label: 'Project manifest validates',
+		args: ['run', 'project:check'],
+	},
+	{ id: 'doctor-routes-check', label: 'Route policy validates', args: ['run', 'routes:check'] },
+	{ id: 'doctor-forms-check', label: 'Form registry validates', args: ['run', 'forms:check'] },
 	{ id: 'doctor-check-cms', label: 'CMS config validates', args: ['run', 'check:cms'] },
 	{ id: 'doctor-check-content', label: 'Content files validate', args: ['run', 'check:content'] },
 	{ id: 'doctor-check-assets', label: 'Assets validate', args: ['run', 'check:assets'] },
+	{
+		id: 'doctor-security-headers',
+		label: 'Security header policy validates',
+		args: ['run', 'check:security-headers'],
+	},
+	{
+		id: 'doctor-accessibility-source',
+		label: 'Accessibility source guardrails pass',
+		args: ['run', 'check:accessibility'],
+	},
 	{
 		id: 'doctor-check-design-system',
 		label: 'Design-system guardrails pass',
@@ -273,6 +291,15 @@ function containsInitPlaceholder(content: string): boolean {
 		'[Site Name]',
 		'[Year]',
 	].some((placeholder) => content.includes(placeholder));
+}
+
+function containsDeployPlaceholder(content: string): boolean {
+	return (
+		containsInitPlaceholder(content) ||
+		['<project>', '<owner>', '<name>', '<sha>', '<domain>', 'replace-me'].some((placeholder) =>
+			content.includes(placeholder)
+		)
+	);
 }
 
 function databaseUrlFrom(envFile: EnvMap | null, env: NodeJS.ProcessEnv): string | null {
@@ -730,6 +757,164 @@ async function launchBlockersSection(
 	return { id: 'launch-blockers', label: 'Launch Blockers', checks };
 }
 
+function deploymentArtifactsSection(rootDir: string): DoctorSection {
+	const checks: DoctorCheck[] = [];
+	const deployDir = join(rootDir, 'deploy');
+	if (!existsSync(deployDir)) {
+		return {
+			id: 'deployment',
+			label: 'Deployment Artifacts',
+			checks: [
+				pass(
+					'doctor-deploy-not-present',
+					'Deployment artifacts are present',
+					'deploy/ is not present in this fixture or project copy',
+					'recommended'
+				),
+			],
+		};
+	}
+
+	const requiredFiles = [
+		'Containerfile',
+		'deploy/env.example',
+		'deploy/Caddyfile.example',
+		'deploy/quadlets/web.container',
+		'deploy/quadlets/web.network',
+		'deploy/quadlets/postgres.container',
+		'deploy/quadlets/postgres.volume',
+		'deploy/systemd/automation-worker.service',
+		'deploy/systemd/automation-worker.timer',
+	];
+	const missing = requiredFiles.filter((path) => !existsSync(join(rootDir, path)));
+	if (missing.length) {
+		checks.push(
+			warn(
+				'doctor-deploy-files',
+				'Deployment artifacts are present',
+				`Missing: ${missing.join(', ')}`,
+				'recommended',
+				'Restore deployment templates before using the self-hosted deploy path.'
+			)
+		);
+	} else {
+		checks.push(
+			pass(
+				'doctor-deploy-files',
+				'Deployment artifacts are present',
+				'All baseline deploy templates exist',
+				'recommended'
+			)
+		);
+	}
+
+	const placeholderFiles = requiredFiles
+		.filter((path) => existsSync(join(rootDir, path)))
+		.filter((path) => containsDeployPlaceholder(readFileSync(join(rootDir, path), 'utf8')));
+	if (placeholderFiles.length) {
+		checks.push(
+			warn(
+				'doctor-deploy-placeholders',
+				'Deployment placeholders are replaced',
+				`Placeholders remain in: ${placeholderFiles.join(', ')}`,
+				'recommended',
+				'Run bun run init:site before installing deploy artifacts on a host.'
+			)
+		);
+	} else {
+		checks.push(
+			pass(
+				'doctor-deploy-placeholders',
+				'Deployment placeholders are replaced',
+				'No deploy placeholders detected',
+				'recommended'
+			)
+		);
+	}
+
+	const requiredEnv = [...REQUIRED_PUBLIC_ENV_VARS, ...REQUIRED_PRIVATE_ENV_VARS];
+	const envProblems: string[] = [];
+	for (const path of ['.env.example', 'deploy/env.example']) {
+		const content = readTextIfExists(rootDir, path);
+		if (!content) {
+			envProblems.push(`${path} missing`);
+			continue;
+		}
+		for (const key of requiredEnv) {
+			if (!new RegExp(`^${key}=`, 'mu').test(content)) envProblems.push(`${path} missing ${key}`);
+		}
+	}
+	if (envProblems.length) {
+		checks.push(
+			warn(
+				'doctor-env-examples',
+				'Required env names are documented',
+				envProblems.join(', '),
+				'recommended',
+				'Keep .env.example and deploy/env.example aligned with src/lib/server/env.ts.'
+			)
+		);
+	} else {
+		checks.push(
+			pass(
+				'doctor-env-examples',
+				'Required env names are documented',
+				`${requiredEnv.join(', ')} documented in both example env files`,
+				'recommended'
+			)
+		);
+	}
+
+	const webContainer = readTextIfExists(rootDir, 'deploy/quadlets/web.container') ?? '';
+	const caddyfile = readTextIfExists(rootDir, 'deploy/Caddyfile.example') ?? '';
+	const publishPort = webContainer.match(/PublishPort=127\.0\.0\.1:(\d+):3000/u)?.[1];
+	const caddyPort = caddyfile.match(/reverse_proxy\s+127\.0\.0\.1:(\d+)/u)?.[1];
+	if (publishPort && caddyPort && publishPort === caddyPort) {
+		checks.push(
+			pass(
+				'doctor-deploy-port',
+				'Caddy and web Quadlet ports align',
+				`Both use loopback port ${publishPort}`,
+				'recommended'
+			)
+		);
+	} else {
+		checks.push(
+			warn(
+				'doctor-deploy-port',
+				'Caddy and web Quadlet ports align',
+				`PublishPort=${publishPort ?? 'missing'}, reverse_proxy=${caddyPort ?? 'missing'}`,
+				'recommended',
+				'Keep deploy/quadlets/web.container and deploy/Caddyfile.example on the same loopback port.'
+			)
+		);
+	}
+
+	return { id: 'deployment', label: 'Deployment Artifacts', checks };
+}
+
+function nextCommandsSection(): DoctorSection {
+	return {
+		id: 'next-commands',
+		label: 'Known Next Commands',
+		checks: [
+			pass('doctor-next-core', 'Daily local gate', 'bun run validate:core', 'recommended'),
+			pass(
+				'doctor-next-launch',
+				'Before shipping a copied site',
+				'bun run validate:launch && bun run deploy:preflight',
+				'recommended'
+			),
+			pass(
+				'doctor-next-smoke',
+				'After deployment',
+				'bun run deploy:smoke -- --url https://your-domain.example',
+				'recommended'
+			),
+		],
+	};
+}
+
 export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorResult> {
 	const rootDir = options.rootDir ?? ROOT_DIR;
 	const env = options.env ?? process.env;
@@ -749,8 +934,18 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 	);
 	const validation = await validationForecastSection(rootDir, env, runner);
 	const launchBlockers = await launchBlockersSection(rootDir, env, envSource);
+	const deployment = deploymentArtifactsSection(rootDir);
+	const nextCommands = nextCommandsSection();
 
-	const sections = [environment, configuration.section, runtime, validation, launchBlockers];
+	const sections = [
+		environment,
+		configuration.section,
+		runtime,
+		validation,
+		launchBlockers,
+		deployment,
+		nextCommands,
+	];
 	const checks = sections.flatMap((section) => section.checks);
 	const status = aggregateStatus(checks);
 

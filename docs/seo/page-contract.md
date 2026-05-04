@@ -4,6 +4,8 @@ Every route created in this template must satisfy this contract. No exceptions f
 
 `src/app.html` intentionally does not include a fallback `<title>`. Every page that should render a document title must provide one through the SEO component.
 
+For a concise planning worksheet, copy [page-brief.template.md](page-brief.template.md) before building a new page.
+
 ## Required for every public page
 
 | Field                | Where it goes                 | Notes                                                                                                |

@@ -17,6 +17,7 @@ Database-backed SvelteKit website platform for fast hand-built personal projects
 - **Git-backed content system** — `content/` directory, Sveltia CMS admin, typed content loaders for pages/articles/team/testimonials
 - **Observability spine** — friendly error page (with request ID + support link), `/healthz`, `/readyz`, structured logging, safe error handling
 - **Security baseline** — Valibot env schemas, per-route CSP (`/admin`-aware for Sveltia CDN), minimal HTTP security headers
+- **Quality gates** — source-level accessibility, security-header policy, SEO/page contract, built bundle performance budgets, deploy preflight, and URL-driven deploy smoke
 - **CMS content safety** — validation scripts that catch blank fields, bad dates, and destructive diffs before deploy
 - **Automation-ready** — transactional outbox in `automation_events`, `automation:worker` delivery/retry/dead-letter flow, n8n/webhook providers, production timer wiring
 - **Business form registry + scaffolds** — source-controlled form starter, source tables, Superforms schemas, outbox events, PII, retention, and redacted operator inspection
@@ -155,6 +156,7 @@ Before deploying:
 
 ```bash
 bun run launch:check   # release-grade gate; alias of validate:launch
+bun run deploy:preflight # structural deploy readiness after init/env rendering
 ```
 
 See [docs/getting-started.md](docs/getting-started.md) for the full guide,
@@ -229,9 +231,14 @@ bun run forms:ops            # redacted operator inspection for form and automat
 bun run scaffold:form        # generate a typed DB-backed starter form
 bun run scaffold:page        # generate a plain SEO/Section-backed page
 bun run check:assets         # verify favicon / og-default / manifest defaults exist
+bun run check:security-headers # verify app security header policy and /admin CSP exceptions
+bun run check:accessibility  # source-level a11y guardrails
 bun run check:design-system  # validate design-system guardrails
+bun run check:performance    # inspect built JS/CSS/assets against performance.budget.json
 bun run check:init-site      # acceptance-test init:site on a temp copy
 bun run check:launch         # production placeholder/env launch gate
+bun run deploy:preflight     # structural deploy readiness for env, Caddy, Quadlet, worker
+bun run deploy:smoke         # URL-driven post-deploy health/discovery/header smoke
 bun run doctor               # read-only local/project diagnostic
 bun run init:site            # interactive/stdin compatibility initializer
 bun run automation:worker    # process pending automation outbox events
@@ -239,13 +246,13 @@ bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)
 bun run db:studio            # open Drizzle Studio
-bun run validate:core        # local-safe gate: checks → build → unit tests; no local listener
+bun run validate:core        # local-safe gate: checks → build → performance → unit tests; no local listener
 bun run validate             # alias of validate:core
 bun run validate:ci          # CI gate: validate:core + built Playwright/visual smoke
 bun run validate:launch      # release-grade: validate:core + init-site/launch/content-diff checks
 ```
 
-The validation lifecycle has three useful entry points: `validate:core`/`validate` for daily local work, `validate:ci` for CI with built e2e and visual smoke, and `validate:launch` before tagging or shipping a release. See [docs/template-maintenance.md](docs/template-maintenance.md) and [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
+The validation lifecycle has three useful entry points: `validate:core`/`validate` for daily local work, `validate:ci` for CI with built e2e and visual smoke, and `validate:launch` before tagging or shipping a release. For a copied site that is ready to deploy, add `bun run deploy:preflight`; after it is live, run `bun run deploy:smoke -- --url https://your-domain.example`. See [docs/template-maintenance.md](docs/template-maintenance.md) and [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
 
 ## E2E environment variables
 

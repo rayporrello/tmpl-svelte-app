@@ -39,9 +39,13 @@ bun run check:cms                # validate static/admin/config.yml (Sveltia)
 bun run check:content            # validate Markdown / YAML files under content/
 bun run check:content-diff       # detect destructive content changes (release-grade)
 bun run check:assets             # verify favicon / og-default / manifest defaults exist
+bun run check:security-headers   # verify app security headers and /admin CSP exceptions
+bun run check:accessibility      # source-level a11y guardrails
 bun run check:design-system      # validate design-system guardrails
+bun run check:performance        # inspect built JS/CSS/assets against performance.budget.json
 bun run check:launch             # verify production env (ORIGIN/PUBLIC_SITE_URL look like real HTTPS)
 bun run deploy:preflight         # structural deploy readiness checks for env, Caddy, Quadlet, Postgres, worker
+bun run deploy:smoke             # URL-driven post-deploy smoke for health, discovery, headers
 bun run check:init-site          # acceptance-test init:site on a temp copy
 bun run bootstrap                # run scripts/bootstrap.ts through package script
 bun run doctor                   # read-only local/project diagnostic
@@ -51,7 +55,7 @@ bun run init:site -- --write     # generate owned files from site.project.json
 bun run automation:worker        # process pending automation outbox events
 bun run secrets:render           # decrypt secrets.yaml → .env (requires SOPS + age)
 bun run secrets:check            # verify no plaintext secrets are tracked
-bun run validate:core            # local-safe: checks → images → build → unit tests; no listener
+bun run validate:core            # local-safe: checks → images → build → performance → unit tests; no listener
 bun run validate                 # alias of validate:core
 bun run validate:ci              # CI-grade: validate:core + built Playwright/visual smoke
 bun run validate:launch          # release-grade: validate:core + check:launch + check:content-diff
@@ -170,7 +174,7 @@ If a future project separates CMS uploads from the repo (e.g. all uploads stay i
 
 ## Validation before shipping a template change
 
-The template has a two-tier validation lifecycle (see [ADR-018](planning/adrs/ADR-018-production-runtime-and-deployment-contract.md)):
+The template has a three-tier validation lifecycle (see [ADR-018](planning/adrs/ADR-018-production-runtime-and-deployment-contract.md)):
 
 ```bash
 bun run validate:core     # local-safe PR-grade checks; no local listener
@@ -192,24 +196,27 @@ Both git commands should produce empty output.
 
 `bun run validate:core` / `bun run validate` (in order):
 
-| Step                          | What it validates                                                                                                 |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `bun run format:check`        | Formatting drift before expensive checks                                                                          |
-| `bun run check`               | TypeScript types; Svelte component types; `svelte-check`                                                          |
-| `bun run check:bootstrap`     | Bootstrap dry-run and mock-provisioner idempotency                                                                |
-| `bun run secrets:check`       | No plaintext secret files or tracked rendered env artifacts                                                       |
-| `bun run project:check`       | `site.project.json` shape and generated-file drift                                                                |
-| `bun run routes:check`        | Every concrete SvelteKit route has an explicit route policy                                                       |
-| `bun run forms:check`         | Registered forms have files, source tables, PII/retention metadata, route coverage, docs, and valid outbox events |
-| `bun run check:seo`           | SEO source structure and route registry are valid; placeholder values warn only                                   |
-| `bun run check:analytics`     | GTM/GA4/Cloudflare analytics config is structurally safe                                                          |
-| `bun run check:cms`           | `static/admin/config.yml` schema is valid (no broken collection or field config)                                  |
-| `bun run check:content`       | content/ files parse and pass field validation; no blank required fields, no bad dates                            |
-| `bun run check:assets`        | Default static assets (favicon, og-default, manifest) exist and are non-empty                                     |
-| `bun run check:design-system` | CSS/HTML/Svelte design-system guardrails pass                                                                     |
-| `bun run images:optimize`     | Image pipeline runs, exits 0 on empty uploads                                                                     |
-| `bun run build`               | Vite build succeeds; adapter output is valid                                                                      |
-| `bun run test`                | Vitest unit tests                                                                                                 |
+| Step                             | What it validates                                                                                                      |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `bun run format:check`           | Formatting drift before expensive checks                                                                               |
+| `bun run check`                  | TypeScript types; Svelte component types; `svelte-check`                                                               |
+| `bun run check:bootstrap`        | Bootstrap dry-run and mock-provisioner idempotency                                                                     |
+| `bun run secrets:check`          | No plaintext secret files or tracked rendered env artifacts                                                            |
+| `bun run project:check`          | `site.project.json` shape and generated-file drift                                                                     |
+| `bun run routes:check`           | Every concrete SvelteKit route has an explicit route policy                                                            |
+| `bun run forms:check`            | Registered forms have files, source tables, PII/retention metadata, route coverage, docs, and valid outbox events      |
+| `bun run check:seo`              | SEO source structure and route registry are valid; placeholder values warn only                                        |
+| `bun run check:analytics`        | GTM/GA4/Cloudflare analytics config is structurally safe                                                               |
+| `bun run check:cms`              | `static/admin/config.yml` schema is valid (no broken collection or field config)                                       |
+| `bun run check:content`          | content/ files parse and pass field validation; no blank required fields, no bad dates                                 |
+| `bun run check:assets`           | Default static assets (favicon, og-default, manifest) exist and are non-empty                                          |
+| `bun run check:security-headers` | Security-header policy has CSP, frame protection, nosniff, referrer, permissions, HSTS-on-HTTPS, and /admin exceptions |
+| `bun run check:accessibility`    | Source-level a11y guardrails for h1s, form labels, empty interactive names, and image alt                              |
+| `bun run check:design-system`    | CSS/HTML/Svelte design-system guardrails pass                                                                          |
+| `bun run images:optimize`        | Image pipeline runs, exits 0 on empty uploads                                                                          |
+| `bun run build`                  | Vite build succeeds; adapter output is valid                                                                           |
+| `bun run check:performance`      | Built client JS/CSS and local assets stay within `performance.budget.json` budgets                                     |
+| `bun run test`                   | Vitest unit tests                                                                                                      |
 
 `bun run validate:ci` adds:
 
@@ -221,6 +228,7 @@ Both git commands should produce empty output.
 
 | Step                         | What it validates                                                                                       |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `bun run check:init-site`    | Initializer acceptance test on a temp copy                                                              |
 | `bun run check:launch`       | `ORIGIN` and `PUBLIC_SITE_URL` look like a real HTTPS production URL (not placeholder, not `localhost`) |
 | `bun run check:content-diff` | No destructive content rewrites are about to ship (compares git diff against `content/`)                |
 
@@ -230,6 +238,14 @@ When changing deployment artifacts, also run `bun run deploy:preflight` against
 a project-specific production env file. In the uninitialized template it is
 expected to fail on placeholders; after `init:site` and env rendering, it should
 pass structurally before the first deploy.
+
+After a deploy, run the explicit URL smoke:
+
+```bash
+bun run deploy:smoke -- --url https://your-domain.example
+```
+
+Use `--skip-readyz` only when database readiness is checked separately.
 
 ## Acceptance test for init:site
 

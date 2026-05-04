@@ -7,6 +7,7 @@ import { readEnv, type EnvMap } from './lib/env-file';
 import { evaluateLaunchBlockers } from './lib/launch-blockers';
 import { sanitizeProjectSlug } from './lib/postgres-dev';
 import { run as defaultRunner, type RunResult } from './lib/run';
+import { REQUIRED_PRIVATE_ENV_VARS, REQUIRED_PUBLIC_ENV_VARS } from '../src/lib/server/env';
 
 export type DeployPreflightStatus = 'pass' | 'fail';
 
@@ -487,6 +488,72 @@ export async function checkQuadletProject(
 	);
 }
 
+export async function checkQuadletNetwork(
+	context: DeployPreflightContext
+): Promise<DeployPreflightResult> {
+	const label = 'Project network Quadlet is coherent';
+	const slug = projectSlug(context.rootDir);
+	const path = join(context.rootDir, 'deploy/quadlets/web.network');
+	if (!existsSync(path)) {
+		return fail(
+			'PREFLIGHT-QUADLET-002',
+			label,
+			'deploy/quadlets/web.network is missing.',
+			'NEXT: Restore deploy/quadlets/web.network or add the project network unit.'
+		);
+	}
+
+	const content = readFileSync(path, 'utf8');
+	if (content.includes('<project>')) {
+		return fail(
+			'PREFLIGHT-QUADLET-002',
+			label,
+			'deploy/quadlets/web.network still contains <project> placeholders.',
+			'NEXT: Run bun run init:site or replace <project> with the project slug.'
+		);
+	}
+	if (!content.includes(`[Network]`)) {
+		return fail(
+			'PREFLIGHT-QUADLET-002',
+			label,
+			'deploy/quadlets/web.network is missing a [Network] section.',
+			'NEXT: Restore the project-local Podman network unit.'
+		);
+	}
+
+	const webPath = join(context.rootDir, 'deploy/quadlets/web.container');
+	const postgresPath = join(context.rootDir, 'deploy/quadlets/postgres.container');
+	const webContent = existsSync(webPath) ? readFileSync(webPath, 'utf8') : '';
+	const postgresContent = existsSync(postgresPath) ? readFileSync(postgresPath, 'utf8') : '';
+	const expectedNetworkLine = `Network=${slug}.network`;
+	const missing = [
+		!webContent
+			? 'deploy/quadlets/web.container is missing.'
+			: !webContent.includes(expectedNetworkLine)
+				? 'deploy/quadlets/web.container does not join the project network.'
+				: null,
+		postgresContent && !postgresContent.includes(expectedNetworkLine)
+			? 'deploy/quadlets/postgres.container does not join the project network.'
+			: null,
+	].filter((item): item is string => item !== null);
+
+	if (missing.length) {
+		return fail(
+			'PREFLIGHT-QUADLET-002',
+			label,
+			missing.join(' '),
+			'NEXT: Keep web and bundled Postgres on the same <project>.network.'
+		);
+	}
+
+	return pass(
+		'PREFLIGHT-QUADLET-002',
+		label,
+		`web.network exists and containers join ${slug}.network.`,
+		'NEXT: Copy it to ~/.config/containers/systemd/<project>.network on the host.'
+	);
+}
+
 export async function checkRuntimeReachability(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
@@ -514,6 +581,43 @@ export async function checkRuntimeReachability(
 		label,
 		'web.container publishes 127.0.0.1:3000 and Caddy proxies to the same loopback port.',
 		'NEXT: If you change one port for a multi-site host, change the other in the same deploy.'
+	);
+}
+
+export async function checkEnvExamples(
+	context: DeployPreflightContext
+): Promise<DeployPreflightResult> {
+	const label = 'Required runtime env names are documented';
+	const required = [...REQUIRED_PUBLIC_ENV_VARS, ...REQUIRED_PRIVATE_ENV_VARS];
+	const files = ['.env.example', 'deploy/env.example'];
+	const problems: string[] = [];
+
+	for (const file of files) {
+		const path = join(context.rootDir, file);
+		if (!existsSync(path)) {
+			problems.push(`${file} is missing.`);
+			continue;
+		}
+		const content = readFileSync(path, 'utf8');
+		for (const key of required) {
+			if (!new RegExp(`^${key}=`, 'mu').test(content)) problems.push(`${file} missing ${key}.`);
+		}
+	}
+
+	if (problems.length) {
+		return fail(
+			'PREFLIGHT-ENV-003',
+			label,
+			problems.join(' '),
+			'NEXT: Keep .env.example and deploy/env.example aligned with src/lib/server/env.ts.'
+		);
+	}
+
+	return pass(
+		'PREFLIGHT-ENV-003',
+		label,
+		`${required.join(', ')} are present in .env.example and deploy/env.example.`,
+		'NEXT: Add new required env vars to both example files in the same change.'
 	);
 }
 
@@ -805,11 +909,13 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 	{ id: 'PREFLIGHT-ENV-002', label: 'Origins are HTTPS and match', run: checkHttpsOrigins },
 	{ id: 'PREFLIGHT-CADDY-001', label: 'Caddyfile domain is replaced', run: checkCaddyfileDomain },
 	{ id: 'PREFLIGHT-QUADLET-001', label: 'Quadlet names align', run: checkQuadletProject },
+	{ id: 'PREFLIGHT-QUADLET-002', label: 'Project network aligns', run: checkQuadletNetwork },
 	{
 		id: 'PREFLIGHT-RUNTIME-001',
 		label: 'Loopback runtime reachability aligns',
 		run: checkRuntimeReachability,
 	},
+	{ id: 'PREFLIGHT-ENV-003', label: 'Env examples include required names', run: checkEnvExamples },
 	{
 		id: 'PREFLIGHT-POSTGRES-001',
 		label: 'Bundled Postgres artifacts align',

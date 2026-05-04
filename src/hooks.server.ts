@@ -4,7 +4,7 @@ import { getOrCreateRequestId } from '$lib/server/request-id';
 import { logger } from '$lib/server/logger';
 import { toSafeError } from '$lib/server/safe-error';
 import { initEnv } from '$lib/server/env';
-import { buildCsp } from '$lib/server/csp';
+import { applySecurityHeaders } from '$lib/server/security-headers';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Validate env vars on first runtime request; no-op on subsequent calls.
@@ -12,19 +12,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (!building) initEnv();
 	event.locals.requestId = getOrCreateRequestId(event.request);
 	const response = await resolve(event);
-	response.headers.set('X-Content-Type-Options', 'nosniff');
-	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	response.headers.set('X-Frame-Options', 'DENY');
-	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-	response.headers.set('Content-Security-Policy', buildCsp(event.url));
-	// HSTS defense-in-depth: Caddy is canonical (deploy/Caddyfile.example) but
-	// this app may be deployed behind a different proxy (CF Tunnel, etc.).
-	if (event.url.protocol === 'https:') {
-		response.headers.set(
-			'Strict-Transport-Security',
-			'max-age=31536000; includeSubDomains; preload'
-		);
-	}
+	applySecurityHeaders(response.headers, event.url, { method: event.request.method });
 	return response;
 };
 

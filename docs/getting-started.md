@@ -17,6 +17,7 @@ Before launch:
 
 ```bash
 bun run launch:check   # release-grade pre-deploy gate
+bun run deploy:preflight # structural deploy readiness after init/env rendering
 ```
 
 If you want to understand each step or override what bootstrap does, the manual
@@ -447,7 +448,11 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
 3. Follow the full deployment runbook for host Caddy, loopback-published web,
    optional bundled Postgres, explicit migrations, and worker timer wiring:
    [docs/deployment/runbook.md](deployment/runbook.md)
-4. CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) runs `validate:ci` on every push, builds the image, runs Trivy with CRITICAL gating, smoke-tests the running container, and pushes to GHCR on `main`. `validate:launch` is gated on tags.
+4. After deploying, smoke the live URL:
+   ```bash
+   bun run deploy:smoke -- --url https://your-domain.example
+   ```
+5. CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) runs `validate:ci` on every push, builds the image, runs Trivy with CRITICAL gating, smoke-tests the running container, and pushes to GHCR on `main`. `validate:launch` is gated on tags.
 
 ---
 
@@ -457,10 +462,15 @@ Before going live, run the launch-grade validator:
 
 ```bash
 bun run validate:launch
+bun run deploy:preflight
 ```
 
 This includes `check:launch` which verifies the production URL is a real
 HTTPS domain (not `localhost`, not a placeholder string).
+
+After the site is reachable, run `bun run deploy:smoke -- --url https://your-domain.example`
+to verify `/healthz`, `/readyz`, discovery files, `/contact`, and key security
+headers from outside the process.
 
 See [docs/seo/launch-checklist.md](seo/launch-checklist.md) for the complete
 pre-launch checklist covering SEO, a11y, images, and performance.
