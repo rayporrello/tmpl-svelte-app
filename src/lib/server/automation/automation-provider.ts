@@ -1,5 +1,7 @@
 export type AutomationProviderName = 'n8n' | 'webhook' | 'console' | 'noop';
 
+export const BUSINESS_FORM_SUBMITTED_EVENT = 'business_form.submitted' as const;
+
 export interface LeadCreatedAutomationData {
 	submission_id: string;
 	name: string;
@@ -8,8 +10,17 @@ export interface LeadCreatedAutomationData {
 	request_id?: string | null;
 }
 
+export interface BusinessFormSubmittedAutomationData {
+	form_id: string;
+	submission_id: string;
+	source_table: string;
+	source_path?: string | null;
+	request_id?: string | null;
+}
+
 export interface AutomationEventDataMap {
 	'lead.created': LeadCreatedAutomationData;
+	[BUSINESS_FORM_SUBMITTED_EVENT]: BusinessFormSubmittedAutomationData;
 }
 
 export type AutomationEventName = keyof AutomationEventDataMap;

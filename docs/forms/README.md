@@ -14,23 +14,34 @@ The professional default is:
 
 The app owns reliable capture. n8n owns workflow orchestration.
 
+For new projects, start with the scaffold and then edit the generated source:
+
+```bash
+bun run scaffold:form -- --slug=idea-box --title="Idea Box" --description="Send a small project idea."
+```
+
+The scaffold writes ordinary files. It is not a runtime form builder. Review the
+generated fields, then run `bun run db:generate` and apply the migration.
+
 ---
 
 ## Source Of Truth
 
-| Contract                        | File                                               | Purpose                                                       |
-| ------------------------------- | -------------------------------------------------- | ------------------------------------------------------------- |
-| Form registry                   | `src/lib/server/forms/registry.ts`                 | Lists business forms, source tables, PII, retention, commands |
-| Form schemas                    | `src/lib/forms/*.schema.ts`                        | Valibot validation contracts                                  |
-| Source tables                   | `src/lib/server/db/schema.ts`                      | Typed Postgres tables for submitted business data             |
-| Automation event types          | `src/lib/server/automation/automation-provider.ts` | Provider envelope TypeScript contract                         |
-| Outbox payload/envelope helpers | `src/lib/server/automation/envelopes.ts`           | PII-minimized outbox payloads and provider envelope builders  |
-| Enqueue helpers                 | `src/lib/server/automation/events.ts`              | Insert pending outbox rows from server actions                |
-| Automation handler registry     | `src/lib/server/automation/registry.ts`            | Maps outbox `event_type` values to worker delivery handlers   |
-| Worker                          | `scripts/automation-worker.ts`                     | Claims, delivers, retries, and dead-letters automation events |
-| Runtime event docs              | `docs/automations/runtime-event-contract.md`       | JSON envelope contract for n8n/webhook receivers              |
-| Visual form rules               | `docs/design-system/forms-guide.md`                | Markup, CSS classes, accessibility, Superforms integration    |
-| Privacy rules                   | `docs/privacy/data-retention.md`                   | Retention and pruning expectations for submitted data         |
+| Contract                        | File                                                  | Purpose                                                       |
+| ------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------- |
+| Form registry                   | `src/lib/server/forms/registry.ts`                    | Lists business forms, source tables, PII, retention, commands |
+| Form scaffold                   | `scripts/scaffold-form.ts`, `scripts/lib/scaffold.ts` | Generates the boring starter files for a typed form           |
+| Operator CLI                    | `scripts/form-ops.ts`, `scripts/lib/form-ops.ts`      | Redacted submission/outbox/dead-letter inspection             |
+| Form schemas                    | `src/lib/forms/*.schema.ts`                           | Valibot validation contracts                                  |
+| Source tables                   | `src/lib/server/db/schema.ts`                         | Typed Postgres tables for submitted business data             |
+| Automation event types          | `src/lib/server/automation/automation-provider.ts`    | Provider envelope TypeScript contract                         |
+| Outbox payload/envelope helpers | `src/lib/server/automation/envelopes.ts`              | PII-minimized outbox payloads and provider envelope builders  |
+| Enqueue helpers                 | `src/lib/server/automation/events.ts`                 | Insert pending outbox rows from server actions                |
+| Automation handler registry     | `src/lib/server/automation/registry.ts`               | Maps outbox `event_type` values to worker delivery handlers   |
+| Worker                          | `scripts/automation-worker.ts`                        | Claims, delivers, retries, and dead-letters automation events |
+| Runtime event docs              | `docs/automations/runtime-event-contract.md`          | JSON envelope contract for n8n/webhook receivers              |
+| Visual form rules               | `docs/design-system/forms-guide.md`                   | Markup, CSS classes, accessibility, Superforms integration    |
+| Privacy rules                   | `docs/privacy/data-retention.md`                      | Retention and pruning expectations for submitted data         |
 
 Run this whenever forms or automation contracts change:
 
@@ -75,7 +86,32 @@ The shared table is the outbox:
 ## Add A New Business Form
 
 Use this checklist for every form that mutates business data or starts a
-workflow.
+workflow. The fast path is:
+
+```bash
+bun run scaffold:form -- --slug=quote-request --title="Quote Request" --description="Tell me what you want to build."
+```
+
+The generated starter includes:
+
+- `src/lib/forms/{slug}.schema.ts`
+- `src/routes/{slug}/+page.server.ts`
+- `src/routes/{slug}/+page.svelte`
+- a typed Drizzle source table in `src/lib/server/db/schema.ts`
+- a registry entry in `src/lib/server/forms/registry.ts`
+- a public route entry in `src/lib/seo/routes.ts`
+- the generic `business_form.submitted` outbox event
+
+It refuses to overwrite generated route/schema files unless `--force` is
+passed. It does not generate migrations for you; after reviewing the table
+shape, run:
+
+```bash
+bun run db:generate
+bun run db:migrate
+```
+
+Manual form recipe:
 
 ### 1. Name The Workflow
 
@@ -124,7 +160,19 @@ Only store what the business needs. Avoid "just in case" fields.
 
 ### 4. Add The Outbox Event Contract
 
-Update these files together:
+New scaffolds default to the generic `business_form.submitted` event. That event
+stores only:
+
+- `form_id`
+- `submission_id`
+- `source_table`
+- `source_path`
+- `request_id`
+
+Use it when the worker only needs to notify a generic receiver that a source
+record exists, or while you are still shaping the project.
+
+When a project needs a bespoke provider payload, update these files together:
 
 1. `src/lib/server/automation/automation-provider.ts`
    - Add a data interface.
@@ -159,7 +207,10 @@ The registry entry must identify:
 - source table
 - outbox event, or `null` if no automation event exists
 - PII fields
+- PII classification
 - retention policy
+- retention days
+- docs link or description
 - inspection commands
 
 Then run:
@@ -231,20 +282,27 @@ Professional default:
 Common inspection options:
 
 ```bash
-bun run db:studio
+bun run forms:ops -- list --form=contact
 ```
 
 ```bash
-psql "$DATABASE_URL" -c "select id, created_at, name, email, source_path from contact_submissions order by created_at desc limit 20;"
+bun run forms:ops -- inspect --form=contact --id=<submission-id>
 ```
 
 ```bash
-psql "$DATABASE_URL" -c "select id, created_at, event_type, status, attempt_count, last_error from automation_events order by created_at desc limit 20;"
+bun run forms:ops -- automation:pending
 ```
 
 ```bash
-psql "$DATABASE_URL" -c "select id, created_at, event_type, event_id, error from automation_dead_letters order by created_at desc limit 20;"
+bun run forms:ops -- dead-letters
 ```
+
+```bash
+bun run forms:ops -- dead-letter:requeue --id=<dead-letter-id> --confirm
+```
+
+`forms:ops` redacts PII by default. Pass `--show-pii` only when you
+intentionally need submitted values.
 
 If a project needs an admin submissions page, add it as a separate authenticated
 feature:

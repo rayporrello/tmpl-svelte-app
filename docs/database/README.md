@@ -43,6 +43,16 @@ For business forms, prefer one typed source table per meaningful workflow and
 register it in `src/lib/server/forms/registry.ts`; see
 [docs/forms/README.md](../forms/README.md).
 
+The fastest typed-form path is:
+
+```bash
+bun run scaffold:form -- --slug=idea-box --title="Idea Box" --description="Send a small project idea."
+bun run db:generate
+bun run db:migrate
+```
+
+The scaffold edits `schema.ts`; it intentionally does not fake a migration file.
+
 The runtime tables include pruning indexes for privacy retention:
 
 - `contact_submissions(created_at)`
@@ -98,6 +108,7 @@ Default retention windows live in `src/lib/server/privacy/retention.ts` and are 
 | `bun run db:studio`     | Open Drizzle Studio at `http://127.0.0.1:4983`                    |
 | `bun run db:check`      | Check for schema drift between schema.ts and the DB               |
 | `bun run privacy:prune` | Dry-run expired runtime-data pruning; pass `-- --apply` to delete |
+| `bun run forms:ops`     | Redacted operator inspection for registered form/runtime records  |
 
 `db:push` is useful for rapid iteration in development. Use `db:generate` + `db:migrate` for any change that needs to be tracked and deployed.
 

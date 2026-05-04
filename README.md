@@ -1,6 +1,6 @@
 # tmpl-svelte-app
 
-Database-backed SvelteKit website template for serious lead-generation sites — with Postgres + Drizzle, Superforms, transactional email, durable n8n/webhook automation, SEO, CMS, deployment, and examples built in.
+Database-backed SvelteKit website platform for fast hand-built personal projects — with Postgres + Drizzle, Superforms, transactional email, durable n8n/webhook automation, SEO, CMS, deployment, and reusable scaffolding primitives built in.
 
 ## What's included
 
@@ -19,7 +19,7 @@ Database-backed SvelteKit website template for serious lead-generation sites —
 - **Security baseline** — Valibot env schemas, per-route CSP (`/admin`-aware for Sveltia CDN), minimal HTTP security headers
 - **CMS content safety** — validation scripts that catch blank fields, bad dates, and destructive diffs before deploy
 - **Automation-ready** — transactional outbox in `automation_events`, `automation:worker` delivery/retry/dead-letter flow, n8n/webhook providers, production timer wiring
-- **Business form registry** — documented pattern for source tables, Superforms schemas, outbox events, PII, retention, and operator inspection
+- **Business form registry + scaffolds** — source-controlled form starter, source tables, Superforms schemas, outbox events, PII, retention, and redacted operator inspection
 - **Production runtime contract** — Containerfile (multi-stage, non-root, HEALTHCHECK), Podman Quadlet templates, Caddyfile example
 - **CI** — GitHub Actions workflow with validate / image / launch jobs, Trivy CRITICAL gating, smoke tests, GHCR push
 - **Tests** — Vitest unit tests in `validate:core`; Playwright e2e smoke (with axe accessibility and visual smoke checks) in `validate:ci`
@@ -225,6 +225,9 @@ bun run check:content        # validate content/ files
 bun run project:check        # validate site.project.json + generated-file drift
 bun run routes:check         # validate route policy coverage
 bun run forms:check          # validate business form registry and outbox references
+bun run forms:ops            # redacted operator inspection for form and automation records
+bun run scaffold:form        # generate a typed DB-backed starter form
+bun run scaffold:page        # generate a plain SEO/Section-backed page
 bun run check:assets         # verify favicon / og-default / manifest defaults exist
 bun run check:design-system  # validate design-system guardrails
 bun run check:init-site      # acceptance-test init:site on a temp copy

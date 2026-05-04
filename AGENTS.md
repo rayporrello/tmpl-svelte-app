@@ -202,6 +202,8 @@ Superforms owns: validation, data binding, submission, progressive enhancement, 
 
 Business-form architecture is documented in `docs/forms/README.md`. For any form that captures a lead or starts a workflow, use a form-specific source table plus the shared automation outbox. Add the form to `src/lib/server/forms/registry.ts`, add any outbox event handler to `src/lib/server/automation/registry.ts`, and run `bun run forms:check`.
 
+For a new typed starter form, prefer `bun run scaffold:form -- --slug=<form-id>` and then edit the generated source. The scaffold uses the generic `business_form.submitted` outbox event, writes source-controlled files, and prints `bun run db:generate` as the migration step. Inspect runtime records with `bun run forms:ops`; it redacts PII by default.
+
 Do not:
 
 - Add form validation logic to `forms.css` or any CSS file

@@ -57,8 +57,10 @@ Every provider receives the same versioned JSON envelope:
 See [runtime-event-contract.md](runtime-event-contract.md) for the full TypeScript contract and event catalog.
 
 When adding a new business form, also follow [docs/forms/README.md](../forms/README.md).
-New event types need an envelope, enqueue helper, handler registry entry, docs,
-and tests.
+Scaffolded forms use `business_form.submitted` by default, which carries only
+source identifiers. Add a bespoke event type only when a project needs a
+provider payload with project-specific fields; bespoke events need an envelope,
+enqueue helper, handler registry entry, docs, and tests.
 
 Migration note for existing n8n workflows:
 
@@ -75,6 +77,7 @@ Update any active workflow expressions from `type`/`createdAt`/`payload` to `eve
 
 - A production-ready contact form at `src/routes/contact/`
 - `enqueueLeadCreated()` / `emitLeadCreated()` at `src/lib/server/automation/events.ts`
+- `enqueueBusinessFormSubmitted()` for scaffolded typed forms
 - Automation handler registry at `src/lib/server/automation/registry.ts`
 - `bun run automation:worker` for durable delivery, retry, and dead-lettering
 - `AutomationProvider` at `src/lib/server/automation/automation-provider.ts`

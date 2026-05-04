@@ -1,4 +1,5 @@
 export const RETENTION_DEFAULTS_DAYS = {
+	businessFormSubmissions: 90,
 	contactSubmissions: 90,
 	automationEventsCompleted: 30,
 	automationEventsFailed: 60,

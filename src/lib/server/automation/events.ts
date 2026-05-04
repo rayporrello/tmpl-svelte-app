@@ -1,9 +1,13 @@
 import { db as defaultDb } from '$lib/server/db';
 import { automationEvents } from '$lib/server/db/schema';
 import { logger } from '$lib/server/logger';
+import { BUSINESS_FORM_SUBMITTED_EVENT } from './automation-provider';
 import {
+	businessFormSubmittedIdempotencyKey,
 	leadCreatedIdempotencyKey,
+	toBusinessFormSubmittedOutboxPayload,
 	toLeadCreatedOutboxPayload,
+	type BusinessFormSubmittedOutboxPayload,
 	type LeadCreatedOutboxPayload,
 } from './envelopes';
 
@@ -19,11 +23,31 @@ export interface LeadCreatedPayload {
 	requestId?: string | null;
 }
 
+export interface BusinessFormSubmittedPayload {
+	formId: string;
+	submissionId: string;
+	sourceTable: string;
+	sourcePath?: string | null;
+	requestId?: string | null;
+}
+
 type AutomationEventInsertClient = Pick<typeof defaultDb, 'insert'>;
 
 function outboxPayload(payload: LeadCreatedPayload): LeadCreatedOutboxPayload {
 	return toLeadCreatedOutboxPayload({
 		submissionId: payload.submissionId,
+		sourcePath: payload.sourcePath,
+		requestId: payload.requestId,
+	});
+}
+
+function businessFormOutboxPayload(
+	payload: BusinessFormSubmittedPayload
+): BusinessFormSubmittedOutboxPayload {
+	return toBusinessFormSubmittedOutboxPayload({
+		formId: payload.formId,
+		submissionId: payload.submissionId,
+		sourceTable: payload.sourceTable,
 		sourcePath: payload.sourcePath,
 		requestId: payload.requestId,
 	});
@@ -56,6 +80,40 @@ export async function enqueueLeadCreated(
 
 	logger.info('automation event enqueued', {
 		event: 'lead.created',
+		submissionId: payload.submissionId,
+		idempotencyKey,
+	});
+}
+
+/**
+ * Insert a pending generic business-form outbox event.
+ *
+ * This is the scaffold default for new source-controlled forms. It persists
+ * only source identifiers and operational metadata; add a bespoke event later
+ * when a project needs provider payload fields beyond this primitive.
+ */
+export async function enqueueBusinessFormSubmitted(
+	payload: BusinessFormSubmittedPayload,
+	dbOverride?: AutomationEventInsertClient
+): Promise<void> {
+	const client = dbOverride ?? defaultDb;
+	const idempotencyKey = businessFormSubmittedIdempotencyKey(payload.formId, payload.submissionId);
+
+	await client
+		.insert(automationEvents)
+		.values({
+			eventType: BUSINESS_FORM_SUBMITTED_EVENT,
+			payload: businessFormOutboxPayload(payload) as unknown,
+			status: 'pending',
+			attemptCount: 0,
+			maxAttempts: 5,
+			idempotencyKey,
+		})
+		.onConflictDoNothing({ target: automationEvents.idempotencyKey });
+
+	logger.info('automation event enqueued', {
+		event: BUSINESS_FORM_SUBMITTED_EVENT,
+		formId: payload.formId,
 		submissionId: payload.submissionId,
 		idempotencyKey,
 	});

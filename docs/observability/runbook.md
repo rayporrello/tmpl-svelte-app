@@ -45,17 +45,34 @@ This runbook assumes the current database-backed template baseline. Tier 2/3 add
 **Logs to inspect:**
 
 - App logs filtered to the form route (e.g., `/contact`)
-- Postgres rows in `contact_submissions`, `automation_events`, and `automation_dead_letters`
+- Redacted submission and outbox state through `bun run forms:ops`
 - n8n execution log (if n8n is enabled): check the last execution of `site:<project>:contact:*`
 
 **Safe recovery steps:**
 
 1. Check Postgres connectivity and `/readyz`.
-2. Confirm the source row exists in `contact_submissions`.
-3. Confirm the outbox row exists in `automation_events`.
-4. Run `bun run automation:worker` manually and inspect the outcome.
-5. If provider delivery is skipped, verify the selected provider URL and secret.
-6. For events in `automation_dead_letters`, fix the receiver/configuration, then re-enqueue or manually replay from the source row.
+2. Confirm the source row exists:
+   ```bash
+   bun run forms:ops -- list --form=contact
+   ```
+3. Inspect a specific source row only when needed:
+   ```bash
+   bun run forms:ops -- inspect --form=contact --id=<submission-id>
+   ```
+4. Confirm the outbox row exists:
+   ```bash
+   bun run forms:ops -- automation:pending
+   ```
+5. Run `bun run automation:worker` manually and inspect the outcome.
+6. If provider delivery is skipped, verify the selected provider URL and secret.
+7. For events in `automation_dead_letters`, fix the receiver/configuration, list the failures, then explicitly requeue the safe event:
+   ```bash
+   bun run forms:ops -- dead-letters
+   bun run forms:ops -- dead-letter:requeue --id=<dead-letter-id> --confirm
+   ```
+
+`forms:ops` redacts PII by default. Pass `--show-pii` only when the submitted
+values are necessary for the incident.
 
 ---
 

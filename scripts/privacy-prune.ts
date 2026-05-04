@@ -9,6 +9,7 @@
  */
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
+import { businessFormRegistry } from '../src/lib/server/forms/registry';
 import { RETENTION_DEFAULTS_DAYS } from '../src/lib/server/privacy/retention';
 
 export const DEFAULT_RETENTION_DAYS = RETENTION_DEFAULTS_DAYS;
@@ -32,6 +33,8 @@ interface PruneResult {
 	matched: number;
 	deleted: number;
 }
+
+const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/u;
 
 function usage(): string {
 	return `Usage: bun run privacy:prune -- [options]
@@ -135,18 +138,42 @@ function asCount(rows: Array<Record<string, unknown>>): number {
 }
 
 async function countContactSubmissions(sql: postgres.Sql, cutoff: Date): Promise<number> {
+	return await countSourceTableRows(sql, 'contact_submissions', cutoff);
+}
+
+async function deleteContactSubmissions(sql: postgres.Sql, cutoff: Date): Promise<number> {
+	return await deleteSourceTableRows(sql, 'contact_submissions', cutoff);
+}
+
+function assertSafeIdentifier(identifier: string): void {
+	if (!SAFE_IDENTIFIER.test(identifier)) {
+		throw new Error(`Unsafe database identifier in form registry: ${identifier}`);
+	}
+}
+
+async function countSourceTableRows(
+	sql: postgres.Sql,
+	tableName: string,
+	cutoff: Date
+): Promise<number> {
+	assertSafeIdentifier(tableName);
 	const rows = await sql`
 		select count(*)::int as count
-		from contact_submissions
+		from ${sql(tableName)}
 		where created_at < ${cutoff}
 	`;
 	return asCount(rows);
 }
 
-async function deleteContactSubmissions(sql: postgres.Sql, cutoff: Date): Promise<number> {
+async function deleteSourceTableRows(
+	sql: postgres.Sql,
+	tableName: string,
+	cutoff: Date
+): Promise<number> {
+	assertSafeIdentifier(tableName);
 	const rows = await sql`
 		with deleted as (
-			delete from contact_submissions
+			delete from ${sql(tableName)}
 			where created_at < ${cutoff}
 			returning 1
 		)
@@ -254,15 +281,24 @@ export async function runPrune(config: PruneConfig): Promise<PruneResult[]> {
 	try {
 		const results: PruneResult[] = [];
 
-		results.push(
-			await collectResult(
-				'contact_submissions',
-				config.contactDays,
-				config.apply,
-				(cutoff) => countContactSubmissions(sql, cutoff),
-				(cutoff) => deleteContactSubmissions(sql, cutoff)
-			)
-		);
+		for (const form of businessFormRegistry) {
+			const days = form.id === 'contact' ? config.contactDays : form.retentionDays;
+			results.push(
+				await collectResult(
+					`${form.sourceTable} (${form.id})`,
+					days,
+					config.apply,
+					(cutoff) =>
+						form.id === 'contact'
+							? countContactSubmissions(sql, cutoff)
+							: countSourceTableRows(sql, form.sourceTable, cutoff),
+					(cutoff) =>
+						form.id === 'contact'
+							? deleteContactSubmissions(sql, cutoff)
+							: deleteSourceTableRows(sql, form.sourceTable, cutoff)
+				)
+			);
+		}
 		results.push(
 			await collectResult(
 				'automation_events completed',

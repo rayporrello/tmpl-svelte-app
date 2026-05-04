@@ -253,7 +253,37 @@ with real copy. The home route loads this file at build time — no database nee
 
 ---
 
-## Step 10 — Set up the database
+## Step 10 — Create custom pages and forms
+
+For a plain source-controlled page, use the page scaffold and then edit the
+generated Svelte:
+
+```bash
+bun run scaffold:page -- --slug=about --title="About"
+bun run routes:check
+```
+
+For a DB-backed form that captures submitted data or starts a workflow, use the
+form scaffold and then customize the generated schema, table, action, and page:
+
+```bash
+bun run scaffold:form -- --slug=idea-box --title="Idea Box" --description="Send a small project idea."
+bun run db:generate
+bun run db:migrate
+bun run forms:check
+```
+
+The form scaffold writes typed source files; it is not a runtime form builder.
+It registers the form, adds route/SEO coverage, inserts a minimized automation
+outbox event, and leaves TODOs where project-specific fields belong. Inspect
+runtime records with `bun run forms:ops`, which redacts PII by default.
+
+Read [docs/forms/README.md](forms/README.md) before hand-editing a generated
+business form.
+
+---
+
+## Step 11 — Set up the database
 
 `DATABASE_URL` is required. The app will not start without it.
 
@@ -344,7 +374,7 @@ See [docs/database/README.md](database/README.md) for the full setup guide, scri
 
 ---
 
-## Step 11 — Configure optional modules
+## Step 12 — Configure optional modules
 
 The full optional module registry is at **[docs/modules/README.md](modules/README.md)**. Every module is dormant by default — no runtime cost unless activated.
 
@@ -394,7 +424,7 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
 
 ---
 
-## Step 12 — Deploy
+## Step 13 — Deploy
 
 1. Build and verify locally:
    ```bash

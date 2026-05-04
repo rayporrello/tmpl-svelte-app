@@ -24,6 +24,8 @@ export const contactSubmissions = pgTable(
 	(table) => [index('contact_submissions_created_at_idx').on(table.createdAt)]
 );
 
+// FORM SCAFFOLD: source tables go above this line.
+
 // status: 'pending' | 'processing' | 'completed' | 'failed'
 export const automationEvents = pgTable(
 	'automation_events',

@@ -17,8 +17,17 @@ export interface LeadCreatedAutomationData {
 	request_id?: string | null;
 }
 
+export interface BusinessFormSubmittedAutomationData {
+	form_id: string;
+	submission_id: string;
+	source_table: string;
+	source_path?: string | null;
+	request_id?: string | null;
+}
+
 export interface AutomationEventDataMap {
 	'lead.created': LeadCreatedAutomationData;
+	'business_form.submitted': BusinessFormSubmittedAutomationData;
 }
 
 export type AutomationEventName = keyof AutomationEventDataMap;
@@ -61,9 +70,10 @@ registered in `src/lib/server/automation/registry.ts`.
 
 ## Event Catalog
 
-| Event          | Version | Trigger                                      |
-| -------------- | ------- | -------------------------------------------- |
-| `lead.created` | `1`     | Contact form submitted and saved to Postgres |
+| Event                     | Version | Trigger                                              |
+| ------------------------- | ------- | ---------------------------------------------------- |
+| `lead.created`            | `1`     | Contact form submitted and saved to Postgres         |
+| `business_form.submitted` | `1`     | Scaffolded source-controlled form saved to its table |
 
 Add new events only when a real form/action emits them. Follow
 [docs/forms/README.md](../forms/README.md) for the source table, outbox,
@@ -95,6 +105,33 @@ Field notes:
 - `idempotency_key` is stable for the source record and lets receivers deduplicate retries.
 - `source_path` is the page path that produced the lead when known.
 - `request_id` correlates receiver logs with SvelteKit server logs.
+
+---
+
+## `business_form.submitted`
+
+```json
+{
+	"event": "business_form.submitted",
+	"version": 1,
+	"occurred_at": "2026-05-04T12:00:00.000Z",
+	"idempotency_key": "business_form.submitted:idea-box:sub-123",
+	"data": {
+		"form_id": "idea-box",
+		"submission_id": "sub-123",
+		"source_table": "idea_box_submissions",
+		"source_path": "/idea-box",
+		"request_id": "req-abc"
+	}
+}
+```
+
+Field notes:
+
+- `form_id` must match `src/lib/server/forms/registry.ts`.
+- `submission_id` points at the form-specific source table row.
+- `source_table` is included for operator routing; receivers should still treat the app database as the source of truth.
+- Submitted PII is not duplicated into this outbox event.
 
 ---
 

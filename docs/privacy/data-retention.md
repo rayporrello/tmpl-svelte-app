@@ -1,6 +1,6 @@
 # Privacy and Data Retention
 
-This document is operational guidance, not legal advice. It gives projects a practical default for small business websites that collect contact form leads and optionally emit automation webhooks.
+This document is operational guidance, not legal advice. It gives projects a practical default for websites that collect typed form submissions and optionally emit automation webhooks.
 
 The code source of truth for default retention windows is `src/lib/server/privacy/retention.ts`. If those constants change, update this document in the same change.
 
@@ -10,6 +10,7 @@ The code source of truth for default retention windows is `src/lib/server/privac
 
 | Store                                         | Personal data risk                                                  | Purpose                                                  | Default retention                    |
 | --------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------ |
+| Registered form source tables                 | Project-specific submitted fields plus operational metadata         | Respond to submissions and diagnose delivery issues      | `businessFormSubmissions`: 90 days   |
 | `contact_submissions`                         | Name, email, free-text message, source path, user agent, request ID | Respond to contact requests and diagnose delivery issues | `contactSubmissions`: 90 days        |
 | `automation_events` with `status='completed'` | Outbox record with source record reference and delivery metadata    | Confirm outbound webhook delivery                        | `automationEventsCompleted`: 30 days |
 | `automation_events` with `status='failed'`    | Exhausted outbox record with source record reference and error text | Investigate failed webhook delivery                      | `automationEventsFailed`: 60 days    |
@@ -57,6 +58,11 @@ Pending and processing automation events are excluded by default. To prune stale
 ```bash
 bun run privacy:prune -- --include-stale-pending-days=14 --apply
 ```
+
+The command prunes every source table registered in
+`src/lib/server/forms/registry.ts`. The contact form keeps the legacy
+`--contact-days` override; new scaffolded forms use their registry
+`retentionDays` value.
 
 The command prints cutoff dates, matching counts, and deleted counts. It has no JSON output in v1.
 

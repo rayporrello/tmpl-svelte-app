@@ -30,6 +30,9 @@ bun run check:db                 # live Postgres connectivity check
 bun run project:check            # validate site.project.json and generated-file drift
 bun run routes:check             # validate explicit route policy coverage
 bun run forms:check              # validate business form registry and outbox references
+bun run forms:ops                # redacted operator inspection for form/runtime records
+bun run scaffold:form            # generate a typed DB-backed starter form
+bun run scaffold:page            # generate a plain SEO/Section-backed page
 bun run check:seo                # validate SEO config and public route registry
 bun run check:analytics          # validate dormant/active analytics config
 bun run check:cms                # validate static/admin/config.yml (Sveltia)
@@ -189,24 +192,24 @@ Both git commands should produce empty output.
 
 `bun run validate:core` / `bun run validate` (in order):
 
-| Step                          | What it validates                                                                      |
-| ----------------------------- | -------------------------------------------------------------------------------------- |
-| `bun run format:check`        | Formatting drift before expensive checks                                               |
-| `bun run check`               | TypeScript types; Svelte component types; `svelte-check`                               |
-| `bun run check:bootstrap`     | Bootstrap dry-run and mock-provisioner idempotency                                     |
-| `bun run secrets:check`       | No plaintext secret files or tracked rendered env artifacts                            |
-| `bun run project:check`       | `site.project.json` shape and generated-file drift                                     |
-| `bun run routes:check`        | Every concrete SvelteKit route has an explicit route policy                            |
-| `bun run forms:check`         | Every registered business form has a source table, PII notes, and valid outbox event   |
-| `bun run check:seo`           | SEO source structure and route registry are valid; placeholder values warn only        |
-| `bun run check:analytics`     | GTM/GA4/Cloudflare analytics config is structurally safe                               |
-| `bun run check:cms`           | `static/admin/config.yml` schema is valid (no broken collection or field config)       |
-| `bun run check:content`       | content/ files parse and pass field validation; no blank required fields, no bad dates |
-| `bun run check:assets`        | Default static assets (favicon, og-default, manifest) exist and are non-empty          |
-| `bun run check:design-system` | CSS/HTML/Svelte design-system guardrails pass                                          |
-| `bun run images:optimize`     | Image pipeline runs, exits 0 on empty uploads                                          |
-| `bun run build`               | Vite build succeeds; adapter output is valid                                           |
-| `bun run test`                | Vitest unit tests                                                                      |
+| Step                          | What it validates                                                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `bun run format:check`        | Formatting drift before expensive checks                                                                          |
+| `bun run check`               | TypeScript types; Svelte component types; `svelte-check`                                                          |
+| `bun run check:bootstrap`     | Bootstrap dry-run and mock-provisioner idempotency                                                                |
+| `bun run secrets:check`       | No plaintext secret files or tracked rendered env artifacts                                                       |
+| `bun run project:check`       | `site.project.json` shape and generated-file drift                                                                |
+| `bun run routes:check`        | Every concrete SvelteKit route has an explicit route policy                                                       |
+| `bun run forms:check`         | Registered forms have files, source tables, PII/retention metadata, route coverage, docs, and valid outbox events |
+| `bun run check:seo`           | SEO source structure and route registry are valid; placeholder values warn only                                   |
+| `bun run check:analytics`     | GTM/GA4/Cloudflare analytics config is structurally safe                                                          |
+| `bun run check:cms`           | `static/admin/config.yml` schema is valid (no broken collection or field config)                                  |
+| `bun run check:content`       | content/ files parse and pass field validation; no blank required fields, no bad dates                            |
+| `bun run check:assets`        | Default static assets (favicon, og-default, manifest) exist and are non-empty                                     |
+| `bun run check:design-system` | CSS/HTML/Svelte design-system guardrails pass                                                                     |
+| `bun run images:optimize`     | Image pipeline runs, exits 0 on empty uploads                                                                     |
+| `bun run build`               | Vite build succeeds; adapter output is valid                                                                      |
+| `bun run test`                | Vitest unit tests                                                                                                 |
 
 `bun run validate:ci` adds:
 
