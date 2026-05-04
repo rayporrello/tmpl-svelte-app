@@ -400,11 +400,12 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
    ```bash
    bun run validate:core     # local-safe: format/type/bootstrap/config checks, build, unit
    bun run validate:launch   # release-grade: validate:core + check:launch + check:content-diff
+   bun run deploy:preflight  # after init:site/env rendering: Caddy, Quadlet, Postgres, worker structure
    ```
 2. Build the container image:
    ```bash
-   podman build -t <your-project>:local .
-   podman run --rm -p 3000:3000 \
+   podman build --format docker -t <your-project>:local .
+   podman run --rm -p 127.0.0.1:3000:3000 \
      -e PORT=3000 -e HOST=0.0.0.0 \
      -e ORIGIN=http://127.0.0.1:3000 \
      -e PUBLIC_SITE_URL=http://127.0.0.1:3000 \
@@ -413,7 +414,9 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
    # visit http://127.0.0.1:3000/healthz — process check, should return 200
    # visit http://127.0.0.1:3000/readyz  — DB connectivity check, should return 200
    ```
-3. Follow the full deployment runbook: [docs/deployment/runbook.md](deployment/runbook.md)
+3. Follow the full deployment runbook for host Caddy, loopback-published web,
+   optional bundled Postgres, explicit migrations, and worker timer wiring:
+   [docs/deployment/runbook.md](deployment/runbook.md)
 4. CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) runs `validate:ci` on every push, builds the image, runs Trivy with CRITICAL gating, smoke-tests the running container, and pushes to GHCR on `main`. `validate:launch` is gated on tags.
 
 ---

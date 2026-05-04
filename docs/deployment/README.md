@@ -1,6 +1,6 @@
 # Deployment
 
-Documentation for deploying sites built from this template. The deployment model uses **Podman + Caddy** — containers for the app, Caddy as the reverse proxy.
+Documentation for deploying sites built from this template. The deployment model uses **rootless Podman + host-installed Caddy**: the app publishes a loopback-only port, and Caddy is the public reverse proxy.
 
 ---
 
@@ -18,17 +18,22 @@ Documentation for deploying sites built from this template. The deployment model
 
 ## Deployment artifacts
 
-| Artifact                        | Location           | Purpose                                                                                                  |
-| ------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `Containerfile`                 | repo root          | Multi-stage Bun runtime image (builder + lean runtime)                                                   |
-| `Containerfile.node.example`    | repo root          | Escape-hatch recipe for adapter-node swap (not CI-tested)                                                |
-| `serve.js`                      | repo root          | SIGTERM-aware entrypoint that wraps `build/index.js` for graceful Quadlet restarts                       |
-| `deploy/env.example`            | `deploy/`          | Runtime env var reference for container / Quadlet                                                        |
-| `deploy/quadlets/web.container` | `deploy/quadlets/` | Systemd user unit via Podman Quadlet                                                                     |
-| `deploy/quadlets/web.network`   | `deploy/quadlets/` | Project-local Podman network                                                                             |
-| `deploy/systemd/backup.service` | `deploy/systemd/`  | Plain systemd user unit — runs `privacy:prune` then `backup:all` (with off-host push)                    |
-| `deploy/systemd/backup.timer`   | `deploy/systemd/`  | Daily 03:00 timer (with jitter) that fires `backup.service`                                              |
-| `deploy/Caddyfile.example`      | `deploy/`          | Caddy reverse proxy with TLS, HSTS, compression, optional rate-limit and immutable-asset header snippets |
+| Artifact                                   | Location           | Purpose                                                                                                  |
+| ------------------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `.dockerignore`                            | repo root          | Keeps secrets, git metadata, dev deps, and generated output out of image build contexts                  |
+| `Containerfile`                            | repo root          | Multi-stage Bun runtime image (builder + production-only runtime deps)                                   |
+| `Containerfile.node.example`               | repo root          | Escape-hatch recipe for adapter-node swap (not CI-tested)                                                |
+| `serve.js`                                 | repo root          | SIGTERM-aware entrypoint that wraps `build/index.js` for graceful Quadlet restarts                       |
+| `deploy/env.example`                       | `deploy/`          | Runtime env var reference for container / Quadlet                                                        |
+| `deploy/quadlets/web.container`            | `deploy/quadlets/` | Systemd user unit via Podman Quadlet                                                                     |
+| `deploy/quadlets/web.network`              | `deploy/quadlets/` | Project-local Podman network                                                                             |
+| `deploy/quadlets/postgres.container`       | `deploy/quadlets/` | Optional self-hosted Postgres container wired to the project network and loopback host tools path        |
+| `deploy/quadlets/postgres.volume`          | `deploy/quadlets/` | Persistent Postgres data volume                                                                          |
+| `deploy/systemd/automation-worker.service` | `deploy/systemd/`  | Plain systemd user unit that runs one automation outbox worker batch                                     |
+| `deploy/systemd/automation-worker.timer`   | `deploy/systemd/`  | Repeating timer for the automation worker; logs via journald                                             |
+| `deploy/systemd/backup.service`            | `deploy/systemd/`  | Plain systemd user unit — runs `privacy:prune` then `backup:all` (with off-host push)                    |
+| `deploy/systemd/backup.timer`              | `deploy/systemd/`  | Daily 03:00 timer (with jitter) that fires `backup.service`                                              |
+| `deploy/Caddyfile.example`                 | `deploy/`          | Caddy reverse proxy with TLS, HSTS, compression, optional rate-limit and immutable-asset header snippets |
 
 ---
 
@@ -36,10 +41,10 @@ Documentation for deploying sites built from this template. The deployment model
 
 ```bash
 # 1. Build the image locally
-podman build -f Containerfile -t my-site .
+podman build --format docker -f Containerfile -t my-site .
 
 # 2. Test it
-podman run --rm -p 3000:3000 \
+podman run --rm -p 127.0.0.1:3000:3000 \
   -e ORIGIN=http://127.0.0.1:3000 \
   -e PUBLIC_SITE_URL=http://127.0.0.1:3000 \
   -e DATABASE_URL=postgres://site_user:yourpassword@host.containers.internal:5432/site_db \
@@ -71,10 +76,15 @@ Decision: [ADR-013](../planning/adrs/ADR-013-sops-age-secrets-management.md)
 Sites built from this template are self-hosted on a Linux server:
 
 - **App container**: Podman running the SvelteKit + Bun image
-- **Reverse proxy**: Caddy (handles TLS, HSTS, compression, access logging)
-- **Automation layer** (optional): n8n as a separate container
-- **Database**: Postgres as a separate container or managed service
+- **Reverse proxy**: host-installed Caddy (handles TLS, HSTS, compression, access logging) proxying to `127.0.0.1:<app_port>`
+- **Automation layer** (optional): n8n as a separate container or external service; the app's outbox worker is a systemd timer
+- **Database**: optional bundled Postgres container, or managed Postgres when you prefer provider backups/HA
 - **Process management**: systemd user units via Podman Quadlet
+
+The default reachability model is deliberate: `deploy/quadlets/web.container`
+publishes `127.0.0.1:3000:3000`, and `deploy/Caddyfile.example` proxies to
+`127.0.0.1:3000`. If several sites share one host, pick a different loopback
+port per site and change both files together.
 
 This is not a Vercel/Netlify/cloud-platform deployment. The template is designed for solo/founder-led projects on a VPS or dedicated server.
 

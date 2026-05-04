@@ -1,0 +1,32 @@
+# deploy/systemd/automation-worker.service — automation outbox batch for <project>
+#
+# Plain systemd user unit (not a Quadlet). It runs one automation:worker batch
+# from the checked-out project directory. The paired timer runs it repeatedly.
+#
+# Usage:
+#   1. Run `bun run init:site` to replace <project> placeholders.
+#   2. Copy to ~/.config/systemd/user/<project>-automation-worker.service
+#      Copy deploy/systemd/automation-worker.timer to
+#      ~/.config/systemd/user/<project>-automation-worker.timer
+#   3. systemctl --user daemon-reload
+#   4. systemctl --user enable --now <project>-automation-worker.timer
+#
+# Logs:
+#   journalctl --user -u <project>-automation-worker.service -f
+#
+# The worker does not require n8n to exist. With AUTOMATION_PROVIDER=noop or no
+# configured webhook URL, provider delivery skips cleanly.
+
+[Unit]
+Description=Automation worker batch — <project>
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/<project>
+EnvironmentFile=%h/secrets/<project>.prod.env
+ExecStart=%h/.bun/bin/bun run automation:worker
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal

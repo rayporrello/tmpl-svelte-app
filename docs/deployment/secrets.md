@@ -137,11 +137,12 @@ Do not decrypt manually and then re-encrypt — `sops secrets.yaml` handles the 
 The intended pattern for Podman/Quadlet deployments:
 
 ```bash
-# Render to the container env file path
-./scripts/render-secrets.sh secrets.yaml ~/.config/containers/env/SITENAME.env
+# Render to the shared env file used by web, Postgres, worker, and backups
+./scripts/render-secrets.sh secrets.yaml ~/secrets/<project>.prod.env
+chmod 600 ~/secrets/<project>.prod.env
 ```
 
-The Quadlet unit reads the rendered env file. The rendered file is **not** the source of truth — `secrets.yaml` is. If the server loses the rendered file, re-run the render script.
+The shipped units read `%h/secrets/<project>.prod.env`. The rendered file is **not** the source of truth — `secrets.yaml` is. If the server loses the rendered file, re-run the render script.
 
 Do not commit rendered env files to the repo or bake them into container images.
 
@@ -179,6 +180,8 @@ The new machine can now decrypt. The old key still works until removed.
 These values belong in `secrets.yaml`:
 
 - `DATABASE_URL` — includes username and password
+- `DATABASE_DIRECT_URL` — optional host-side database URL for migrations/backups/restores when it differs from `DATABASE_URL`
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — bundled Postgres initialization values when using `deploy/quadlets/postgres.container`
 - `POSTMARK_SERVER_TOKEN` — transactional email API key
 - `SESSION_SECRET` — must be a long random string; never a placeholder
 - OAuth client secrets and callback tokens

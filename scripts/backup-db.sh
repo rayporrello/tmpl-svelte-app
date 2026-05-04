@@ -12,11 +12,15 @@ set -euo pipefail
 
 # ── Guards ─────────────────────────────────────────────────────────────────────
 
-if [[ -z "${DATABASE_URL:-}" ]]; then
+EFFECTIVE_DATABASE_URL="${DATABASE_DIRECT_URL:-${DATABASE_URL:-}}"
+
+if [[ -z "${EFFECTIVE_DATABASE_URL}" ]]; then
   echo "Error: DATABASE_URL is not set." >&2
   echo "" >&2
   echo "Set it before running:" >&2
   echo "  export DATABASE_URL=postgres://user:password@host:5432/dbname" >&2
+  echo "  # or, for host-side production tools:" >&2
+  echo "  export DATABASE_DIRECT_URL=postgres://user:password@127.0.0.1:5432/dbname" >&2
   echo "  bun run backup:db" >&2
   echo "" >&2
   echo "  Or source your rendered .env first:" >&2
@@ -58,7 +62,7 @@ echo "Backing up database → ${BACKUP_FILE}"
 pg_dump \
   --format=custom \
   --no-password \
-  --dbname="${DATABASE_URL}" \
+  --dbname="${EFFECTIVE_DATABASE_URL}" \
   --file="${BACKUP_FILE}"
 
 trap - ERR

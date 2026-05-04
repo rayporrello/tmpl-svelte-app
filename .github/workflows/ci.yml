@@ -210,6 +210,10 @@ jobs:
               deploy/Caddyfile.example|\
               deploy/quadlets/web.container|\
               deploy/quadlets/web.network|\
+              deploy/quadlets/postgres.container|\
+              deploy/quadlets/postgres.volume|\
+              deploy/systemd/automation-worker.service|\
+              deploy/systemd/automation-worker.timer|\
               deploy/systemd/backup.service|\
               deploy/systemd/backup.timer)
                 SHOULD_RUN=true
@@ -288,7 +292,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       # ── Trivy: CRITICAL — blocks the run ──────────────────────────────────
-      # .trivyignore documents accepted-risk CVE suppressions with rationale.
+      # .trivyignore stays present even when empty so CI has a stable ignore file.
       - name: Trivy scan — CRITICAL (blocking)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

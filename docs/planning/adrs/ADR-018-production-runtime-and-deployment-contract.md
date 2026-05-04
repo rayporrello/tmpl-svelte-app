@@ -24,7 +24,7 @@ Bun's official documentation recommends `svelte-adapter-bun` as the SvelteKit pr
 
 ### Deployment model
 
-Podman rootless containers + Caddy reverse proxy (ADR-007) are the deployment target. Systemd user units via Quadlet provide lifecycle management with restart-on-failure and SHA-pinned image references for deterministic rollback.
+Podman rootless containers + host-installed Caddy reverse proxy (ADR-007) are the deployment target. The web Quadlet publishes the app on a loopback-only host port, and Caddy proxies to that same loopback port. Systemd user units via Quadlet provide lifecycle management with restart-on-failure and SHA-pinned image references for deterministic rollback.
 
 ---
 
@@ -54,7 +54,7 @@ This exists because `svelte-adapter-bun` v0.5.2 calls `Bun.serve()` without regi
 
 | Variable              | Default | Purpose                                                     |
 | --------------------- | ------- | ----------------------------------------------------------- |
-| `SHUTDOWN_TIMEOUT_MS` | `10000` | Milliseconds to wait after SIGTERM before `process.exit(0)` |
+| `SHUTDOWN_TIMEOUT_MS` | `8000`  | Milliseconds to wait after SIGTERM before `process.exit(0)` |
 
 Caddy's `health_uri /healthz` health check (default `health_interval 10s`) routes traffic away from the unhealthy upstream within the same window the wrapper waits, so new requests stop arriving while in-flight responses drain.
 
@@ -96,8 +96,8 @@ A clone of this template must be able to:
 1. `bun install` — install all dependencies without errors
 2. `bun run validate` — pass all local-safe checks (formatting, type, bootstrap, secrets, route/form/SEO/analytics/CMS/content/assets/design-system, images, build, unit tests)
 3. `bun run build` — produce a complete `build/` directory
-4. `podman build -f Containerfile -t <name> .` — build a runnable image
-5. `podman run --rm -p 3000:3000 -e ORIGIN=http://127.0.0.1:3000 -e PUBLIC_SITE_URL=http://127.0.0.1:3000 -e DATABASE_URL=postgres://... <name>` — start successfully
+4. `podman build --format docker -f Containerfile -t <name> .` — build a runnable image with the Containerfile `HEALTHCHECK` preserved
+5. `podman run --rm -p 127.0.0.1:3000:3000 -e ORIGIN=http://127.0.0.1:3000 -e PUBLIC_SITE_URL=http://127.0.0.1:3000 -e DATABASE_URL=postgres://... <name>` — start successfully
 6. `GET /healthz` → 200 `{"ok":true}` — pass the liveness check
 7. Roll back by changing the SHA in the Quadlet and restarting the unit
 
@@ -141,6 +141,9 @@ If `svelte-adapter-bun` becomes unmaintained, breaks on a new Bun version, or fa
 - Backup automation — shipped (turnkey: `scripts/backup-{db,uploads,push,all,verify}.sh` + `deploy/systemd/backup.{service,timer}`; see `docs/operations/backups.md`)
 - Dead-letter table for failed automation events — shipped (`automation_dead_letters`)
 - SIGTERM / graceful shutdown — shipped (`serve.js` wrapper; see Graceful Shutdown above)
+- Production-only runtime dependencies — shipped (`Containerfile` installs with `bun install --production --frozen-lockfile`)
+- Optional bundled Postgres deployment — shipped (`deploy/quadlets/postgres.{container,volume}`)
+- Automation worker production timer — shipped (`deploy/systemd/automation-worker.{service,timer}`)
 
 ---
 

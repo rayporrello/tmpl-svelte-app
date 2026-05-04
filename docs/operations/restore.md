@@ -27,7 +27,7 @@ How to restore a Postgres database or uploads archive from a backup. Read this *
 The script requires an explicit `--confirm` flag to prevent accidental runs.
 
 ```bash
-export DATABASE_URL=postgres://user:password@host:5432/dbname
+export DATABASE_DIRECT_URL=postgres://user:password@127.0.0.1:5432/dbname
 bash scripts/restore-db.sh backups/db/db-20250428T120000Z.pgdump --confirm
 ```
 
@@ -37,7 +37,7 @@ Or via `bun run`:
 bun run restore:db -- backups/db/db-20250428T120000Z.pgdump --confirm
 ```
 
-The script uses `--clean --if-exists` to drop objects before recreating them, and wraps everything in a single transaction. If any part fails, the restore is rolled back and the database is left in its pre-restore state.
+The script uses `DATABASE_DIRECT_URL` first when it is present, then falls back to `DATABASE_URL`. It uses `--clean --if-exists` to drop objects before recreating them, and wraps everything in a single transaction. If any part fails, the restore is rolled back and the database is left in its pre-restore state.
 
 ### Manual pg_restore
 
@@ -45,7 +45,7 @@ If you prefer to run pg_restore directly:
 
 ```bash
 pg_restore \
-  --dbname="$DATABASE_URL" \
+  --dbname="${DATABASE_DIRECT_URL:-$DATABASE_URL}" \
   --clean \
   --if-exists \
   --no-owner \
@@ -149,14 +149,14 @@ rm -rf /tmp/uploads-restore-test
 Guards built into the restore script:
 
 - Requires `--confirm` flag — prevents piped or accidental execution
-- Does not auto-detect environment — you must explicitly set `DATABASE_URL`
+- Does not auto-detect environment — you must explicitly set `DATABASE_DIRECT_URL` or `DATABASE_URL`
 - Prints a warning banner with the backup filename before restoring
 
 Additional habits:
 
-- Never export `DATABASE_URL` pointing at production in your shell profile
+- Never export `DATABASE_DIRECT_URL` or `DATABASE_URL` pointing at production in your shell profile
 - Use different terminal profiles or clear exports before switching environments
-- When in doubt: `echo $DATABASE_URL` and confirm the host before running restore
+- When in doubt: `echo ${DATABASE_DIRECT_URL:-$DATABASE_URL}` and confirm the host before running restore
 
 ---
 

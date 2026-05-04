@@ -38,11 +38,11 @@ bun run backup:verify
 bun run backup:verify -- backups/db/db-20250428T120000Z.pgdump
 ```
 
-`DATABASE_URL` must be set before running database backups. Either export it or source your rendered `.env`:
+`DATABASE_URL` must be set before running database backups. If `DATABASE_DIRECT_URL` is set, the backup script uses it first; this is the normal bundled Postgres production path because host-side tools connect through the loopback-published port. Either export a URL or source your rendered `.env`:
 
 ```bash
 # Option A: export directly
-export DATABASE_URL=postgres://user:password@host:5432/dbname
+export DATABASE_DIRECT_URL=postgres://user:password@127.0.0.1:5432/dbname
 bun run backup:db
 
 # Option B: source .env (only for local dev — do not script this in production)
@@ -217,6 +217,7 @@ Schedule via cron, a different timer, or your CI — it's outside the scripts. W
 Before going live, confirm:
 
 - [ ] `DATABASE_URL` is set in your production environment
+- [ ] `DATABASE_DIRECT_URL` is set when the host must reach bundled Postgres through `127.0.0.1`
 - [ ] `pg_dump` / `pg_restore` are installed on the server (`sudo dnf install postgresql`)
 - [ ] `bun run backup:db` runs successfully
 - [ ] `bun run backup:verify` passes

@@ -70,9 +70,9 @@ example.com {
     # header @svelte_immutable Cache-Control "public, max-age=31536000, immutable"
 
     # ── Reverse proxy ─────────────────────────────────────────────────────────
-    # The SvelteKit app listens on port 3000. In a Podman Quadlet setup the
-    # container is reachable at 127.0.0.1:3000 (or via container hostname if
-    # Caddy is on the same Podman network).
+    # Host-installed Caddy reaches the web container through the loopback-only
+    # PublishPort in deploy/quadlets/web.container. Keep this port aligned with
+    # that unit if you run multiple sites on one host.
     reverse_proxy 127.0.0.1:3000 {
         # Health check — Caddy marks the upstream as healthy before serving.
         health_uri /healthz

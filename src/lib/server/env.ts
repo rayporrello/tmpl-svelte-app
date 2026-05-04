@@ -20,7 +20,12 @@ const publicSchema = v.object({
 
 const privateSchema = v.object({
 	DATABASE_URL: v.pipe(v.string(), v.minLength(1, 'DATABASE_URL must not be empty')),
+	DATABASE_DIRECT_URL: v.optional(v.string()),
+	POSTGRES_DB: v.optional(v.string()),
+	POSTGRES_USER: v.optional(v.string()),
+	POSTGRES_PASSWORD: v.optional(v.string()),
 	SESSION_SECRET: v.optional(v.string()),
+	SHUTDOWN_TIMEOUT_MS: v.optional(v.string()),
 	POSTMARK_SERVER_TOKEN: v.optional(v.string()),
 	CONTACT_TO_EMAIL: v.optional(v.string()),
 	CONTACT_FROM_EMAIL: v.optional(v.string()),
@@ -79,7 +84,12 @@ export function initEnv(): void {
 
 	const privateResult = v.safeParse(privateSchema, {
 		DATABASE_URL: process.env.DATABASE_URL,
+		DATABASE_DIRECT_URL: process.env.DATABASE_DIRECT_URL,
+		POSTGRES_DB: process.env.POSTGRES_DB,
+		POSTGRES_USER: process.env.POSTGRES_USER,
+		POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
 		SESSION_SECRET: process.env.SESSION_SECRET,
+		SHUTDOWN_TIMEOUT_MS: process.env.SHUTDOWN_TIMEOUT_MS,
 		POSTMARK_SERVER_TOKEN: process.env.POSTMARK_SERVER_TOKEN,
 		CONTACT_TO_EMAIL: process.env.CONTACT_TO_EMAIL,
 		CONTACT_FROM_EMAIL: process.env.CONTACT_FROM_EMAIL,

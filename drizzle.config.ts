@@ -1,9 +1,9 @@
 import { defineConfig } from 'drizzle-kit';
 
-const url = process.env.DATABASE_URL;
+const url = process.env.DATABASE_DIRECT_URL || process.env.DATABASE_URL;
 if (!url) {
 	throw new Error(
-		'[drizzle] DATABASE_URL is required. Set it in .env before running drizzle-kit commands.'
+		'[drizzle] DATABASE_URL or DATABASE_DIRECT_URL is required. Set it before running drizzle-kit commands.'
 	);
 }
 

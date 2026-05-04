@@ -92,6 +92,10 @@ export const PROJECT_GENERATED_FILES = [
 	'deploy/Caddyfile.example',
 	'deploy/quadlets/web.container',
 	'deploy/quadlets/web.network',
+	'deploy/quadlets/postgres.container',
+	'deploy/quadlets/postgres.volume',
+	'deploy/systemd/automation-worker.service',
+	'deploy/systemd/automation-worker.timer',
 	'deploy/systemd/backup.service',
 	'deploy/systemd/backup.timer',
 ] as const;
@@ -412,6 +416,44 @@ function rewriteQuadletNetwork(content: string, manifest: SiteProjectManifest): 
 	return out;
 }
 
+function rewritePostgresQuadlet(content: string, manifest: SiteProjectManifest): string {
+	let out = content.replace(/<project>/gu, manifest.project.projectSlug);
+	out = out.replace(
+		/^(Description=Postgres database — )(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	out = out.replace(
+		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	out = out.replace(
+		/^(Network=)([^.]+)(\.network)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	out = out.replace(
+		/^(HostName=)(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}-postgres`
+	);
+	out = out.replace(
+		/^(Volume=)([^:]+)(:\/var\/lib\/postgresql\/data)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}-postgres-data${suffix}`
+	);
+	return out;
+}
+
+function rewritePostgresVolume(content: string, manifest: SiteProjectManifest): string {
+	let out = content.replace(/<project>/gu, manifest.project.projectSlug);
+	out = out.replace(
+		/^(Description=Postgres data volume — )(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	out = out.replace(
+		/^(VolumeName=)(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}-postgres-data`
+	);
+	return out;
+}
+
 function rewriteBackupSystemd(content: string, manifest: SiteProjectManifest): string {
 	let out = content;
 	out = out.replace(/<project>/gu, manifest.project.projectSlug);
@@ -434,6 +476,27 @@ function rewriteBackupSystemd(content: string, manifest: SiteProjectManifest): s
 	return out;
 }
 
+function rewriteWorkerSystemd(content: string, manifest: SiteProjectManifest): string {
+	let out = content.replace(/<project>/gu, manifest.project.projectSlug);
+	out = out.replace(
+		/^(Description=Automation worker (?:batch|timer) — )(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	out = out.replace(
+		/^(WorkingDirectory=%h\/)([^\s]+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	out = out.replace(
+		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	out = out.replace(
+		/^(Unit=)([^\s]+?)(-automation-worker\.service)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	return out;
+}
+
 const REWRITERS: Record<string, (content: string, manifest: SiteProjectManifest) => string> = {
 	'package.json': rewritePackageJson,
 	'src/lib/config/site.ts': rewriteSiteTs,
@@ -444,6 +507,10 @@ const REWRITERS: Record<string, (content: string, manifest: SiteProjectManifest)
 	'deploy/Caddyfile.example': rewriteCaddyfile,
 	'deploy/quadlets/web.container': rewriteQuadlet,
 	'deploy/quadlets/web.network': rewriteQuadletNetwork,
+	'deploy/quadlets/postgres.container': rewritePostgresQuadlet,
+	'deploy/quadlets/postgres.volume': rewritePostgresVolume,
+	'deploy/systemd/automation-worker.service': rewriteWorkerSystemd,
+	'deploy/systemd/automation-worker.timer': rewriteWorkerSystemd,
 	'deploy/systemd/backup.service': rewriteBackupSystemd,
 	'deploy/systemd/backup.timer': rewriteBackupSystemd,
 	'README.md': rewriteReadme,

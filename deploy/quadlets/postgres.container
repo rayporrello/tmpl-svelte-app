@@ -1,0 +1,50 @@
+# deploy/quadlets/postgres.container — optional bundled Postgres for <project>
+#
+# Use this when you want the template's turnkey self-hosted Postgres path.
+# Managed Postgres users can leave this file uninstalled and set DATABASE_URL
+# to the managed database instead.
+#
+# Usage:
+#   1. Run `bun run init:site` to replace <project> placeholders.
+#   2. Copy deploy/quadlets/postgres.volume to
+#      ~/.config/containers/systemd/<project>-postgres-data.volume
+#   3. Copy this file to ~/.config/containers/systemd/<project>-postgres.container
+#   4. systemctl --user daemon-reload
+#   5. systemctl --user enable --now <project>-postgres
+#
+# The same %h/secrets/<project>.prod.env file is shared with web/worker. It
+# must define POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL, and
+# DATABASE_DIRECT_URL as shown in deploy/env.example.
+
+[Unit]
+Description=Postgres database — <project>
+After=network-online.target
+
+[Container]
+Image=docker.io/library/postgres:17-alpine
+EnvironmentFile=%h/secrets/<project>.prod.env
+
+# Web and worker containers reach Postgres by this hostname.
+Network=<project>.network
+HostName=<project>-postgres
+
+# Host-side migration, backup, and restore scripts reach Postgres here via
+# DATABASE_DIRECT_URL. Keep loopback-only; do not publish publicly.
+PublishPort=127.0.0.1:5432:5432
+
+# Persistent database storage. The matching .volume file creates this volume.
+Volume=<project>-postgres-data:/var/lib/postgresql/data
+
+HealthCmd=pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+HealthInterval=10s
+HealthTimeout=3s
+HealthStartPeriod=10s
+HealthRetries=5
+
+[Service]
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

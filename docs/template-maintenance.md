@@ -38,6 +38,7 @@ bun run check:content-diff       # detect destructive content changes (release-g
 bun run check:assets             # verify favicon / og-default / manifest defaults exist
 bun run check:design-system      # validate design-system guardrails
 bun run check:launch             # verify production env (ORIGIN/PUBLIC_SITE_URL look like real HTTPS)
+bun run deploy:preflight         # structural deploy readiness checks for env, Caddy, Quadlet, Postgres, worker
 bun run check:init-site          # acceptance-test init:site on a temp copy
 bun run bootstrap                # run scripts/bootstrap.ts through package script
 bun run doctor                   # read-only local/project diagnostic
@@ -123,18 +124,20 @@ intentional because the default OG image is a manual launch asset.
 
 ### What to commit
 
-| Path                                                  | Commit?               | Notes                                            |
-| ----------------------------------------------------- | --------------------- | ------------------------------------------------ |
-| `src/`                                                | **Yes**               | All source files                                 |
-| `static/`                                             | **Yes, with caveats** | See image artifact policy below                  |
-| `docs/`                                               | **Yes**               | All documentation                                |
-| `scripts/`                                            | **Yes**               | Build scripts                                    |
-| `bun.lock`                                            | **Yes**               | Text lockfile — tracks exact dependency versions |
-| `package.json`                                        | **Yes**               |                                                  |
-| `svelte.config.js`, `vite.config.ts`, `tsconfig.json` | **Yes**               |                                                  |
-| `.gitignore`                                          | **Yes**               |                                                  |
-| `AGENTS.md`, `CLAUDE.md.template`                     | **Yes**               |                                                  |
-| `.env.example`                                        | **Yes**               | Safe defaults only — no real secrets             |
+| Path                                                  | Commit?               | Notes                                             |
+| ----------------------------------------------------- | --------------------- | ------------------------------------------------- |
+| `src/`                                                | **Yes**               | All source files                                  |
+| `static/`                                             | **Yes, with caveats** | See image artifact policy below                   |
+| `docs/`                                               | **Yes**               | All documentation                                 |
+| `scripts/`                                            | **Yes**               | Build scripts                                     |
+| `deploy/`                                             | **Yes**               | Deployment templates and systemd/Quadlet units    |
+| `Containerfile`, `.dockerignore`                      | **Yes**               | Production image contract and build-context guard |
+| `bun.lock`                                            | **Yes**               | Text lockfile — tracks exact dependency versions  |
+| `package.json`                                        | **Yes**               |                                                   |
+| `svelte.config.js`, `vite.config.ts`, `tsconfig.json` | **Yes**               |                                                   |
+| `.gitignore`                                          | **Yes**               |                                                   |
+| `AGENTS.md`, `CLAUDE.md.template`                     | **Yes**               |                                                   |
+| `.env.example`                                        | **Yes**               | Safe defaults only — no real secrets              |
 
 ### What never to commit
 
@@ -219,6 +222,11 @@ Both git commands should produce empty output.
 | `bun run check:content-diff` | No destructive content rewrites are about to ship (compares git diff against `content/`)                |
 
 CI runs `validate:ci` on every push/pull request, the real-Postgres bootstrap smoke on `main`, `check:init-site` when initializer-owned files change, image build/Trivy/container smoke on pushes, and `validate:launch` on tags. See [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+
+When changing deployment artifacts, also run `bun run deploy:preflight` against
+a project-specific production env file. In the uninitialized template it is
+expected to fail on placeholders; after `init:site` and env rendering, it should
+pass structurally before the first deploy.
 
 ## Acceptance test for init:site
 

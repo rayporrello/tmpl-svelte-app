@@ -1,7 +1,7 @@
 # deploy/quadlets/web.container — Podman Quadlet unit for the SvelteKit app
 #
 # Usage:
-#   1. Run `bun run init:site` (Batch B) to replace <owner>, <name>, and <project>
+#   1. Run `bun run init:site` to replace <owner>, <name>, and <project>
 #      placeholders with real values.
 #   2. Copy to ~/.config/containers/systemd/<unit-name>.container on the host.
 #   3. systemctl --user daemon-reload
@@ -24,12 +24,21 @@ Image=ghcr.io/<owner>/<name>:<sha>
 # This file is produced by bun run secrets:render and contains ORIGIN, PUBLIC_SITE_URL, etc.
 EnvironmentFile=%h/secrets/<project>.prod.env
 
-# Container networking — only Caddy can reach the app via the project network.
-# Port is NOT published to the host; Caddy proxies to the container hostname.
+# Join the project network so the app can reach the bundled Postgres container
+# at <project>-postgres:5432. Managed Postgres users can keep the network and
+# simply set DATABASE_URL to the managed database URL.
 Network=<project>.network
 
-# Container hostname for Caddy reverse_proxy directive.
+# Host-installed Caddy reaches the app through this loopback-only publish.
+# If multiple sites share one host, change both this line and
+# deploy/Caddyfile.example to the same unused loopback port.
+PublishPort=127.0.0.1:3000:3000
+
+# Stable hostname for other project containers on <project>.network.
 HostName=<project>-web
+
+# Give serve.js enough room to drain before Podman escalates to SIGKILL.
+StopTimeout=15
 
 # Non-root user matches the uid/gid created in the Containerfile.
 User=1001

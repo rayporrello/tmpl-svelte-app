@@ -16,22 +16,26 @@
 # Note: BODY_SIZE_LIMIT is NOT supported by svelte-adapter-bun v0.5.2.
 #       Handle body size limits at the Caddy layer if required.
 #
-# Build:  podman build -f Containerfile -t <image> .
-# Run:    podman run --rm -p 3000:3000 \
+# Build:  podman build --format docker -f Containerfile -t <image> .
+# Run:    podman run --rm -p 127.0.0.1:3000:3000 \
 #           -e ORIGIN=https://example.com \
 #           -e PUBLIC_SITE_URL=https://example.com \
 #           -e DATABASE_URL=postgres://user:pass@host:5432/db \
 #           <image>
 
+ARG BUN_VERSION=1.3.9
+
 # ── Stage 1: builder ──────────────────────────────────────────────────────────
-FROM oven/bun:1-alpine AS builder
+FROM oven/bun:${BUN_VERSION}-alpine AS builder
 
 WORKDIR /app
 
 RUN apk add --no-cache git
 
-# Install dependencies first (layer cache: only re-runs when lockfile changes)
+# Install dependencies first (layer cache: only re-runs when lockfile or the
+# local package-manager guard changes)
 COPY package.json bun.lock ./
+COPY scripts/ensure-bun.ts ./scripts/ensure-bun.ts
 RUN bun install --frozen-lockfile
 
 # Copy source and build
@@ -40,28 +44,25 @@ COPY . .
 RUN bun run build
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
-FROM oven/bun:1-alpine AS runtime
+FROM oven/bun:${BUN_VERSION}-alpine AS runtime
 
 WORKDIR /app
+ENV NODE_ENV=production
 
 # Non-root user for rootless operation
 RUN addgroup -g 1001 -S app && adduser -u 1001 -S app -G app
 
-# Copy build output, package manifest, and installed node_modules.
-# svelte-adapter-bun generates a build/package.json that lists runtime deps
-# (cookie, devalue, set-cookie-parser, gray-matter, js-yaml). Copying
-# node_modules from the builder is deterministic — same exact package versions
-# as the build, no re-install with unpinned "latest" ranges.
-#
-# Note: this ships some devDeps (notably esbuild's Go-built binaries). Those
-# Go binaries trigger Trivy CRITICAL findings on Go stdlib CVEs even though
-# they are never invoked at runtime ("bun serve.js" → "bun build/index.js"
-# does not touch esbuild). The specific CVE IDs are listed in .trivyignore
-# with rationale. Re-evaluate the suppression when esbuild rebuilds with
-# patched Go and Trivy stops flagging.
-COPY --from=builder --chown=app:app /app/build ./build
+# Install only production dependencies in the runtime image. Omit optional
+# adapter ecosystems and peer build tooling that are not imported by this
+# template's generated server. The adapter output reads Git-backed content from
+# process.cwd()/content at runtime, so copy that directory explicitly alongside
+# build output.
 COPY --from=builder --chown=app:app /app/package.json ./
-COPY --from=builder --chown=app:app /app/node_modules ./node_modules
+COPY --from=builder --chown=app:app /app/bun.lock ./
+RUN bun install --production --frozen-lockfile --ignore-scripts --omit optional --omit peer
+
+COPY --from=builder --chown=app:app /app/build ./build
+COPY --from=builder --chown=app:app /app/content ./content
 COPY --from=builder --chown=app:app /app/serve.js ./
 
 USER app
@@ -75,5 +76,5 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
 
 # serve.js wraps build/index.js with SIGTERM/SIGINT handlers so in-flight
 # requests aren't truncated on Quadlet rolling restart. Tune drain window
-# with SHUTDOWN_TIMEOUT_MS (default 10000ms).
+# with SHUTDOWN_TIMEOUT_MS (default 8000ms).
 CMD ["bun", "serve.js"]

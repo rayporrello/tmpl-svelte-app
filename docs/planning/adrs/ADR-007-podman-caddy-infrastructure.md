@@ -20,7 +20,7 @@ Docker Swarm and Kubernetes are explicitly out of scope (see `02-scope-and-non-g
 Use rootless Podman Quadlets and Caddy as the deployment target for all projects spawned from this template.
 
 - Each service (SvelteKit app, Postgres, n8n, etc.) is defined as a Podman Quadlet unit (`.container` file) managed by systemd user units.
-- Caddy handles TLS termination, reverse proxying, and automatic Let's Encrypt certificate management.
+- Host-installed Caddy handles TLS termination, reverse proxying, and automatic Let's Encrypt certificate management.
 - **Production deploys rebuild the container image and restart the systemd service.** Running `bun run build` on the host alone does not update the live container.
 - Deploy documentation is committed to the repo so the process is reproducible without institutional memory.
 
@@ -40,9 +40,10 @@ The deploy invariant:
 ## Implementation Notes
 
 - Quadlet unit files live in `deploy/quadlets/` (or equivalent directory in the repo).
-- The Caddyfile lives in `deploy/Caddyfile`.
-- Environment variables are provided via sops + age encrypted env files; the Quadlet unit references the decrypted file path.
-- Port allocation follows the project's `ports.conf` convention to avoid conflicts between template instances running on the same host.
+- The Caddyfile template lives in `deploy/Caddyfile.example`; production hosts install the rendered copy at `/etc/caddy/Caddyfile`.
+- The web Quadlet publishes a loopback-only app port and Caddy proxies to that same loopback port.
+- Environment variables are provided via SOPS + age encrypted env files; units reference `%h/secrets/<project>.prod.env`.
+- Port allocation should use a unique loopback app port per site to avoid conflicts between template instances running on the same host.
 - `systemctl --user` is used throughout — this is rootless Podman, not system-level containers.
 
 ## Revisit Triggers

@@ -149,9 +149,14 @@
 
 	.honeypot {
 		position: absolute;
-		left: -9999px;
-		width: 1px;
-		height: 1px;
+		inline-size: 1px;
+		block-size: 1px;
+		margin: -1px;
+		padding: 0;
+		border: 0;
 		overflow: hidden;
+		clip: rect(0 0 0 0);
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 </style>

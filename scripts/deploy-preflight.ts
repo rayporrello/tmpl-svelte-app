@@ -103,6 +103,16 @@ function readPackageName(rootDir: string): string {
 }
 
 function projectSlug(rootDir: string): string {
+	try {
+		const manifest = readJson(join(rootDir, 'site.project.json'));
+		const project = manifest.project;
+		if (project && typeof project === 'object') {
+			const value = (project as Record<string, unknown>).projectSlug;
+			if (typeof value === 'string' && value.trim()) return sanitizeProjectSlug(value);
+		}
+	} catch {
+		// Fall back to package.json for partial fixtures and older projects.
+	}
 	return sanitizeProjectSlug(readPackageName(rootDir));
 }
 
@@ -207,6 +217,17 @@ function parseImageReference(content: string): ImageReference {
 		};
 	}
 	return { ok: true, owner: match[1], name: match[2], tag: match[3] };
+}
+
+function missingLines(content: string, lines: readonly string[]): string[] {
+	return lines.filter((line) => !content.includes(line));
+}
+
+function missingFileOrLines(rootDir: string, path: string, lines: readonly string[]): string[] {
+	const absolutePath = join(rootDir, path);
+	if (!existsSync(absolutePath)) return [`${path} is missing.`];
+	const content = readFileSync(absolutePath, 'utf8');
+	return missingLines(content, lines).map((line) => `${path} missing ${line}.`);
 }
 
 export async function checkProductionEnvFile(
@@ -432,9 +453,11 @@ export async function checkQuadletProject(
 	const expectedLines = [
 		`EnvironmentFile=%h/secrets/${slug}.prod.env`,
 		`Network=${slug}.network`,
+		'PublishPort=127.0.0.1:3000:3000',
 		`HostName=${slug}-web`,
+		'StopTimeout=15',
 	];
-	const missing = expectedLines.filter((line) => !content.includes(line));
+	const missing = missingLines(content, expectedLines);
 
 	if (!image.ok || missing.length > 0) {
 		return fail(
@@ -461,6 +484,200 @@ export async function checkQuadletProject(
 		label,
 		`Quadlet points at ghcr.io/${image.owner}/${slug}:${image.tag}.`,
 		'NEXT: Pin the deployed tag to an immutable commit SHA.'
+	);
+}
+
+export async function checkRuntimeReachability(
+	context: DeployPreflightContext
+): Promise<DeployPreflightResult> {
+	const label = 'Host Caddy reaches web through loopback publish';
+	const problems = [
+		...missingFileOrLines(context.rootDir, 'deploy/quadlets/web.container', [
+			'PublishPort=127.0.0.1:3000:3000',
+		]),
+		...missingFileOrLines(context.rootDir, 'deploy/Caddyfile.example', [
+			'reverse_proxy 127.0.0.1:3000',
+		]),
+	];
+
+	if (problems.length) {
+		return fail(
+			'PREFLIGHT-RUNTIME-001',
+			label,
+			problems.join(' '),
+			'NEXT: Keep deploy/quadlets/web.container PublishPort and deploy/Caddyfile.example reverse_proxy aligned.'
+		);
+	}
+
+	return pass(
+		'PREFLIGHT-RUNTIME-001',
+		label,
+		'web.container publishes 127.0.0.1:3000 and Caddy proxies to the same loopback port.',
+		'NEXT: If you change one port for a multi-site host, change the other in the same deploy.'
+	);
+}
+
+export async function checkPostgresArtifacts(
+	context: DeployPreflightContext
+): Promise<DeployPreflightResult> {
+	const label = 'Bundled Postgres Quadlet artifacts are wired';
+	const slug = projectSlug(context.rootDir);
+	const problems = [
+		...missingFileOrLines(context.rootDir, 'deploy/quadlets/postgres.container', [
+			'Image=docker.io/library/postgres:17-alpine',
+			`EnvironmentFile=%h/secrets/${slug}.prod.env`,
+			`Network=${slug}.network`,
+			`HostName=${slug}-postgres`,
+			'PublishPort=127.0.0.1:5432:5432',
+			`Volume=${slug}-postgres-data:/var/lib/postgresql/data`,
+			'HealthCmd=pg_isready',
+		]),
+		...missingFileOrLines(context.rootDir, 'deploy/quadlets/postgres.volume', [
+			`VolumeName=${slug}-postgres-data`,
+		]),
+	];
+
+	if (problems.length) {
+		return fail(
+			'PREFLIGHT-POSTGRES-001',
+			label,
+			problems.join(' '),
+			'NEXT: Restore deploy/quadlets/postgres.container and postgres.volume or update them for this project.'
+		);
+	}
+
+	return pass(
+		'PREFLIGHT-POSTGRES-001',
+		label,
+		`Postgres container and volume artifacts are present for ${slug}.`,
+		'NEXT: Install them for self-hosted Postgres, or leave them unused when using managed Postgres.'
+	);
+}
+
+export async function checkPostgresEnvShape(
+	context: DeployPreflightContext
+): Promise<DeployPreflightResult> {
+	const label = 'Bundled Postgres env values are present when used';
+	const envReference = readProdEnv(context);
+	if (!envReference.ok) {
+		return fail(
+			'PREFLIGHT-POSTGRES-002',
+			label,
+			envReference.detail,
+			'NEXT: Add DATABASE_URL to the production env file before checking bundled Postgres env values.'
+		);
+	}
+
+	const slug = projectSlug(context.rootDir);
+	const databaseUrl = envReference.env.DATABASE_URL?.trim();
+	if (!databaseUrl) {
+		return fail(
+			'PREFLIGHT-POSTGRES-002',
+			label,
+			'DATABASE_URL is missing.',
+			'NEXT: Set DATABASE_URL to either managed Postgres or postgres://...@<project>-postgres:5432/...'
+		);
+	}
+
+	let parsedDatabaseUrl: URL;
+	try {
+		parsedDatabaseUrl = new URL(databaseUrl);
+	} catch {
+		return fail(
+			'PREFLIGHT-POSTGRES-002',
+			label,
+			'DATABASE_URL is not parseable.',
+			'NEXT: Use postgres://user:password@host:port/database.'
+		);
+	}
+
+	if (parsedDatabaseUrl.hostname !== `${slug}-postgres`) {
+		return pass(
+			'PREFLIGHT-POSTGRES-002',
+			label,
+			`DATABASE_URL targets ${parsedDatabaseUrl.hostname}; assuming managed/external Postgres.`,
+			'NEXT: Use DATABASE_DIRECT_URL only when host-side tools need a different connection URL.'
+		);
+	}
+
+	const requiredKeys = [
+		'DATABASE_DIRECT_URL',
+		'POSTGRES_DB',
+		'POSTGRES_USER',
+		'POSTGRES_PASSWORD',
+	] as const;
+	const missing = requiredKeys.filter((key) => !envReference.env[key]?.trim());
+	if (missing.length) {
+		return fail(
+			'PREFLIGHT-POSTGRES-002',
+			label,
+			`DATABASE_URL targets bundled Postgres but ${missing.join(', ')} ${
+				missing.length === 1 ? 'is' : 'are'
+			} missing.`,
+			'NEXT: Add the bundled Postgres env values shown in deploy/env.example.'
+		);
+	}
+
+	let directUrl: URL;
+	try {
+		directUrl = new URL(envReference.env.DATABASE_DIRECT_URL ?? '');
+	} catch {
+		return fail(
+			'PREFLIGHT-POSTGRES-002',
+			label,
+			'DATABASE_DIRECT_URL is not parseable.',
+			'NEXT: Use postgres://user:password@127.0.0.1:5432/database for the bundled Postgres host tools path.'
+		);
+	}
+
+	if (!['127.0.0.1', 'localhost'].includes(directUrl.hostname)) {
+		return fail(
+			'PREFLIGHT-POSTGRES-002',
+			label,
+			`DATABASE_DIRECT_URL points to ${directUrl.hostname}.`,
+			'NEXT: Point DATABASE_DIRECT_URL at the loopback-published Postgres port for host-side migrations and backups.'
+		);
+	}
+
+	return pass(
+		'PREFLIGHT-POSTGRES-002',
+		label,
+		`DATABASE_URL uses ${slug}-postgres and host tools use ${directUrl.hostname}.`,
+		'NEXT: Run bun run db:migrate explicitly before starting or restarting the web service.'
+	);
+}
+
+export async function checkAutomationWorkerArtifact(
+	context: DeployPreflightContext
+): Promise<DeployPreflightResult> {
+	const label = 'Automation worker systemd timer is wired';
+	const slug = projectSlug(context.rootDir);
+	const problems = [
+		...missingFileOrLines(context.rootDir, 'deploy/systemd/automation-worker.service', [
+			`WorkingDirectory=%h/${slug}`,
+			`EnvironmentFile=%h/secrets/${slug}.prod.env`,
+			'ExecStart=%h/.bun/bin/bun run automation:worker',
+			'Restart=on-failure',
+		]),
+		...missingFileOrLines(context.rootDir, 'deploy/systemd/automation-worker.timer', [
+			`Unit=${slug}-automation-worker.service`,
+		]),
+	];
+
+	if (problems.length) {
+		return fail(
+			'PREFLIGHT-WORKER-001',
+			label,
+			problems.join(' '),
+			'NEXT: Restore deploy/systemd/automation-worker.{service,timer} or update them for this project.'
+		);
+	}
+
+	return pass(
+		'PREFLIGHT-WORKER-001',
+		label,
+		`Automation worker service and timer are present for ${slug}.`,
+		'NEXT: Enable the timer if this project uses runtime automation outbox events.'
 	);
 }
 
@@ -588,6 +805,26 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 	{ id: 'PREFLIGHT-ENV-002', label: 'Origins are HTTPS and match', run: checkHttpsOrigins },
 	{ id: 'PREFLIGHT-CADDY-001', label: 'Caddyfile domain is replaced', run: checkCaddyfileDomain },
 	{ id: 'PREFLIGHT-QUADLET-001', label: 'Quadlet names align', run: checkQuadletProject },
+	{
+		id: 'PREFLIGHT-RUNTIME-001',
+		label: 'Loopback runtime reachability aligns',
+		run: checkRuntimeReachability,
+	},
+	{
+		id: 'PREFLIGHT-POSTGRES-001',
+		label: 'Bundled Postgres artifacts align',
+		run: checkPostgresArtifacts,
+	},
+	{
+		id: 'PREFLIGHT-POSTGRES-002',
+		label: 'Bundled Postgres env aligns',
+		run: checkPostgresEnvShape,
+	},
+	{
+		id: 'PREFLIGHT-WORKER-001',
+		label: 'Automation worker artifact aligns',
+		run: checkAutomationWorkerArtifact,
+	},
 	{ id: 'PREFLIGHT-GHCR-001', label: 'GHCR image name aligns', run: checkGhcrImageShape },
 	{ id: 'PREFLIGHT-BACKUP-001', label: 'Backups configured or waived', run: checkBackupConfigured },
 	{

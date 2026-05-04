@@ -7,10 +7,12 @@
 # Usage:
 #   bash scripts/restore-db.sh <backup-file> --confirm
 #
-# DATABASE_URL must be set in the environment.
+# DATABASE_URL or DATABASE_DIRECT_URL must be set in the environment.
 #
 # Example:
 #   export DATABASE_URL=postgres://user:password@host:5432/dbname
+#   # or for host-side production tools:
+#   export DATABASE_DIRECT_URL=postgres://user:password@127.0.0.1:5432/dbname
 #   bash scripts/restore-db.sh backups/db/db-20250428T120000Z.pgdump --confirm
 set -euo pipefail
 
@@ -27,7 +29,7 @@ Usage: bash scripts/restore-db.sh <backup-file> --confirm
   --confirm       Required. Acknowledges that this will OVERWRITE the database
                   at DATABASE_URL. There is no undo.
 
-DATABASE_URL must be set in the environment.
+DATABASE_URL or DATABASE_DIRECT_URL must be set in the environment.
 
 Recommended before restore:
   1. Take a fresh backup first:   bun run backup:db
@@ -57,11 +59,15 @@ if [[ "$CONFIRM" != "--confirm" ]]; then
   exit 1
 fi
 
-if [[ -z "${DATABASE_URL:-}" ]]; then
+EFFECTIVE_DATABASE_URL="${DATABASE_DIRECT_URL:-${DATABASE_URL:-}}"
+
+if [[ -z "${EFFECTIVE_DATABASE_URL}" ]]; then
   echo "Error: DATABASE_URL is not set." >&2
   echo "" >&2
   echo "Set it before running:" >&2
   echo "  export DATABASE_URL=postgres://user:password@host:5432/dbname" >&2
+  echo "  # or, for host-side production tools:" >&2
+  echo "  export DATABASE_DIRECT_URL=postgres://user:password@127.0.0.1:5432/dbname" >&2
   exit 1
 fi
 
@@ -106,7 +112,7 @@ echo ""
 # --no-acl:            don't restore original permissions (same reason)
 # --single-transaction: wrap in one transaction — rolls back entirely on failure
 pg_restore \
-  --dbname="${DATABASE_URL}" \
+  --dbname="${EFFECTIVE_DATABASE_URL}" \
   --clean \
   --if-exists \
   --no-owner \

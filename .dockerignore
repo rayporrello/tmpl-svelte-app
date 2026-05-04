@@ -1,0 +1,48 @@
+# Dependencies and package-manager artifacts
+node_modules/
+bun.lockb
+
+# SvelteKit / build output
+.svelte-kit/
+build/
+dist/
+
+# Test and coverage output
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Git and local metadata
+.git/
+.gitignore
+.github/
+
+# Runtime env and secrets
+.env
+.env.*
+!.env.example
+secrets.yaml
+secrets.*.yaml
+*.decrypted.yaml
+.sops.yaml
+.sops.yaml.example
+
+# Backups and operator output
+backups/
+logs/
+*.log
+
+# Cache and temp files
+.cache/
+.tmp/
+*.tmp
+*.temp
+*.tsbuildinfo
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

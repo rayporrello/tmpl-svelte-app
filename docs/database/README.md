@@ -66,7 +66,8 @@ Default retention windows live in `src/lib/server/privacy/retention.ts` and are 
    psql site_db -c "GRANT ALL ON SCHEMA public TO site_user;"
    ```
 
-   Or use the Podman Quadlet if the project has one provisioned.
+   For production you can either use managed Postgres or install the bundled
+   `deploy/quadlets/postgres.container` + `postgres.volume` artifacts.
 
 2. **Set `DATABASE_URL` in your environment:**
 
@@ -76,6 +77,9 @@ Default retention windows live in `src/lib/server/privacy/retention.ts` and are 
 
    - For SOPS workflow: add to `secrets.yaml`, then `bun run secrets:render`.
    - For direct `.env` workflow: copy `.env.example` to `.env` and fill in the value.
+   - For bundled production Postgres: set `DATABASE_URL` to the project network
+     host (`<project>-postgres`) and `DATABASE_DIRECT_URL` to the loopback host
+     tools path (`127.0.0.1`).
 
 3. **Run migrations:**
    ```bash
@@ -119,6 +123,7 @@ Default retention windows live in `src/lib/server/privacy/retention.ts` and are 
 Before going live:
 
 - [ ] `DATABASE_URL` is in `secrets.yaml` (encrypted) and verified non-empty
+- [ ] `DATABASE_DIRECT_URL` is set when migrations/backups/restores run from the host against bundled Postgres
 - [ ] `bun run db:migrate` has been run against the production database
 - [ ] The Postgres user has `CONNECT`, `SELECT`, `INSERT`, `UPDATE`, `DELETE` on application tables — not superuser
 - [ ] `/readyz` returns 200 with the production URL

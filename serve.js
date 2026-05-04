@@ -6,11 +6,11 @@
 // responses and dropping postgres connections mid-query.
 //
 // This wrapper registers SIGTERM/SIGINT handlers that delay process exit by
-// SHUTDOWN_TIMEOUT_MS (default 10s). Caddy's reverse_proxy health check
+// SHUTDOWN_TIMEOUT_MS (default 8s). Caddy's reverse_proxy health check
 // routes around the instance within health_interval once /healthz stops
 // answering, so new traffic stops while in-flight requests drain.
 
-const SHUTDOWN_TIMEOUT_MS = Number(process.env.SHUTDOWN_TIMEOUT_MS ?? 10000);
+const SHUTDOWN_TIMEOUT_MS = Number(process.env.SHUTDOWN_TIMEOUT_MS ?? 8000);
 
 let shuttingDown = false;
 function shutdown(signal) {
