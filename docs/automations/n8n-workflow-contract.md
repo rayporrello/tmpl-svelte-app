@@ -153,7 +153,7 @@ The worker's outbox does the work:
 
 What the operator sees:
 
-- `journalctl --user -u <project>-automation-worker -f` shows each batch's
+- `journalctl --user -u <project>-worker -f` shows each batch's
   delivery counts (`delivered`, `retried`, `dead-lettered`).
 - A dead letter is the loud signal: it means a workflow has been failing
   for ~30+ minutes (5 attempts × backoff) and the lead has not reached

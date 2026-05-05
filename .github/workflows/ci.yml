@@ -96,7 +96,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: tmpl_smoke_user
           POSTGRES_PASSWORD: tmpl_smoke_pw
@@ -208,14 +208,20 @@ jobs:
               .env.example|\
               deploy/env.example|\
               deploy/Caddyfile.example|\
+              deploy/Containerfile.postgres|\
               deploy/quadlets/web.container|\
               deploy/quadlets/web.network|\
               deploy/quadlets/postgres.container|\
               deploy/quadlets/postgres.volume|\
-              deploy/systemd/automation-worker.service|\
-              deploy/systemd/automation-worker.timer|\
+              deploy/quadlets/worker.container|\
+              deploy/quadlets/n8n.container|\
+              deploy/quadlets/n8n.volume|\
               deploy/systemd/backup.service|\
-              deploy/systemd/backup.timer)
+              deploy/systemd/backup.timer|\
+              deploy/systemd/backup-base.service|\
+              deploy/systemd/backup-base.timer|\
+              deploy/systemd/backup-check.service|\
+              deploy/systemd/backup-check.timer)
                 SHOULD_RUN=true
                 ;;
             esac

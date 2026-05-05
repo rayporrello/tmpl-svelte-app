@@ -27,6 +27,85 @@ When to skip:
 
 ---
 
+## 2026-05-05 — Pass 4 (consistency sweep + ADR-022)
+
+Closing sweep after Pass 3 to align every reference and registry with
+the new architecture. No behavior changes; all stale references and
+missing cross-links resolved.
+
+### Code
+
+- **`scripts/lib/postgres-dev.ts`**: `POSTGRES_IMAGE` bumped from
+  `postgres:17-alpine` to `postgres:18-alpine` so the local-bootstrap
+  Postgres major matches the production image (which is
+  `postgres:18-bookworm` + WAL-G in the bundled path).
+- **`scripts/doctor.ts`**: required-files list updated to match the
+  Pass 3 deploy artifacts. Replaced
+  `deploy/systemd/automation-worker.{service,timer}` (deleted in Pass 3)
+  with `deploy/Containerfile.postgres`,
+  `deploy/quadlets/worker.container`, and the four
+  `deploy/systemd/backup-{base,check}.*` units. Without this, `bun run
+doctor` would have falsely flagged the deleted worker timer as
+  missing.
+
+### CI
+
+- **`bootstrap-podman-smoke` (`.github/workflows/ci.yml`)**: bootstrap-
+  smoke service Postgres bumped to `postgres:18-alpine`.
+- **`init-site-acceptance` change-detection paths**: removed deleted
+  `deploy/systemd/automation-worker.{service,timer}` and added the new
+  artifacts (`deploy/Containerfile.postgres`,
+  `deploy/quadlets/worker.container`, `n8n.container`, `n8n.volume`,
+  `deploy/systemd/backup-base.{service,timer}`,
+  `backup-check.{service,timer}`). The init-site acceptance gate now
+  fires when any of these files change.
+
+### Docs
+
+- **`README.md`**: deployment artifact table now lists every Pass 3
+  file (`Containerfile.postgres`, `worker.container`, `n8n.*`,
+  `backup-base.*`, `backup-check.*`). The legacy `backup.*` is labeled
+  "convenience export" so the production path is unambiguous. The
+  Bun-first workflow command list now includes
+  `automation:worker:daemon`, `backup:base`, `backup:wal:check`,
+  `backup:pitr:check`, `backup:restore:drill`, and `n8n:enable`.
+- **`docs/deployment/README.md`**: artifact table rewritten in the
+  same shape — drops the deleted automation-worker rows and adds the
+  Pass 3 entries with one-line purposes each.
+- **`docs/getting-started.md`**: postgres-17 mentions in the local-dev
+  Quick Start bumped to postgres-18 (Podman, Docker, and brew package
+  names). The "next steps" now references the worker container, the
+  PITR backup timers, and the optional per-client n8n bundle.
+- **`docs/documentation-map.md`**: rebuilt the Postgres, automation,
+  and backup rows for the new artifacts. Added a dedicated
+  "Per-client n8n bundle" row. The map now references ADR-022 and
+  links to `n8n-workflow-contract.md` and `architecture.md`.
+- **`docs/deployment/runbook.md`**: "common operations" cheat sheet
+  swapped the now-stale "Run worker once / Check worker timer" entries
+  for the new container-shape commands (`podman exec` for manual
+  replay, `journalctl --user -u <project>-worker -f` for live tail,
+  `systemctl --user list-timers | grep <project>-backup` for the
+  backup cadence).
+- **`docs/automations/n8n-workflow-contract.md`**: corrected the
+  journalctl unit name from `<project>-automation-worker` to
+  `<project>-worker` (the daemon container's unit name).
+
+### New ADR
+
+- **`docs/planning/adrs/ADR-022-pitr-backup-strategy.md`**: documents
+  the decision to use WAL-G v3.0.8 + Cloudflare R2 with 14-day PITR
+  retention, the trade-off matrix vs pgBackRest, why R2 (no egress
+  fees, existing operator stack), accepted risks, and alternatives
+  considered. ADR-021 was already taken (local-bootstrap-contract);
+  this is the next number in sequence.
+
+### Migration
+
+No new migration steps for downstream projects — Pass 4 is consistency,
+not contract change. Projects that already pulled Pass 3 are aligned.
+
+---
+
 ## 2026-05-05 — Pass 3 (PITR backups, worker container, per-client n8n bundle)
 
 The largest architectural change in the template's lifetime. Replaces the

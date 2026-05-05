@@ -777,14 +777,18 @@ function deploymentArtifactsSection(rootDir: string): DoctorSection {
 
 	const requiredFiles = [
 		'Containerfile',
+		'deploy/Containerfile.postgres',
 		'deploy/env.example',
 		'deploy/Caddyfile.example',
 		'deploy/quadlets/web.container',
 		'deploy/quadlets/web.network',
 		'deploy/quadlets/postgres.container',
 		'deploy/quadlets/postgres.volume',
-		'deploy/systemd/automation-worker.service',
-		'deploy/systemd/automation-worker.timer',
+		'deploy/quadlets/worker.container',
+		'deploy/systemd/backup-base.service',
+		'deploy/systemd/backup-base.timer',
+		'deploy/systemd/backup-check.service',
+		'deploy/systemd/backup-check.timer',
 	];
 	const missing = requiredFiles.filter((path) => !existsSync(join(rootDir, path)));
 	if (missing.length) {

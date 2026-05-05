@@ -6,7 +6,12 @@ import { BootstrapScriptError } from './errors';
 import { detectContainerRuntime, type ContainerRuntime } from './preflight';
 import { run, type RunResult } from './run';
 
-export const POSTGRES_IMAGE = 'docker.io/library/postgres:17-alpine';
+// Local-bootstrap Postgres image. Pinned to the same major as the bundled
+// production image (deploy/Containerfile.postgres builds on
+// postgres:18-bookworm + WAL-G). The local container does not need WAL-G —
+// host-side bootstrap doesn't enable archive_command — so we use the
+// smaller alpine variant.
+export const POSTGRES_IMAGE = 'docker.io/library/postgres:18-alpine';
 export const BOOTSTRAP_LABELS = {
 	'tmpl-svelte-app.bootstrap': 'true',
 	'tmpl-svelte-app.contract-version': '1',

@@ -132,7 +132,7 @@ n8n is an optional automation layer. When needed:
 
 - **Content automations:** n8n writes files to `content/` via the GitHub API, following the same schema as Sveltia CMS
 - **Runtime automations:** SvelteKit server actions insert outbox rows in `automation_events`; `bun run automation:worker` delivers, retries with backoff, and dead-letters exhausted failures
-- Production installs can enable `deploy/systemd/automation-worker.timer` to run the worker repeatedly through journald-visible systemd user units. It safely idles when no runtime automation provider is configured.
+- Production installs run the worker as a long-lived per-site container (`deploy/quadlets/worker.container`) via `bun run automation:worker:daemon`. It logs each batch's outcome through journald and safely warns when no runtime automation provider is configured.
 
 Env vars `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.example`. See [docs/automations/README.md](docs/automations/README.md).
 
@@ -241,7 +241,13 @@ bun run deploy:preflight     # structural deploy readiness for env, Caddy, Quadl
 bun run deploy:smoke         # URL-driven post-deploy health/discovery/header smoke
 bun run doctor               # read-only local/project diagnostic
 bun run init:site            # interactive/stdin compatibility initializer
-bun run automation:worker    # process pending automation outbox events
+bun run automation:worker    # process pending automation outbox events (one batch)
+bun run automation:worker:daemon  # long-lived poll loop used by worker.container
+bun run backup:base          # WAL-G base backup (also fired by backup-base.timer)
+bun run backup:wal:check     # verify latest archived WAL is fresh in R2
+bun run backup:pitr:check    # verify base + WAL chain are intact for PITR
+bun run backup:restore:drill # non-destructive PITR restore drill (run quarterly)
+bun run n8n:enable           # provision the per-site n8n database + role inside the client's Postgres
 bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)
@@ -317,18 +323,23 @@ Full guide (including the copy-into-real-route checklist): [docs/examples/README
 
 The template ships a complete container + reverse-proxy deployment path:
 
-| Artifact                             | Purpose                                                                     |
-| ------------------------------------ | --------------------------------------------------------------------------- |
-| `.dockerignore`                      | Keeps secrets, git metadata, dev deps, and generated output out of builds   |
-| `Containerfile`                      | Multi-stage Bun image (builder + lean runtime, non-root, HEALTHCHECK)       |
-| `Containerfile.node.example`         | Reference-only recipe for adapter-node swap (not maintained, not CI-tested) |
-| `deploy/quadlets/web.container`      | Systemd user unit via Podman Quadlet                                        |
-| `deploy/quadlets/web.network`        | Project-local Podman network                                                |
-| `deploy/quadlets/postgres.*`         | Optional self-hosted Postgres container and persistent volume               |
-| `deploy/systemd/automation-worker.*` | Timer/service for automation outbox worker batches                          |
-| `deploy/Caddyfile.example`           | Caddy reverse proxy with TLS, HSTS, compression, `health_uri`               |
-| `deploy/env.example`                 | Runtime env reference (distinct from SOPS secrets)                          |
-| `.github/workflows/ci.yml`           | Validate / image build / launch gating; Trivy CRITICAL blocking; GHCR push  |
+| Artifact                           | Purpose                                                                     |
+| ---------------------------------- | --------------------------------------------------------------------------- |
+| `.dockerignore`                    | Keeps secrets, git metadata, dev deps, and generated output out of builds   |
+| `Containerfile`                    | Multi-stage Bun image (builder + lean runtime, non-root, HEALTHCHECK)       |
+| `Containerfile.node.example`       | Reference-only recipe for adapter-node swap (not maintained, not CI-tested) |
+| `deploy/Containerfile.postgres`    | Custom Postgres 18 + WAL-G image for the bundled PITR backup path           |
+| `deploy/quadlets/web.container`    | Systemd user unit via Podman Quadlet                                        |
+| `deploy/quadlets/web.network`      | Project-local Podman network                                                |
+| `deploy/quadlets/postgres.*`       | Bundled Postgres+WAL-G container and persistent volume                      |
+| `deploy/quadlets/worker.container` | Long-lived per-site automation outbox worker (replaces the systemd timer)   |
+| `deploy/quadlets/n8n.*`            | Optional per-client n8n bundle (activate with `bun run n8n:enable`)         |
+| `deploy/systemd/backup-base.*`     | Daily WAL-G base backup timer/service                                       |
+| `deploy/systemd/backup-check.*`    | 6-hour PITR freshness check timer/service                                   |
+| `deploy/systemd/backup.*`          | Legacy nightly pg_dump timer (convenience export, not the reliability path) |
+| `deploy/Caddyfile.example`         | Caddy reverse proxy with TLS, HSTS, compression, `health_uri`               |
+| `deploy/env.example`               | Runtime env reference (distinct from SOPS secrets)                          |
+| `.github/workflows/ci.yml`         | Validate / image build / launch gating; Trivy CRITICAL blocking; GHCR push  |
 
 Step-by-step bootstrap, rolling deploy, and rollback-by-SHA: [docs/deployment/runbook.md](docs/deployment/runbook.md). Production runtime contract: [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
 

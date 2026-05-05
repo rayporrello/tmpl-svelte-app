@@ -18,24 +18,30 @@ Documentation for deploying sites built from this template. The deployment model
 
 ## Deployment artifacts
 
-| Artifact                                   | Location           | Purpose                                                                                                  |
-| ------------------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `.dockerignore`                            | repo root          | Keeps secrets, git metadata, dev deps, and generated output out of image build contexts                  |
-| `Containerfile`                            | repo root          | Multi-stage Bun runtime image (builder + production-only runtime deps)                                   |
-| `Containerfile.node.example`               | repo root          | Reference-only recipe for adapter-node swap (not maintained, not CI-tested)                              |
-| `serve.js`                                 | repo root          | SIGTERM-aware entrypoint that wraps `build/index.js` for graceful Quadlet restarts                       |
-| `deploy/env.example`                       | `deploy/`          | Runtime env var reference for container / Quadlet                                                        |
-| `deploy/quadlets/web.container`            | `deploy/quadlets/` | Systemd user unit via Podman Quadlet                                                                     |
-| `deploy/quadlets/web.network`              | `deploy/quadlets/` | Project-local Podman network                                                                             |
-| `deploy/quadlets/postgres.container`       | `deploy/quadlets/` | Optional self-hosted Postgres container wired to the project network and loopback host tools path        |
-| `deploy/quadlets/postgres.volume`          | `deploy/quadlets/` | Persistent Postgres data volume                                                                          |
-| `deploy/systemd/automation-worker.service` | `deploy/systemd/`  | Plain systemd user unit that runs one automation outbox worker batch                                     |
-| `deploy/systemd/automation-worker.timer`   | `deploy/systemd/`  | Repeating timer for the automation worker; logs via journald                                             |
-| `deploy/systemd/backup.service`            | `deploy/systemd/`  | Plain systemd user unit — runs `privacy:prune` then `backup:all` (with off-host push)                    |
-| `deploy/systemd/backup.timer`              | `deploy/systemd/`  | Daily 03:00 timer (with jitter) that fires `backup.service`                                              |
-| `deploy/Caddyfile.example`                 | `deploy/`          | Caddy reverse proxy with TLS, HSTS, compression, optional rate-limit and immutable-asset header snippets |
-| `scripts/deploy-preflight.ts`              | `scripts/`         | Local structural deploy readiness: env, Caddy, Quadlet, Postgres, worker, launch blockers                |
-| `scripts/deploy-smoke.ts`                  | `scripts/`         | URL-driven post-deploy smoke: health, readiness, discovery files, contact GET, security headers          |
+| Artifact                              | Location           | Purpose                                                                                                  |
+| ------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `.dockerignore`                       | repo root          | Keeps secrets, git metadata, dev deps, and generated output out of image build contexts                  |
+| `Containerfile`                       | repo root          | Multi-stage Bun runtime image (builder + production-only runtime deps)                                   |
+| `Containerfile.node.example`          | repo root          | Reference-only recipe for adapter-node swap (not maintained, not CI-tested)                              |
+| `serve.js`                            | repo root          | SIGTERM-aware entrypoint that wraps `build/index.js` for graceful Quadlet restarts                       |
+| `deploy/env.example`                  | `deploy/`          | Runtime env var reference for container / Quadlet                                                        |
+| `deploy/quadlets/web.container`       | `deploy/quadlets/` | Systemd user unit via Podman Quadlet                                                                     |
+| `deploy/quadlets/web.network`         | `deploy/quadlets/` | Project-local Podman network                                                                             |
+| `deploy/Containerfile.postgres`       | repo root          | Custom Postgres 18 + WAL-G image for the bundled PITR backup path; built and pushed by CI alongside web  |
+| `deploy/quadlets/postgres.container`  | `deploy/quadlets/` | Bundled Postgres+WAL-G container wired to the project network with archive_command + loopback host tools |
+| `deploy/quadlets/postgres.volume`     | `deploy/quadlets/` | Persistent Postgres data volume                                                                          |
+| `deploy/quadlets/worker.container`    | `deploy/quadlets/` | Long-lived per-site automation outbox worker (`automation:worker:daemon`); replaces the systemd timer    |
+| `deploy/quadlets/n8n.container`       | `deploy/quadlets/` | Optional per-client n8n editor + webhook (activate with `bun run n8n:enable`)                            |
+| `deploy/quadlets/n8n.volume`          | `deploy/quadlets/` | Persistent n8n state volume (most state lives in the per-client Postgres)                                |
+| `deploy/systemd/backup-base.service`  | `deploy/systemd/`  | One-shot WAL-G base backup; pushes to R2                                                                 |
+| `deploy/systemd/backup-base.timer`    | `deploy/systemd/`  | Daily 03:15 UTC base backup timer (with random jitter)                                                   |
+| `deploy/systemd/backup-check.service` | `deploy/systemd/`  | Verifies the latest base backup + WAL chain are fresh                                                    |
+| `deploy/systemd/backup-check.timer`   | `deploy/systemd/`  | 6-hour PITR freshness check (loud failure if PITR is at risk)                                            |
+| `deploy/systemd/backup.service`       | `deploy/systemd/`  | Legacy nightly pg_dump unit — runs `privacy:prune` then `backup:all` (convenience export, optional)      |
+| `deploy/systemd/backup.timer`         | `deploy/systemd/`  | Legacy daily 03:00 timer (with jitter) that fires `backup.service`                                       |
+| `deploy/Caddyfile.example`            | `deploy/`          | Caddy reverse proxy with TLS, HSTS, compression, optional rate-limit and immutable-asset header snippets |
+| `scripts/deploy-preflight.ts`         | `scripts/`         | Local structural deploy readiness: env, Caddy, Quadlet, Postgres, worker, launch blockers                |
+| `scripts/deploy-smoke.ts`             | `scripts/`         | URL-driven post-deploy smoke: health, readiness, discovery files, contact GET, security headers          |
 
 ---
 

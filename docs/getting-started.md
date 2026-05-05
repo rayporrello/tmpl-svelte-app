@@ -295,17 +295,17 @@ business form.
    podman run -d --name site-pg \
      -e POSTGRES_PASSWORD=devpw -e POSTGRES_DB=site_db -e POSTGRES_USER=site_user \
      -p 127.0.0.1:5432:5432 \
-     docker.io/library/postgres:17-alpine
+     docker.io/library/postgres:18-alpine
    # DATABASE_URL=postgres://site_user:devpw@127.0.0.1:5432/site_db
 
    # Option B — Docker Desktop
    docker run -d --name site-pg \
      -e POSTGRES_PASSWORD=devpw -e POSTGRES_DB=site_db -e POSTGRES_USER=site_user \
      -p 127.0.0.1:5432:5432 \
-     postgres:17-alpine
+     postgres:18-alpine
 
    # Option C — Native install (macOS Homebrew, Debian/Ubuntu apt, Fedora dnf)
-   #   macOS:        brew install postgresql@17 && brew services start postgresql@17
+   #   macOS:        brew install postgresql@18 && brew services start postgresql@18
    #   Debian/Ubuntu: sudo apt install postgresql && sudo systemctl start postgresql
    #   Fedora:       sudo dnf install postgresql-server && sudo postgresql-setup --initdb && sudo systemctl start postgresql
    ```
@@ -446,7 +446,9 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
    # visit http://127.0.0.1:3000/readyz  — DB connectivity check, should return 200
    ```
 3. Follow the full deployment runbook for host Caddy, loopback-published web,
-   optional bundled Postgres, explicit migrations, and worker timer wiring:
+   bundled Postgres + WAL-G, explicit migrations, the per-site worker
+   container, the daily/6-hour backup timers, and the optional per-client
+   n8n bundle:
    [docs/deployment/runbook.md](deployment/runbook.md)
 4. After deploying, smoke the live URL:
    ```bash

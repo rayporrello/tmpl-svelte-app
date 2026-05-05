@@ -330,17 +330,19 @@ If any check fails:
 
 ## Common Operations
 
-| Task               | Command                                           |
-| ------------------ | ------------------------------------------------- | ---------------------- |
-| Restart app        | `systemctl --user restart <project>-web`          |
-| Stop app           | `systemctl --user stop <project>-web`             |
-| Check app health   | `systemctl --user status <project>-web`           |
-| Check Postgres     | `systemctl --user status <project>-postgres`      |
-| Run worker once    | `systemctl --user start <project>-worker.service` |
-| Check worker timer | `systemctl --user list-timers                     | grep <project>-worker` |
-| View containers    | `podman ps`                                       |
-| Prune old images   | `podman image prune --filter "dangling=true"`     |
-| Force-remove image | `podman rmi ghcr.io/<owner>/<name>:<sha>`         |
+| Task                             | Command                                                             |
+| -------------------------------- | ------------------------------------------------------------------- | ---------------------- |
+| Restart app                      | `systemctl --user restart <project>-web`                            |
+| Stop app                         | `systemctl --user stop <project>-web`                               |
+| Check app health                 | `systemctl --user status <project>-web`                             |
+| Check Postgres                   | `systemctl --user status <project>-postgres`                        |
+| Run worker batch (manual replay) | `podman exec <project>-worker bun run scripts/automation-worker.ts` |
+| Restart worker                   | `systemctl --user restart <project>-worker`                         |
+| Watch worker logs                | `journalctl --user -u <project>-worker -f`                          |
+| Check backup timers              | `systemctl --user list-timers                                       | grep <project>-backup` |
+| View containers                  | `podman ps`                                                         |
+| Prune old images                 | `podman image prune --filter "dangling=true"`                       |
+| Force-remove image               | `podman rmi ghcr.io/<owner>/<name>:<sha>`                           |
 
 ---
 
