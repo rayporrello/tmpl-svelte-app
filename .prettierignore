@@ -9,3 +9,7 @@ bun.lock
 static/admin/sveltia-cms.js
 drizzle/meta
 test-results
+
+# Per-user Claude Code session settings — not template content.
+.claude/settings.local.json
+.claude/settings.local.*.json

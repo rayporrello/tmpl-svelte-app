@@ -147,9 +147,8 @@ The site's own `/llms.txt` route (`src/routes/llms.txt/+server.ts`) is unrelated
 ## Observability and error handling
 
 Full docs: [docs/observability/README.md](docs/observability/README.md)
-Tier model: [docs/observability/tiers.md](docs/observability/tiers.md)
 
-This project uses the template's **Tier [1/2/3]** observability spine. [Update tier based on site type.]
+This project uses the template's baseline observability spine. [Note any optional extensions activated for this project — Sentry, n8n error workflow, OpenTelemetry, external uptime monitor — or state explicitly that none are enabled.]
 
 - Structured server logging: `src/lib/server/logger.ts` — use instead of `console.error`
 - Request IDs: `src/hooks.server.ts` attaches `event.locals.requestId` to every request

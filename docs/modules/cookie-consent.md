@@ -152,7 +152,7 @@ On subsequent visits, the banner re-applies the saved choice without displaying 
 
 ## Third-party Consent Management Platforms (CMPs)
 
-If compliance assurance or a consent audit trail is required (regulated industries, large sites), use a third-party CMP instead of the dormant banner:
+If compliance assurance or a consent audit trail is required (regulated industries, sites with formal compliance obligations), use a third-party CMP instead of the dormant banner:
 
 - **Cookiebot** — auto-scans cookies, full audit log, IAB TCF certified
 - **OneTrust** — enterprise-grade, multi-regulation support

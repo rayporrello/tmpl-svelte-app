@@ -1,6 +1,6 @@
 # R2 Image Storage
 
-Cloudflare R2 is an S3-compatible object storage service. It is an **optional tier** for image uploads. Most small sites do not need it — the default server-hosted pipeline is sufficient.
+Cloudflare R2 is an S3-compatible object storage service. The template's image pipeline does not require it — the default server-hosted pipeline serves uploads from `static/uploads/` and is sufficient for most lead-gen sites. R2 is the right choice when a project has a real reason to externalize media (large library, multiple app instances, edge CDN delivery).
 
 ---
 

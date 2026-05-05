@@ -1,6 +1,11 @@
 import { buildCsp } from './csp';
 
-export const STRICT_TRANSPORT_SECURITY = 'max-age=31536000; includeSubDomains; preload';
+// HSTS baseline: 1 year, no includeSubDomains, no preload.
+// includeSubDomains is opt-in (only when every subdomain is HTTPS-ready).
+// preload is opt-in only — it is a long-lived browser-list commitment that is
+// slow and painful to reverse. See docs/deployment/runbook.md → HSTS for the
+// stronger forms and when to use them.
+export const STRICT_TRANSPORT_SECURITY = 'max-age=31536000';
 export const X_CONTENT_TYPE_OPTIONS = 'nosniff';
 export const REFERRER_POLICY = 'strict-origin-when-cross-origin';
 export const X_FRAME_OPTIONS = 'DENY';

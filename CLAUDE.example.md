@@ -97,7 +97,7 @@ Standard parser rules apply (js-yaml for `.yml`, gray-matter for articles `.md`)
 
 Full docs: [docs/observability/README.md](docs/observability/README.md)
 
-This project uses the template's **Tier 1** observability spine (small site, single-host deploy). No Sentry, no OpenTelemetry. The /healthz and /readyz probes are wired into the Caddy `health_uri` directive and into Healthchecks.io for daily liveness pings.
+This project uses the template's baseline observability spine. No Sentry, no OpenTelemetry — neither has been activated for this site. The /healthz and /readyz probes are wired into the Caddy `health_uri` directive and into Healthchecks.io for daily liveness pings.
 
 Standard agent rules apply (logger.error, toSafeError, no PII in logs).
 

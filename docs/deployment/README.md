@@ -22,7 +22,7 @@ Documentation for deploying sites built from this template. The deployment model
 | ------------------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------- |
 | `.dockerignore`                            | repo root          | Keeps secrets, git metadata, dev deps, and generated output out of image build contexts                  |
 | `Containerfile`                            | repo root          | Multi-stage Bun runtime image (builder + production-only runtime deps)                                   |
-| `Containerfile.node.example`               | repo root          | Escape-hatch recipe for adapter-node swap (not CI-tested)                                                |
+| `Containerfile.node.example`               | repo root          | Reference-only recipe for adapter-node swap (not maintained, not CI-tested)                              |
 | `serve.js`                                 | repo root          | SIGTERM-aware entrypoint that wraps `build/index.js` for graceful Quadlet restarts                       |
 | `deploy/env.example`                       | `deploy/`          | Runtime env var reference for container / Quadlet                                                        |
 | `deploy/quadlets/web.container`            | `deploy/quadlets/` | Systemd user unit via Podman Quadlet                                                                     |

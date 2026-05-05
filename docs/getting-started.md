@@ -33,7 +33,7 @@ Step-by-step guide for turning `tmpl-svelte-app` into a production site.
 
 ## Prerequisites
 
-- **Bun** ≥ 1.1 installed (`bun --version`)
+- **Bun** in the range `>=1.3.13 <1.4.0` installed (`bun --version`). The exact pin lives in `package.json` (`packageManager: bun@1.3.13`); the `preinstall` guard rejects mismatches with a clear error code.
 - **Git** and a GitHub account (the CMS uses GitHub as its backend)
 - **Postgres** — a running instance for local development (local install, Docker, or Podman)
 - A Linux host running Podman + Caddy for deployment (see [docs/deployment/README.md](deployment/README.md))

@@ -242,6 +242,46 @@ sudo systemctl reload caddy
 
 ---
 
+## HSTS — when to opt into the stronger forms
+
+The template defaults to `Strict-Transport-Security "max-age=31536000"` only —
+no `includeSubDomains`, no `preload`. That is a safe baseline for any
+production HTTPS site. The two stronger options are deliberately opt-in:
+
+**`includeSubDomains`** — Makes the policy apply to every subdomain of the
+apex (`api.example.com`, `admin.example.com`, `staging.example.com`, etc.).
+Only enable this when **every subdomain** that exists or might exist is
+HTTPS-ready. A single subdomain that ever needs to serve plain HTTP (an old
+status page, a vendor demo) will be silently broken in browsers that have
+seen the header.
+
+**`preload`** — Submits the domain to the [HSTS preload list](https://hstspreload.org/),
+which is compiled into Chrome, Firefox, Safari, and Edge. After submission,
+the policy is hardcoded into browser builds for years. Removal is slow and
+painful. Only enable preload for a domain you are committed to keeping on
+HTTPS for the foreseeable future. Preload also requires `includeSubDomains`
+and `max-age` of at least 1 year. The HSTS preload project explicitly
+recommends that templates and configuration tools **not** ship preload by
+default.
+
+To opt in, change **both** of these in lockstep so Caddy and the app's
+defense-in-depth header stay aligned:
+
+```caddy
+# deploy/Caddyfile.example
+header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+```
+
+```ts
+// src/lib/server/security-headers.ts
+export const STRICT_TRANSPORT_SECURITY = 'max-age=31536000; includeSubDomains; preload';
+```
+
+Then redeploy and run `bun run deploy:smoke -- --url https://<domain>` to
+verify the new header is on the wire.
+
+---
+
 ## Post-Deploy Smoke
 
 Run these after every deploy to verify the site is up and healthy. This is where reachability is tested — `check:launch` is structural-only and does not make network requests.

@@ -1,16 +1,19 @@
-# Containerfile.node.example — ESCAPE HATCH for adapter-node
+# Containerfile.node.example — REFERENCE-ONLY adapter-node recipe
 #
-# NOT exercised in CI. Review and rename to `Containerfile.node` (or swap into
-# the main Containerfile) to activate. See ADR-018 for the full swap procedure.
+# Status: REFERENCE ONLY. This file is not maintained, not CI-tested, and is
+# not guaranteed to build cleanly against the current dependency set. Treat it
+# as documentation of the swap shape, not as a working drop-in.
 #
-# When to use:
-#   - svelte-adapter-bun becomes unmaintained or breaks on a new Bun version
-#   - @sveltejs/enhanced-img assets are not served correctly from the Bun runtime
+# The primary supported runtime is svelte-adapter-bun (see Containerfile and
+# ADR-018). If svelte-adapter-bun ever becomes unworkable, this file is a
+# starting point — but expect to spend time adapting it (Bun version pin in
+# the user-agent guard, dependency install flags, HEALTHCHECK tooling, env
+# contract) before it builds.
 #
-# Swap steps:
+# Swap shape (high level):
 #   1. bun add -d @sveltejs/adapter-node
 #   2. In svelte.config.js: replace import from 'svelte-adapter-bun' with '@sveltejs/adapter-node'
-#   3. Replace this file's content into the main Containerfile
+#   3. Adapt this file into a working Containerfile and verify locally
 #   4. BODY_SIZE_LIMIT and other adapter-node env vars become active
 #
 # Environment variable contract (adapter-node):

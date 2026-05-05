@@ -20,11 +20,21 @@ example.com {
     }
 
     # ── HSTS ─────────────────────────────────────────────────────────────────
-    # Caddy is canonical for HSTS. The app also sets the same value on HTTPS
+    # Caddy is canonical for HSTS. The app sets the same value on HTTPS
     # responses as defense-in-depth when deployed behind a different proxy.
-    # Adjust max-age/includeSubDomains here and in src/hooks.server.ts together
-    # before adding a domain to the preload list.
-    header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    #
+    # Default: 1 year max-age, no includeSubDomains, no preload.
+    #   - max-age=31536000  is the recommended production value (1 year).
+    #   - includeSubDomains is opt-in: only enable when every subdomain on the
+    #     apex domain (api., admin., staging., etc.) is fully HTTPS-ready.
+    #   - preload is opt-in only and is a one-way commitment. Submitting to the
+    #     HSTS preload list bakes the policy into browser builds for years and
+    #     is slow and painful to reverse. Do not enable casually.
+    #
+    # If you opt into stronger HSTS, change BOTH this line AND the
+    # STRICT_TRANSPORT_SECURITY constant in src/lib/server/security-headers.ts
+    # so the canonical and defense-in-depth headers stay in sync.
+    header Strict-Transport-Security "max-age=31536000"
 
     # ── Compression ──────────────────────────────────────────────────────────
     # Caddy owns compression. Do not compress in the app.

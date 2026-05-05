@@ -53,7 +53,7 @@ These are included in every site built from the template, regardless of tier.
 | **Medium** | Lead generation, active CMS, n8n | Sentry, n8n Error Workflow, backup verification, scheduled worker monitoring          |
 | **Large**  | Revenue-critical, auth, payments | OpenTelemetry, SLOs, incident runbooks, alert escalation                              |
 
-See [docs/observability/tiers.md](../../../docs/observability/tiers.md) for the complete tier model.
+See [docs/observability/README.md](../../../docs/observability/README.md) for the current observability baseline and optional extensions. (Editor's note 2026-05-05: the original three-tier model was consolidated into a single baseline + optional extensions; the table above reflects the historical decision.)
 
 ### n8n conventions
 

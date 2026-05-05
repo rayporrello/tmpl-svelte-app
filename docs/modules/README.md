@@ -49,11 +49,11 @@ The template ships typed consent helpers. The banner UI is available but not imp
 
 **Status:** Not installed — see [r2-images.md](r2-images.md).
 
-Cloudflare R2 is an S3-compatible object store for media uploads. The current pipeline serves uploads from `static/uploads/` — simple and sufficient for most small sites.
+Cloudflare R2 is an S3-compatible object store for media uploads. The current pipeline serves uploads from `static/uploads/` — simple and sufficient by default.
 
-**Use when:** Uploads would exceed server disk, you need edge CDN delivery, or the app runs on multiple instances (disk not shared).
+**Activate when:** uploads would exceed server disk, you need edge CDN delivery, or the app runs on multiple instances (disk not shared).
 
-**Skip when:** The site has modest media requirements and runs on a single server with adequate storage.
+**Leave dormant when:** the site has modest media requirements and runs on a single server with adequate storage.
 
 ---
 

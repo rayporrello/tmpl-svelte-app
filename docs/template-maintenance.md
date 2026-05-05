@@ -174,14 +174,19 @@ If a future project separates CMS uploads from the repo (e.g. all uploads stay i
 
 ## Validation before shipping a template change
 
-The template has a three-tier validation lifecycle (see [ADR-018](planning/adrs/ADR-018-production-runtime-and-deployment-contract.md)):
+The template has four validation entry points (see [ADR-018](planning/adrs/ADR-018-production-runtime-and-deployment-contract.md)):
 
 ```bash
-bun run validate:core     # local-safe PR-grade checks; no local listener
+bun run validate:fast     # inner-loop sanity: format, type, project/route/form contracts, unit tests
+bun run validate:core     # local-safe PR-grade checks; full check suite + build + perf budget; no local listener
 bun run validate          # alias of validate:core
 bun run validate:ci       # CI-grade checks, including built Playwright/visual smoke
 bun run validate:launch   # release-grade — run before tagging or shipping a release
 ```
+
+Use `validate:fast` while iterating on a small change to skip the heavyweight
+build/performance/asset/security-header checks. Use `validate:core` before
+opening a PR or pushing — it is what CI runs as the validate gate.
 
 Then confirm no generated artifacts leaked into the tracked file set:
 

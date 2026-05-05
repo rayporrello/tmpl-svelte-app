@@ -57,6 +57,13 @@ test-results/
 # See docs/operations/backups.md for the backup workflow.
 backups/
 
+# ── Claude Code session settings ─────────────────────────────────────────────
+# Per-user / per-session settings — never the source of truth. A future project
+# may commit a shared `.claude/settings.json`, but the `.local.*` variants are
+# always per-user.
+.claude/settings.local.json
+.claude/settings.local.*.json
+
 # ── Image optimization output directories ────────────────────────────────────
 # The current pipeline generates .webp siblings inside static/uploads/ and
 # COMMITS them alongside their source images. See ADR-009 and

@@ -138,6 +138,6 @@ try {
 
 ---
 
-## Future correlation IDs (Tier 3)
+## Future correlation IDs
 
-For large sites, the `requestId` in `event.locals.requestId` can become an OpenTelemetry root span attribute. The seam is already in place — no changes to `hooks.server.ts` are needed when adding OpenTelemetry instrumentation.
+If a project ever activates OpenTelemetry, the `requestId` in `event.locals.requestId` can become a root span attribute. The seam is already in place — no changes to `hooks.server.ts` are needed when adding OpenTelemetry instrumentation.

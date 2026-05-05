@@ -23,7 +23,7 @@
 #           -e DATABASE_URL=postgres://user:pass@host:5432/db \
 #           <image>
 
-ARG BUN_VERSION=1.3.9
+ARG BUN_VERSION=1.3.13
 
 # ── Stage 1: builder ──────────────────────────────────────────────────────────
 FROM oven/bun:${BUN_VERSION}-alpine AS builder

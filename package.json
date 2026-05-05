@@ -3,9 +3,9 @@
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
-	"packageManager": "bun@1.3.9",
+	"packageManager": "bun@1.3.13",
 	"engines": {
-		"bun": ">=1.1"
+		"bun": ">=1.3.13 <1.4.0"
 	},
 	"scripts": {
 		"preinstall": "bun scripts/ensure-bun.ts",
@@ -50,6 +50,7 @@
 		"test:e2e": "playwright test",
 		"test:e2e:built": "PLAYWRIGHT_SKIP_BUILD=1 playwright test",
 		"test:e2e:external": "PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:?set PLAYWRIGHT_BASE_URL} playwright test",
+		"validate:fast": "bun run format:check && bun run check && bun run project:check && bun run routes:check && bun run forms:check && bun run test",
 		"validate:core": "bun run format:check && bun run check && bun run check:bootstrap && bun run secrets:check && bun run project:check && bun run routes:check && bun run forms:check && bun run check:seo && bun run check:analytics && bun run check:cms && bun run check:content && bun run check:assets && bun run check:security-headers && bun run check:accessibility && bun run check:design-system && bun run images:optimize && bun run build && bun run check:performance && bun run test",
 		"validate": "bun run validate:core",
 		"validate:ci": "bun run validate:core && bun run test:e2e:built",

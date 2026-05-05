@@ -83,7 +83,7 @@ The template does not ship a cookie banner because:
 
 If you need a banner:
 
-1. Evaluate whether to build a simple banner (small sites, no ad targeting) or use a CMP (regulated industries, complex consent requirements).
+1. Evaluate whether to build a simple banner (no ad targeting) or use a CMP (regulated industries, complex consent requirements).
 2. The banner should call `pushConsentDefaults(DEFAULT_CONSENT)` on load, then `updateConsent()` after the user makes a choice.
 3. Persist the consent choice (cookie or localStorage) and re-apply on subsequent visits.
 4. Add the consent state to `AnalyticsHead.svelte` before the GTM snippet if using Consent Mode.

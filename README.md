@@ -204,7 +204,7 @@ image is a manual launch asset.
 
 ## Bun-first workflow
 
-This template uses **Bun** for all package management and script execution. A `preinstall` guard and `engines.bun` enforce this. Never use `npm`, `npx`, `pnpm`, or `yarn`. Commit `bun.lock`.
+This template uses **Bun** for all package management and script execution. A `preinstall` guard (`scripts/ensure-bun.ts`) enforces both that the package manager is Bun and that the running Bun version is inside the range pinned in `engines.bun` (`>=1.3.13 <1.4.0`). The exact version is also pinned in `packageManager` (`bun@1.3.13`); bumping is a deliberate change tracked in [CHANGELOG.md](CHANGELOG.md). Never use `npm`, `npx`, `pnpm`, or `yarn`. Commit `bun.lock`.
 
 ```bash
 bun install                  # install dependencies
@@ -246,13 +246,14 @@ bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)
 bun run db:studio            # open Drizzle Studio
-bun run validate:core        # local-safe gate: checks → build → performance → unit tests; no local listener
+bun run validate:fast        # inner-loop sanity: format, type, project/route/form contracts, unit tests
+bun run validate:core        # local-safe gate: full check suite + build + performance + unit tests; no local listener
 bun run validate             # alias of validate:core
 bun run validate:ci          # CI gate: validate:core + built Playwright/visual smoke
 bun run validate:launch      # release-grade: validate:core + init-site/launch/content-diff checks
 ```
 
-The validation lifecycle has three useful entry points: `validate:core`/`validate` for daily local work, `validate:ci` for CI with built e2e and visual smoke, and `validate:launch` before tagging or shipping a release. For a copied site that is ready to deploy, add `bun run deploy:preflight`; after it is live, run `bun run deploy:smoke -- --url https://your-domain.example`. See [docs/template-maintenance.md](docs/template-maintenance.md) and [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
+The validation lifecycle has four useful entry points: `validate:fast` while iterating, `validate:core`/`validate` before pushing, `validate:ci` for CI with built e2e and visual smoke, and `validate:launch` before tagging or shipping a release. For a copied site that is ready to deploy, add `bun run deploy:preflight`; after it is live, run `bun run deploy:smoke -- --url https://your-domain.example`. See [docs/template-maintenance.md](docs/template-maintenance.md) and [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
 
 ## E2E environment variables
 
@@ -316,18 +317,18 @@ Full guide (including the copy-into-real-route checklist): [docs/examples/README
 
 The template ships a complete container + reverse-proxy deployment path:
 
-| Artifact                             | Purpose                                                                    |
-| ------------------------------------ | -------------------------------------------------------------------------- |
-| `.dockerignore`                      | Keeps secrets, git metadata, dev deps, and generated output out of builds  |
-| `Containerfile`                      | Multi-stage Bun image (builder + lean runtime, non-root, HEALTHCHECK)      |
-| `Containerfile.node.example`         | Escape-hatch recipe for adapter-node swap (not CI-tested)                  |
-| `deploy/quadlets/web.container`      | Systemd user unit via Podman Quadlet                                       |
-| `deploy/quadlets/web.network`        | Project-local Podman network                                               |
-| `deploy/quadlets/postgres.*`         | Optional self-hosted Postgres container and persistent volume              |
-| `deploy/systemd/automation-worker.*` | Timer/service for automation outbox worker batches                         |
-| `deploy/Caddyfile.example`           | Caddy reverse proxy with TLS, HSTS, compression, `health_uri`              |
-| `deploy/env.example`                 | Runtime env reference (distinct from SOPS secrets)                         |
-| `.github/workflows/ci.yml`           | Validate / image build / launch gating; Trivy CRITICAL blocking; GHCR push |
+| Artifact                             | Purpose                                                                     |
+| ------------------------------------ | --------------------------------------------------------------------------- |
+| `.dockerignore`                      | Keeps secrets, git metadata, dev deps, and generated output out of builds   |
+| `Containerfile`                      | Multi-stage Bun image (builder + lean runtime, non-root, HEALTHCHECK)       |
+| `Containerfile.node.example`         | Reference-only recipe for adapter-node swap (not maintained, not CI-tested) |
+| `deploy/quadlets/web.container`      | Systemd user unit via Podman Quadlet                                        |
+| `deploy/quadlets/web.network`        | Project-local Podman network                                                |
+| `deploy/quadlets/postgres.*`         | Optional self-hosted Postgres container and persistent volume               |
+| `deploy/systemd/automation-worker.*` | Timer/service for automation outbox worker batches                          |
+| `deploy/Caddyfile.example`           | Caddy reverse proxy with TLS, HSTS, compression, `health_uri`               |
+| `deploy/env.example`                 | Runtime env reference (distinct from SOPS secrets)                          |
+| `.github/workflows/ci.yml`           | Validate / image build / launch gating; Trivy CRITICAL blocking; GHCR push  |
 
 Step-by-step bootstrap, rolling deploy, and rollback-by-SHA: [docs/deployment/runbook.md](docs/deployment/runbook.md). Production runtime contract: [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
 
@@ -357,17 +358,19 @@ The full optional module registry lives at **[docs/modules/README.md](docs/modul
 
 ## Observability
 
-The template ships a lean default safety spine. Medium and large sites can extend it without changing the baseline.
+The template ships one opinionated observability baseline that every site
+inherits: friendly error page, `/healthz` and `/readyz` probes, structured
+logs with request IDs, durable automation diagnostics, and journald-captured
+Caddy access logs. Optional extensions (Sentry, OpenTelemetry, dashboards) are
+documented but not installed by default — they are activated per project when
+there is a concrete need.
 
-| Guide                                                                        | Purpose                                                 |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------- |
-| [docs/observability/README.md](docs/observability/README.md)                 | Overview — what's included, what's optional, why tiered |
-| [docs/observability/tiers.md](docs/observability/tiers.md)                   | Small / medium / large tier model with upgrade paths    |
-| [docs/observability/error-handling.md](docs/observability/error-handling.md) | Errors, logging, request IDs, safe messages             |
-| [docs/observability/n8n-workflows.md](docs/observability/n8n-workflows.md)   | n8n naming, payload shape, failure policy               |
-| [docs/observability/runbook.md](docs/observability/runbook.md)               | Practical operator runbook for common failures          |
-
-Medium/large observability features (Sentry, OpenTelemetry, dashboards) are documented but **not installed by default**. The base template works without them.
+| Guide                                                                        | Purpose                                                      |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [docs/observability/README.md](docs/observability/README.md)                 | Baseline + the optional extensions and when to activate them |
+| [docs/observability/error-handling.md](docs/observability/error-handling.md) | Errors, logging, request IDs, safe messages                  |
+| [docs/observability/n8n-workflows.md](docs/observability/n8n-workflows.md)   | n8n naming, payload shape, failure policy                    |
+| [docs/observability/runbook.md](docs/observability/runbook.md)               | Practical operator runbook for common failures               |
 
 ## CMS content safety
 
@@ -378,6 +381,10 @@ bun run check:content-diff # detect destructive content changes in git diff
 ```
 
 CMS writes are treated as untrusted until validated. The scripts catch blank required fields, bad date formats, `toml-frontmatter`, optional datetime fields, and destructive rewrites before they reach deploy. See [docs/cms/README.md](docs/cms/README.md) for the full content safety documentation.
+
+## Template changelog
+
+[CHANGELOG.md](CHANGELOG.md) tracks security-, operations-, and contract-relevant changes to the template. Because the template is clone-and-customize (not upstream-managed), downstream projects pull improvements selectively — the changelog is the cheat sheet for deciding what to cherry-pick.
 
 ## Agent operating rules
 

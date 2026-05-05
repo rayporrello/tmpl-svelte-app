@@ -675,7 +675,7 @@ All six steps are required — partial completion breaks the content contract:
 8. Automation workflows that mutate data or send external messages must have finite retry behavior and a manual recovery path.
 9. Do not implement "self-healing" behavior that mutates production data without explicit approval.
 
-See [docs/observability/README.md](docs/observability/README.md) for the full tier model and rules.
+See [docs/observability/README.md](docs/observability/README.md) for the baseline behavior, optional extensions, and the full set of rules.
 
 ---
 

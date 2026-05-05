@@ -34,7 +34,9 @@ CSP was explicitly deferred to Batch B to keep A1 scope tight and because CSP re
 | Compression (`gzip`, `zstd`) | **Edge (Caddy)**            | Caddy handles it; do not duplicate in app                                                                                                                                                                  |
 | Access logs                  | **Edge (Caddy)**            | Journald via Caddy stdout                                                                                                                                                                                  |
 
-Both HSTS writes use the same max-age/includeSubDomains/preload values, so duplication is benign — Caddy's overrides on the wire. The `deploy/Caddyfile.example` comment is updated to match: "Caddy is canonical; app provides defense-in-depth so HSTS is preserved if deployed behind a different proxy."
+Both HSTS writes use the same value, so duplication is benign — Caddy's overrides on the wire. The `deploy/Caddyfile.example` comment is updated to match: "Caddy is canonical; app provides defense-in-depth so HSTS is preserved if deployed behind a different proxy."
+
+**Update (2026-05-05):** the baseline HSTS value is now `max-age=31536000` only — no `includeSubDomains`, no `preload`. `preload` is a one-way commitment to the browser-shipped HSTS preload list and inappropriate as a template default; `includeSubDomains` requires that every subdomain of the apex be HTTPS-ready, which is per-project. Both remain documented opt-ins (operator changes both `STRICT_TRANSPORT_SECURITY` in `src/lib/server/security-headers.ts` and the matching line in `deploy/Caddyfile.example`).
 
 ### CSP module
 
