@@ -68,17 +68,27 @@ mkdir -p ~/.config/systemd/user
 cp deploy/quadlets/web.network ~/.config/containers/systemd/<project>.network
 cp deploy/quadlets/web.container ~/.config/containers/systemd/<project>-web.container
 
-# Optional bundled Postgres path. Skip these two files when using managed Postgres.
-cp deploy/quadlets/postgres.volume ~/.config/containers/systemd/<project>-postgres-data.volume
+# Bundled Postgres path with WAL-G PITR (production default).
+# Skip these three files when using managed Postgres.
+cp deploy/quadlets/postgres.volume    ~/.config/containers/systemd/<project>-postgres-data.volume
 cp deploy/quadlets/postgres.container ~/.config/containers/systemd/<project>-postgres.container
+cp deploy/systemd/backup-base.service  ~/.config/systemd/user/<project>-backup-base.service
+cp deploy/systemd/backup-base.timer    ~/.config/systemd/user/<project>-backup-base.timer
+cp deploy/systemd/backup-check.service ~/.config/systemd/user/<project>-backup-check.service
+cp deploy/systemd/backup-check.timer   ~/.config/systemd/user/<project>-backup-check.timer
 
-# Optional runtime automation outbox worker. It is safe to enable without n8n;
-# with no provider URL configured the worker idles/skips delivery clearly.
-cp deploy/systemd/automation-worker.service ~/.config/systemd/user/<project>-automation-worker.service
-cp deploy/systemd/automation-worker.timer ~/.config/systemd/user/<project>-automation-worker.timer
+# Automation outbox worker (long-lived per-site container).
+cp deploy/quadlets/worker.container ~/.config/containers/systemd/<project>-worker.container
+
+# Optional per-client n8n bundle (only for clients running their own n8n).
+# Run bun run n8n:enable first to provision the n8n schema and role.
+# cp deploy/quadlets/n8n.volume    ~/.config/containers/systemd/<project>-n8n-data.volume
+# cp deploy/quadlets/n8n.container ~/.config/containers/systemd/<project>-n8n.container
 
 # Edit Image=, EnvironmentFile=, Network=, HostName=, and any loopback ports if needed
 $EDITOR ~/.config/containers/systemd/<project>-web.container
+$EDITOR ~/.config/containers/systemd/<project>-postgres.container
+$EDITOR ~/.config/containers/systemd/<project>-worker.container
 ```
 
 If using the bundled Postgres container, keep these env values aligned:
@@ -121,17 +131,33 @@ bun run db:migrate
 Do not hide destructive database changes inside service startup. Review
 migration SQL before deploy when schema changes are non-trivial.
 
-### 7. Start the web service and worker timer
+### 7. Start the web service, worker, and backup timers
 
 ```bash
 systemctl --user daemon-reload
 systemctl --user enable --now <project>-web
 systemctl --user status <project>-web
 
-# Optional but recommended when the runtime automation outbox is used
-systemctl --user enable --now <project>-automation-worker.timer
-systemctl --user list-timers | grep <project>-automation-worker
+# Long-lived per-site automation worker container.
+systemctl --user enable --now <project>-worker
+systemctl --user status <project>-worker
+
+# Backup timers (only for the bundled Postgres path).
+systemctl --user enable --now <project>-backup-base.timer
+systemctl --user enable --now <project>-backup-check.timer
+systemctl --user list-timers | grep <project>-backup
 ```
+
+After the first base backup runs (or trigger it manually with
+`bun run backup:base`), prove PITR works end-to-end:
+
+```bash
+bun run backup:restore:drill
+```
+
+This is non-destructive; it builds and tears down a temp container.
+Run it the first time after activating PITR for any new client, then
+quarterly.
 
 ### 8. Configure and start Caddy
 
@@ -225,7 +251,7 @@ sudo journalctl -u caddy -f
 
 # Bundled Postgres and automation worker
 journalctl --user -u <project>-postgres -f
-journalctl --user -u <project>-automation-worker.service -f
+journalctl --user -u <project>-worker.service -f
 ```
 
 ---
@@ -304,17 +330,17 @@ If any check fails:
 
 ## Common Operations
 
-| Task               | Command                                                      |
-| ------------------ | ------------------------------------------------------------ | --------------------------------- |
-| Restart app        | `systemctl --user restart <project>-web`                     |
-| Stop app           | `systemctl --user stop <project>-web`                        |
-| Check app health   | `systemctl --user status <project>-web`                      |
-| Check Postgres     | `systemctl --user status <project>-postgres`                 |
-| Run worker once    | `systemctl --user start <project>-automation-worker.service` |
-| Check worker timer | `systemctl --user list-timers                                | grep <project>-automation-worker` |
-| View containers    | `podman ps`                                                  |
-| Prune old images   | `podman image prune --filter "dangling=true"`                |
-| Force-remove image | `podman rmi ghcr.io/<owner>/<name>:<sha>`                    |
+| Task               | Command                                           |
+| ------------------ | ------------------------------------------------- | ---------------------- |
+| Restart app        | `systemctl --user restart <project>-web`          |
+| Stop app           | `systemctl --user stop <project>-web`             |
+| Check app health   | `systemctl --user status <project>-web`           |
+| Check Postgres     | `systemctl --user status <project>-postgres`      |
+| Run worker once    | `systemctl --user start <project>-worker.service` |
+| Check worker timer | `systemctl --user list-timers                     | grep <project>-worker` |
+| View containers    | `podman ps`                                       |
+| Prune old images   | `podman image prune --filter "dangling=true"`     |
+| Force-remove image | `podman rmi ghcr.io/<owner>/<name>:<sha>`         |
 
 ---
 

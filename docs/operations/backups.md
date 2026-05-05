@@ -86,6 +86,72 @@ Choose backup retention alongside the live data retention policy in [docs/privac
 
 ---
 
+## PITR via WAL-G + R2 (production default)
+
+The bundled Postgres image (`deploy/Containerfile.postgres`) is built on
+`postgres:18-bookworm` with WAL-G v3.0.8 baked in at a pinned SHA-256.
+The Quadlet at `deploy/quadlets/postgres.container` wires
+`archive_command='/usr/local/bin/wal-g wal-push %p'` and
+`archive_timeout=60`, so:
+
+- WAL is shipped to R2 every minute (or whenever a 16 MB segment fills).
+- A daily base backup runs from `deploy/systemd/backup-base.timer`.
+- A 6-hour freshness check from `deploy/systemd/backup-check.timer`
+  fails loudly if either the latest base backup or the WAL chain is
+  stale.
+
+### Required env
+
+The R2 credentials are user-facing in the env contract; the postgres
+Quadlet maps them to the WAL-G and AWS-SDK names that wal-g actually
+reads:
+
+```env
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
+R2_BUCKET=<bucket>
+R2_PREFIX=<project-slug>/postgres
+PITR_RETENTION_DAYS=14
+```
+
+`bun run deploy:preflight` fails if any R2\_\* value is missing on the
+bundled Postgres path. Managed Postgres skips this check.
+
+### Manual operations
+
+```bash
+bun run backup:base               # one-shot base backup (also the daily timer's job)
+bun run backup:wal:check          # confirm latest archived WAL is < 10 minutes old
+bun run backup:pitr:check         # confirm a recent base + fresh WAL chain
+bun run backup:restore:drill      # non-destructive restore drill (run quarterly)
+```
+
+The drill spins up a temporary Postgres container off the same image,
+restores the latest base, replays WAL up to "now − 1 hour", runs a
+read-only sanity SELECT against `contact_submissions`, and tears the
+container down. **Run it the first time after activating PITR for any
+new client, then quarterly thereafter.** A passing drill is the only
+proof that PITR actually works for that site.
+
+For incident-time restore (the real thing), follow
+[restore.md](restore.md).
+
+### Why both PITR and pg_dump
+
+| Scenario                                 | Use                                          |
+| ---------------------------------------- | -------------------------------------------- |
+| Disaster recovery (data loss, host gone) | PITR — restore to a point in time            |
+| Accidental DELETE 5 minutes ago          | PITR — restore to T-5min                     |
+| Hand a client a copy of their data       | `bun run backup:db` — single .pgdump file    |
+| Diff the schema before a migration       | `bun run backup:db` — load into a scratch DB |
+| Quick local clone for debugging          | `bun run backup:db` + `pg_restore`           |
+
+PITR is the production reliability path. pg_dump is the convenience
+export path. Both stay supported.
+
+---
+
 ## Database backup
 
 `backup-db.sh` uses `pg_dump --format=custom`. Custom format:

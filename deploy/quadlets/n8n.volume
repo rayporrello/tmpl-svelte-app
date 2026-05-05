@@ -1,0 +1,11 @@
+# deploy/quadlets/n8n.volume — persistent state for the per-client n8n
+# bundle. Only install when activating n8n for a project.
+#
+# Most n8n state lives in Postgres (workflows, credentials, execution
+# history) when DB_TYPE=postgresdb. This volume is the local fallback for
+# data n8n keeps on disk: the encryption key seed file (when N8N_ENCRYPTION_KEY
+# is unset, n8n generates one and writes it here), file-binary data, and
+# certain caches.
+
+[Volume]
+VolumeName=<project>-n8n-data

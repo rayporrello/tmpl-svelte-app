@@ -50,10 +50,15 @@ const TARGET_FILES = [
 	'deploy/quadlets/web.network',
 	'deploy/quadlets/postgres.container',
 	'deploy/quadlets/postgres.volume',
-	'deploy/systemd/automation-worker.service',
-	'deploy/systemd/automation-worker.timer',
+	'deploy/quadlets/worker.container',
+	'deploy/quadlets/n8n.container',
+	'deploy/quadlets/n8n.volume',
 	'deploy/systemd/backup.service',
 	'deploy/systemd/backup.timer',
+	'deploy/systemd/backup-base.service',
+	'deploy/systemd/backup-base.timer',
+	'deploy/systemd/backup-check.service',
+	'deploy/systemd/backup-check.timer',
 ];
 
 const EXPECTED_STRINGS: Record<string, string[]> = {
@@ -106,16 +111,15 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 		'Description=Postgres data volume — my-cool-site',
 		'VolumeName=my-cool-site-postgres-data',
 	],
-	'deploy/systemd/automation-worker.service': [
-		'Description=Automation worker batch — my-cool-site',
-		'WorkingDirectory=%h/my-cool-site',
+	'deploy/quadlets/worker.container': [
+		'Description=Automation outbox worker — my-cool-site',
 		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
-		'ExecStart=%h/.bun/bin/bun run automation:worker',
 	],
-	'deploy/systemd/automation-worker.timer': [
-		'Description=Automation worker timer — my-cool-site',
-		'Unit=my-cool-site-automation-worker.service',
+	'deploy/quadlets/n8n.container': [
+		'Description=n8n — my-cool-site',
+		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
 	],
+	'deploy/quadlets/n8n.volume': ['VolumeName=my-cool-site-n8n-data'],
 	'deploy/systemd/backup.service': [
 		'Description=Nightly backup (database + uploads) — my-cool-site',
 		'WorkingDirectory=%h/my-cool-site',
@@ -125,6 +129,16 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 		'Description=Nightly backup timer — my-cool-site',
 		'Unit=my-cool-site-backup.service',
 	],
+	'deploy/systemd/backup-base.service': [
+		'WorkingDirectory=%h/my-cool-site',
+		'ExecStart=%h/my-cool-site/scripts/backup-base.sh',
+	],
+	'deploy/systemd/backup-base.timer': ['Unit=my-cool-site-backup-base.service'],
+	'deploy/systemd/backup-check.service': [
+		'WorkingDirectory=%h/my-cool-site',
+		'ExecStart=%h/my-cool-site/scripts/backup-pitr-check.sh',
+	],
+	'deploy/systemd/backup-check.timer': ['Unit=my-cool-site-backup-check.service'],
 };
 
 const FORBIDDEN_AFTER_INIT = [

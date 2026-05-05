@@ -1,0 +1,78 @@
+# Containerfile.postgres — bundled Postgres image with WAL-G baked in.
+#
+# Built once per project alongside the web image and pushed to GHCR. The
+# Quadlet at deploy/quadlets/postgres.container references it by SHA. WAL-G
+# has to live inside the same container as Postgres because archive_command
+# is invoked by the Postgres process itself; mounted host binaries don't fly
+# under rootless Podman with non-root postgres user.
+#
+# Why bookworm and not alpine: WAL-G ships glibc-linked binaries
+# (wal-g-pg-22.04-amd64). musl-based alpine images cannot run them without a
+# shim. Bookworm adds ~50 MB compared to alpine, which is acceptable for a
+# Postgres base.
+#
+# Bumping WAL-G:
+#   1. Find the latest stable version at https://github.com/wal-g/wal-g/releases
+#   2. Update WAL_G_VERSION below.
+#   3. Fetch the matching SHA-256:
+#        curl -fsSL https://github.com/wal-g/wal-g/releases/download/v<VERSION>/wal-g-pg-22.04-amd64.sha256
+#      Update WAL_G_SHA256_AMD64 below.
+#   4. Record the bump in CHANGELOG.md.
+#
+# Bumping PostgreSQL:
+#   PG18 is the supported floor for this template (see ADR / CHANGELOG). When
+#   bumping, run scripts/backup-restore-drill.ts against the new image first
+#   to prove WAL-G can still backup-push and restore on the new major.
+#
+# Build:
+#   podman build -f deploy/Containerfile.postgres -t <project>-postgres:<sha> .
+#
+# Run (host-side smoke):
+#   podman run --rm -e POSTGRES_PASSWORD=test -p 127.0.0.1:5432:5432 \
+#     <project>-postgres:<sha>
+
+ARG POSTGRES_VERSION=18
+FROM docker.io/library/postgres:${POSTGRES_VERSION}-bookworm AS runtime
+
+# WAL-G — pinned by version + SHA-256. Verified against
+# https://github.com/wal-g/wal-g/releases/tag/v3.0.8
+ARG WAL_G_VERSION=3.0.8
+ARG WAL_G_SHA256_AMD64=f30544c5ce93cf83b87578e3c4a2e9c0e0ffc3d160ef89ecddaf75f397d98deb
+ARG WAL_G_SHA256_ARM64=794d1a81f0c27825a1603bd39c0f2cf5dd8bed7cc36b598ca05d8d963c3d5fcf
+
+# Buildx provides TARGETARCH automatically. Plain `podman build` defaults to
+# the host architecture; override with --build-arg TARGETARCH=amd64 if cross-
+# building from arm.
+ARG TARGETARCH=amd64
+
+RUN set -eux; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends ca-certificates curl; \
+	case "${TARGETARCH}" in \
+		amd64)  WAL_G_BIN_NAME=wal-g-pg-22.04-amd64;     EXPECTED_SHA=${WAL_G_SHA256_AMD64} ;; \
+		arm64)  WAL_G_BIN_NAME=wal-g-pg-22.04-aarch64;   EXPECTED_SHA=${WAL_G_SHA256_ARM64} ;; \
+		*) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+	esac; \
+	curl -fsSL -o /tmp/wal-g \
+		"https://github.com/wal-g/wal-g/releases/download/v${WAL_G_VERSION}/${WAL_G_BIN_NAME}"; \
+	echo "${EXPECTED_SHA}  /tmp/wal-g" | sha256sum -c -; \
+	mv /tmp/wal-g /usr/local/bin/wal-g; \
+	chmod 0755 /usr/local/bin/wal-g; \
+	# Keep ca-certificates (WAL-G needs them to talk to R2 over HTTPS); drop curl.
+	apt-get purge -y --auto-remove curl; \
+	rm -rf /var/lib/apt/lists/*; \
+	wal-g --version
+
+# Postgres reads its archive/restore commands from postgresql.conf or from
+# command-line flags. The Quadlet at deploy/quadlets/postgres.container
+# passes them via -c flags so the operator can change them without rebuilding
+# the image. The /etc/postgresql/walg.env file (rendered from the Quadlet's
+# EnvironmentFile) carries WAL-G's S3-compatible credentials at runtime.
+
+# Healthcheck: pg_isready is in $PATH for the postgres user. Mirrors the
+# Quadlet HealthCmd; baked here so non-Quadlet runs are also self-checking.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
+	CMD pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" || exit 1
+
+# stock postgres entrypoint runs as root, drops privileges to postgres
+# CMD inherits from the upstream image: postgres

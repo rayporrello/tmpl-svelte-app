@@ -1,0 +1,20 @@
+# deploy/systemd/backup-check.timer — PITR freshness check every 6 hours.
+#
+# OnCalendar fires four times a day with a small random spread. Failure of
+# this timer means the backup chain is broken; configure OnFailure or an
+# external alert (Healthchecks.io, Slack via journal forwarder) to page the
+# operator immediately.
+#
+# Pairs with backup-check.service.
+
+[Unit]
+Description=PITR freshness check timer — <project>
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:30:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+Unit=<project>-backup-check.service
+
+[Install]
+WantedBy=timers.target

@@ -50,6 +50,20 @@ const privateSchema = v.object({
 		v.union([v.literal(''), v.literal('header'), v.literal('hmac')])
 	),
 	N8N_WEBHOOK_AUTH_HEADER: v.optional(v.string()),
+	// Per-client n8n bundle (optional, off by default). Only consumed by the
+	// n8n.container Quadlet and the enable-n8n helper, not by the SvelteKit
+	// app — but validated here so secrets:check / preflight have visibility.
+	N8N_ENABLED: v.optional(v.string()),
+	N8N_ENCRYPTION_KEY: v.optional(v.string()),
+	N8N_HOST: v.optional(v.string()),
+	N8N_PROTOCOL: v.optional(v.string()),
+	// PITR / WAL-G backup target (Cloudflare R2 by default).
+	R2_ACCESS_KEY_ID: v.optional(v.string()),
+	R2_SECRET_ACCESS_KEY: v.optional(v.string()),
+	R2_ENDPOINT: v.optional(v.string()),
+	R2_BUCKET: v.optional(v.string()),
+	R2_PREFIX: v.optional(v.string()),
+	PITR_RETENTION_DAYS: v.optional(v.string()),
 	// Forms — set to "true" to enable in-process rate limiting on form endpoints.
 	// This is a single-node guard; buckets reset on restart. See rate-limit.ts.
 	RATE_LIMIT_ENABLED: v.optional(v.string()),
@@ -110,6 +124,16 @@ export function initEnv(): void {
 		N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET,
 		N8N_WEBHOOK_AUTH_MODE: process.env.N8N_WEBHOOK_AUTH_MODE,
 		N8N_WEBHOOK_AUTH_HEADER: process.env.N8N_WEBHOOK_AUTH_HEADER,
+		N8N_ENABLED: process.env.N8N_ENABLED,
+		N8N_ENCRYPTION_KEY: process.env.N8N_ENCRYPTION_KEY,
+		N8N_HOST: process.env.N8N_HOST,
+		N8N_PROTOCOL: process.env.N8N_PROTOCOL,
+		R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+		R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+		R2_ENDPOINT: process.env.R2_ENDPOINT,
+		R2_BUCKET: process.env.R2_BUCKET,
+		R2_PREFIX: process.env.R2_PREFIX,
+		PITR_RETENTION_DAYS: process.env.PITR_RETENTION_DAYS,
 		RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
 		ANALYTICS_SERVER_EVENTS_ENABLED: process.env.ANALYTICS_SERVER_EVENTS_ENABLED,
 		GA4_MEASUREMENT_ID: process.env.GA4_MEASUREMENT_ID,

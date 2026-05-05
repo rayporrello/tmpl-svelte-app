@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	checkAutomationProviderConfig,
 	checkBackupConfigured,
+	checkBackupPitrConfig,
 	checkAutomationWorkerArtifact,
 	checkCaddyfileDomain,
 	checkDatabaseUrlShape,
@@ -107,6 +108,11 @@ function writeReadyProject(): string {
 			'AUTOMATION_PROVIDER=n8n',
 			'N8N_WEBHOOK_URL=https://n8n.ready.example/webhook/ready',
 			'N8N_WEBHOOK_SECRET=ready-shared-secret',
+			'R2_ACCESS_KEY_ID=ready-r2-key',
+			'R2_SECRET_ACCESS_KEY=ready-r2-secret',
+			'R2_ENDPOINT=https://accountid.r2.cloudflarestorage.com',
+			'R2_BUCKET=ready-site-backups',
+			'R2_PREFIX=ready-site/postgres',
 			'',
 		].join('\n')
 	);
@@ -149,13 +155,14 @@ function writeReadyProject(): string {
 		'deploy/quadlets/postgres.container',
 		[
 			'[Container]',
-			'Image=docker.io/library/postgres:17-alpine',
+			'Image=ghcr.io/acme/ready-site-postgres:abc123',
 			'EnvironmentFile=%h/secrets/ready-site.prod.env',
 			'Network=ready-site.network',
 			'HostName=ready-site-postgres',
 			'PublishPort=127.0.0.1:5432:5432',
 			'Volume=ready-site-postgres-data:/var/lib/postgresql/data',
 			'HealthCmd=pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"',
+			"Exec=postgres -c archive_mode=on -c archive_command='/usr/local/bin/wal-g wal-push %p'",
 			'',
 		].join('\n')
 	);
@@ -166,20 +173,49 @@ function writeReadyProject(): string {
 	);
 	write(
 		rootDir,
-		'deploy/systemd/automation-worker.service',
+		'deploy/Containerfile.postgres',
 		[
-			'[Service]',
-			'WorkingDirectory=%h/ready-site',
+			'FROM docker.io/library/postgres:18-bookworm',
+			'ARG WAL_G_VERSION=3.0.8',
+			'RUN wal-g --version',
+			'',
+		].join('\n')
+	);
+	write(
+		rootDir,
+		'deploy/quadlets/worker.container',
+		[
+			'[Container]',
+			'Image=ghcr.io/acme/ready-site:abc123',
+			'Exec=bun run scripts/automation-worker.ts -- --daemon',
 			'EnvironmentFile=%h/secrets/ready-site.prod.env',
-			'ExecStart=%h/.bun/bin/bun run automation:worker',
+			'Network=ready-site.network',
+			'HostName=ready-site-worker',
+			'',
+			'[Service]',
 			'Restart=on-failure',
 			'',
 		].join('\n')
 	);
 	write(
 		rootDir,
-		'deploy/systemd/automation-worker.timer',
-		'[Timer]\nUnit=ready-site-automation-worker.service\n'
+		'deploy/systemd/backup-base.service',
+		'[Service]\nWorkingDirectory=%h/ready-site\nExecStart=%h/ready-site/scripts/backup-base.sh\n'
+	);
+	write(
+		rootDir,
+		'deploy/systemd/backup-base.timer',
+		'[Timer]\nUnit=ready-site-backup-base.service\n'
+	);
+	write(
+		rootDir,
+		'deploy/systemd/backup-check.service',
+		'[Service]\nWorkingDirectory=%h/ready-site\nExecStart=%h/ready-site/scripts/backup-pitr-check.sh\n'
+	);
+	write(
+		rootDir,
+		'deploy/systemd/backup-check.timer',
+		'[Timer]\nUnit=ready-site-backup-check.service\n'
 	);
 	write(
 		rootDir,
@@ -322,7 +358,11 @@ describe('deploy preflight', () => {
 			name: 'automation worker artifact',
 			check: checkAutomationWorkerArtifact,
 			mutate: (rootDir: string) =>
-				write(rootDir, 'deploy/systemd/automation-worker.timer', 'Unit=wrong-worker.service\n'),
+				write(
+					rootDir,
+					'deploy/quadlets/worker.container',
+					'[Container]\nImage=ghcr.io/acme/ready-site:abc123\n'
+				),
 			id: 'PREFLIGHT-WORKER-001',
 		},
 		{
@@ -390,6 +430,30 @@ describe('deploy preflight', () => {
 					'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nDATABASE_URL=postgres://ready:secret@db.ready.example:5432/ready\n'
 				),
 			id: 'PREFLIGHT-BACKUP-001',
+		},
+		{
+			name: 'PITR backup config — missing R2 creds on bundled Postgres',
+			check: checkBackupPitrConfig,
+			mutate: (rootDir: string) =>
+				write(
+					rootDir,
+					'production.env',
+					[
+						'ORIGIN=https://ready.example',
+						'PUBLIC_SITE_URL=https://ready.example',
+						'DATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready',
+						'DATABASE_DIRECT_URL=postgres://ready:secret@127.0.0.1:5432/ready',
+						'POSTGRES_DB=ready',
+						'POSTGRES_USER=ready',
+						'POSTGRES_PASSWORD=secret',
+						'BACKUP_REMOTE=r2:bucket/ready',
+						'AUTOMATION_PROVIDER=n8n',
+						'N8N_WEBHOOK_URL=https://n8n.ready.example/webhook/ready',
+						'N8N_WEBHOOK_SECRET=ready-shared-secret',
+						'',
+					].join('\n')
+				),
+			id: 'PREFLIGHT-BACKUP-PITR-001',
 		},
 		{
 			name: 'required launch blockers',

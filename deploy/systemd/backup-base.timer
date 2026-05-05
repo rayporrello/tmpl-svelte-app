@@ -1,0 +1,18 @@
+# deploy/systemd/backup-base.timer — daily WAL-G base backup at 03:15 UTC.
+#
+# OnCalendar fires once per day. RandomizedDelaySec=900 spreads start times
+# across multiple sites on the same host so they don't all hit R2 at once.
+#
+# Pairs with backup-base.service. See deploy/systemd/backup-base.service.
+
+[Unit]
+Description=WAL-G base backup timer — <project>
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+Persistent=true
+RandomizedDelaySec=900
+Unit=<project>-backup-base.service
+
+[Install]
+WantedBy=timers.target

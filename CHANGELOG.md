@@ -27,6 +27,141 @@ When to skip:
 
 ---
 
+## 2026-05-05 — Pass 3 (PITR backups, worker container, per-client n8n bundle)
+
+The largest architectural change in the template's lifetime. Replaces the
+ad-hoc backup story with WAL-G + R2 PITR, moves the automation worker from
+systemd timer to per-site container, and adds an opt-in n8n bundle that
+shares the existing per-client Postgres via a separate database.
+
+### Postgres + WAL-G PITR
+
+- **Postgres bumped to 18-bookworm.** `deploy/Containerfile.postgres` builds
+  on `postgres:18-bookworm` (replaces `postgres:17-alpine`). bookworm needed
+  because WAL-G ships glibc binaries.
+- **WAL-G v3.0.8 baked into the bundled Postgres image.** Pinned by version
+  AND SHA-256 (`f30544c5…` amd64, `794d1a81…` aarch64). The image is built
+  by CI from `deploy/Containerfile.postgres`, scanned by Trivy CRITICAL,
+  smoke-tested with `wal-g --version`, and pushed to GHCR alongside the
+  web image.
+- **archive_command + archive_timeout=60.** WAL ships to R2 every minute or
+  whenever a 16 MB segment fills, whichever fires first. Worst-case RPO is
+  ~1 minute on a healthy site.
+- **R2-named env contract.** User-facing: `R2_ACCESS_KEY_ID`,
+  `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_PREFIX`,
+  `PITR_RETENTION_DAYS`. The Quadlet maps them to the `AWS_*`/`WALG_*`
+  names WAL-G actually reads.
+- **Daily base backup + 6-hour PITR freshness check.** New systemd timers
+  in `deploy/systemd/backup-base.{service,timer}` and
+  `backup-check.{service,timer}`. Backed by new bash scripts:
+  `scripts/backup-base.sh`, `scripts/backup-wal-check.sh`,
+  `scripts/backup-pitr-check.sh`.
+- **`bun run backup:restore:drill`.** Non-destructive drill — spins up a
+  temp Postgres container off the same image, restores latest base,
+  replays WAL to "now-1h", runs sanity SELECT, tears down. Run quarterly
+  per `docs/operations/restore.md`. **Not** wired to a timer; an
+  automated drill that fails silently is worse than none.
+- **`PREFLIGHT-BACKUP-PITR-001`.** New deploy preflight gate fails when
+  the bundled Postgres path is selected without R2 credentials, or when
+  the backup timers are missing.
+
+### Worker as per-site container
+
+- **Migrated `automation:worker` from systemd timer to a Quadlet
+  container.** New `deploy/quadlets/worker.container` runs the same web
+  image with `bun run scripts/automation-worker.ts -- --daemon`. The
+  worker is now part of the per-client bundle so a site's runtime can be
+  paused / migrated as one unit.
+- **Daemon mode.** New `runAutomationWorkerDaemon()` polls every
+  `--poll-interval-seconds` (default 30s), handles SIGTERM/SIGINT
+  cleanly (finishes current batch before exit), and logs each batch's
+  outcome on one line for journald.
+- **Deleted `deploy/systemd/automation-worker.{service,timer}`.** Two
+  patterns for the same thing creates future confusion.
+- **`PREFLIGHT-WORKER-001` rewritten** to validate the new
+  `deploy/quadlets/worker.container` artifact instead of the systemd
+  timer.
+- **`bun run automation:worker:daemon`** added as a top-level script
+  alias.
+
+### Per-client n8n bundle
+
+- **`deploy/quadlets/n8n.container` + `n8n.volume`.** Optional Quadlets
+  for clients who run their own n8n. Pinned to `n8nio/n8n:1.84.1`, ships
+  with `EXECUTIONS_DATA_PRUNE=true` and a 14-day prune horizon by
+  default.
+- **`bun run n8n:enable`** (`scripts/enable-n8n.sh`). Idempotent helper
+  that creates `<project>_n8n` database, `<project>_n8n_user` role with a
+  generated password, grants, and prints the env shape to add to
+  `secrets.yaml`. The n8n role cannot read the app's `<project>_app`
+  database; the app role cannot read n8n's credentials.
+- **One Postgres container per client, two databases inside.** n8n shares
+  the existing `<project>-postgres` container — no second Postgres. WAL-G
+  PITR captures both databases atomically, so a restore puts the site
+  data and n8n state back to the same moment in time.
+- **Caddyfile snippet** for the n8n editor + webhook (commented;
+  uncomment when activating). Webhook surface is public + Header Auth;
+  editor is locked down behind Caddy `basic_auth` so credentials aren't
+  exposed to the public internet.
+
+### Architecture doc
+
+- **`docs/operations/architecture.md`** — the canonical "what runs where"
+  reference. Includes the per-client bundle map, container count for a
+  typical 5-client / 3-automation host, the database-boundary layout
+  inside `<project>-postgres`, and the rule that n8n is one-per-client.
+
+### Docs
+
+- `docs/operations/backups.md` — restructured around PITR-first, with
+  pg_dump documented as the convenience export path. Restore drill is
+  the load-bearing operational practice.
+- `docs/operations/restore.md` — added a complete PITR restore runbook
+  (8 steps, fully scripted, with rollback). pg_dump restore stays as
+  the fallback path.
+- `docs/deployment/runbook.md` — updated to install the worker container,
+  backup timers, and (optionally) n8n quadlets per site.
+
+### CI
+
+- **New `postgres-image` job.** Builds `deploy/Containerfile.postgres`
+  on every push to main, runs Trivy CRITICAL (blocking), runs
+  `wal-g --version` smoke, pushes to GHCR as
+  `<repo>-postgres:<sha>`.
+
+### Env contract
+
+- New optional vars (env.ts schema + .env.example + secrets.example.yaml):
+  `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`,
+  `R2_PREFIX`, `PITR_RETENTION_DAYS`, `N8N_ENABLED`, `N8N_ENCRYPTION_KEY`,
+  `N8N_HOST`, `N8N_PROTOCOL`.
+
+### Tests
+
+- New tests for worker daemon flag parsing + poll interval defaults.
+- Updated deploy-preflight fixtures: ready project now has a custom
+  Postgres image, worker.container instead of systemd worker, and the
+  full R2\_\* env. Added mutation cases for `PREFLIGHT-BACKUP-PITR-001`.
+- doctor + ready-to-launch fixtures extended with R2\_\* env so the new
+  PITR check passes.
+
+### Migration notes for downstream projects
+
+- Run `bun run init:site` again (or update by hand) to pick up the new
+  Quadlets: `worker.container`, `n8n.container`, `n8n.volume`, and the
+  rewritten `postgres.container`.
+- Render the new R2\_\* env values into the project's secrets file before
+  the next `bun run deploy:preflight` run.
+- Build the Postgres image: CI does this on the next push, or run
+  `podman build -f deploy/Containerfile.postgres -t <project>-postgres:<sha> .`
+  locally.
+- On the host: install `worker.container`, `backup-base.{service,timer}`,
+  `backup-check.{service,timer}`, then disable and remove
+  `<project>-automation-worker.{service,timer}`. Run
+  `bun run backup:restore:drill` once before trusting PITR.
+
+---
+
 ## 2026-05-05 — Pass 2 (n8n-first reliability)
 
 ### Security / reliability

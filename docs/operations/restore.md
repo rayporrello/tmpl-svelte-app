@@ -2,6 +2,13 @@
 
 How to restore a Postgres database or uploads archive from a backup. Read this **before** you need it — restoring under pressure is when mistakes happen.
 
+Two restore paths:
+
+- **PITR via WAL-G** (production default for the bundled Postgres path) — restore the database to any moment in the last 14 days. Atomic across both `<project>_app` and `<project>_n8n` because they live in the same cluster.
+- **pg_dump restore** (convenience / cross-host export) — restore a logical snapshot. Use when handing a copy to a client, rebuilding from a portable export, or when PITR is unavailable (managed Postgres without point-in-time access).
+
+If you are choosing under pressure: PITR is almost always the right answer for the bundled Postgres path. Faster, more recent, atomic across all databases.
+
 ---
 
 ## Before any destructive restore
@@ -9,10 +16,14 @@ How to restore a Postgres database or uploads archive from a backup. Read this *
 1. **Confirm which environment you are targeting.** Restoring to production is irreversible. Restoring to dev is low-stakes. Know which is which before running anything.
 2. **Take a fresh backup of the current state first.** Even if the data is broken, it preserves your starting point.
    ```bash
-   bun run backup:db
+   bun run backup:base    # PITR base backup
+   bun run backup:db      # logical pg_dump (also works as a quick sanity export)
    ```
 3. **Verify the backup you intend to restore from.**
    ```bash
+   # PITR: confirm a recent base + WAL exist
+   bun run backup:pitr:check
+   # pg_dump: verify checksum of a specific file
    bun run backup:verify -- <backup-file>
    ```
 4. **Stop the application if necessary.** For database restores, the app can remain running if you're comfortable with it reading inconsistent data during the restore window. For a clean restore, stop it first.
@@ -20,7 +31,139 @@ How to restore a Postgres database or uploads archive from a backup. Read this *
 
 ---
 
-## Restore the database
+## Restore the database (PITR — preferred for bundled Postgres)
+
+PITR restores the entire Postgres cluster (app + n8n if active) to a chosen
+point in time. The procedure restores into a fresh container with a new
+volume; the operator promotes by swapping volumes on the existing
+`<project>-postgres` Quadlet. The original data stays available as a
+rollback for at least 24 hours.
+
+### 1. Decide on a target
+
+```bash
+# What restore points are available?
+podman exec <project>-postgres /usr/local/bin/wal-g backup-list --json
+podman exec <project>-postgres /usr/local/bin/wal-g wal-show --json
+```
+
+Pick a recovery target between the start of the latest usable base backup
+and the latest archived WAL. Express it as ISO-8601 UTC (e.g.
+`2026-05-05T14:30:00Z`).
+
+### 2. Run a non-destructive drill first
+
+When in doubt, prove the restore works against a temp container before
+touching production:
+
+```bash
+bun run backup:restore:drill -- --target-time=2026-05-05T14:30:00Z
+```
+
+The drill spins up a parallel Postgres on a different port, restores into
+a scratch volume, replays WAL up to the target, runs a sanity SELECT, and
+tears down. **If it fails, do not proceed with the production restore —
+fix WAL-G config first.**
+
+### 3. Stop the live app and worker
+
+```bash
+systemctl --user stop <project>-web <project>-worker
+# Leave <project>-postgres running for now — we'll swap its volume.
+# If n8n is active for this client, also stop <project>-n8n.
+systemctl --user stop <project>-n8n 2>/dev/null || true
+```
+
+The worker must be stopped so it does not continue draining the outbox
+during the restore window. Web must be stopped so users do not write data
+we are about to discard.
+
+### 4. Restore into a new volume
+
+```bash
+podman volume create <project>-postgres-data-restored
+
+SOURCE_IMAGE="$(podman inspect --format '{{.ImageName}}' <project>-postgres)"
+podman run -d --name <project>-postgres-restore --rm \
+  -v <project>-postgres-data-restored:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=temp-restore-password \
+  -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_ENDPOINT \
+  -e AWS_REGION -e WALG_S3_PREFIX -e WALG_COMPRESSION_METHOD \
+  --entrypoint /bin/sh "$SOURCE_IMAGE" -c 'sleep infinity'
+
+podman exec <project>-postgres-restore /usr/local/bin/wal-g \
+  backup-fetch /var/lib/postgresql/data LATEST
+
+podman exec <project>-postgres-restore sh -c 'cat >> /var/lib/postgresql/data/postgresql.auto.conf <<EOF
+restore_command = '\''/usr/local/bin/wal-g wal-fetch %f %p'\''
+recovery_target_time = '\''2026-05-05T14:30:00Z'\''
+recovery_target_action = '\''pause'\''
+EOF
+touch /var/lib/postgresql/data/recovery.signal
+chown postgres:postgres /var/lib/postgresql/data/postgresql.auto.conf /var/lib/postgresql/data/recovery.signal'
+
+podman exec -u postgres -d <project>-postgres-restore \
+  /usr/local/bin/docker-entrypoint.sh postgres
+```
+
+Watch the logs (`podman logs -f <project>-postgres-restore`) until you
+see "recovery has paused" — Postgres reached the target and is waiting
+for confirmation.
+
+### 5. Verify the restored data
+
+```bash
+podman exec -u postgres <project>-postgres-restore \
+  psql -d <project>_app -c 'SELECT count(*) FROM contact_submissions;'
+
+# If n8n was active:
+podman exec -u postgres <project>-postgres-restore \
+  psql -d <project>_n8n -c 'SELECT count(*) FROM workflow_entity;'
+```
+
+If the counts and a few sample rows look right, promote.
+
+### 6. Promote the restored volume
+
+```bash
+systemctl --user stop <project>-postgres
+podman volume rename <project>-postgres-data <project>-postgres-data-pre-restore
+podman volume rename <project>-postgres-data-restored <project>-postgres-data
+
+podman exec <project>-postgres-restore \
+  pg_ctl promote -D /var/lib/postgresql/data
+podman stop <project>-postgres-restore
+
+systemctl --user start <project>-postgres
+systemctl --user start <project>-web <project>-worker
+systemctl --user start <project>-n8n 2>/dev/null || true
+```
+
+If something is wrong, the original data is in
+`<project>-postgres-data-pre-restore` — rename it back to roll forward.
+
+### 7. Take a fresh base backup
+
+After a successful restore, the WAL timeline bumped. Make a clean base
+backup so subsequent PITR works against the new timeline:
+
+```bash
+bun run backup:base
+```
+
+### 8. Drop the rollback volume once you're confident
+
+Wait at least 24 hours before this step:
+
+```bash
+podman volume rm <project>-postgres-data-pre-restore
+```
+
+Removing it commits to the new timeline.
+
+---
+
+## Restore the database (pg_dump fallback)
 
 ### Using the restore script (recommended)
 

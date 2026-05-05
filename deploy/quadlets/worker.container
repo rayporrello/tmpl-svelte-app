@@ -1,0 +1,62 @@
+# deploy/quadlets/worker.container — automation outbox worker for <project>
+#
+# Long-lived per-site container that polls the automation_events outbox and
+# delivers events to the configured provider (n8n by default). Same image as
+# web — different command. Stays in the per-site Podman bundle so a client's
+# whole runtime can be paused / migrated as one unit.
+#
+# The form action is the source of truth — it commits the lead AND the
+# outbox event in one Postgres transaction. This worker just drains the
+# outbox; if it crashes mid-batch, the next start picks up where it left off
+# (claim is per-row with SKIP LOCKED).
+#
+# Usage:
+#   1. Run `bun run init:site` to replace <owner>/<project> placeholders.
+#   2. Copy this file to ~/.config/containers/systemd/<project>-worker.container
+#   3. systemctl --user daemon-reload
+#   4. systemctl --user enable --now <project>-worker
+
+[Unit]
+Description=Automation outbox worker — <project>
+After=network-online.target
+# Don't start the worker until Postgres is up — otherwise it logs DB errors
+# until pg_isready, which is noisy. The web container has the same dep.
+Requires=<project>-postgres.service
+After=<project>-postgres.service
+
+[Container]
+# Same SHA the web container is pulled at — they share the app codebase.
+Image=ghcr.io/<owner>/<project>:<sha>
+Pull=never
+Exec=bun run scripts/automation-worker.ts -- --daemon
+
+# Project env file carries DATABASE_URL, AUTOMATION_PROVIDER, and the
+# n8n / webhook credentials.
+EnvironmentFile=%h/secrets/<project>.prod.env
+
+Network=<project>.network
+HostName=<project>-worker
+
+# Non-root user matches the uid/gid created in the web Containerfile.
+User=1001
+Group=1001
+
+# Worker reads the outbox; nothing publishes to it. No port to expose.
+
+# Resource limits — tune per project. The worker is mostly idle on a
+# lead-gen site, so a low ceiling is intentional. For high-volume sites,
+# raise these or run multiple worker containers behind a coordinator key.
+MemoryHigh=128M
+CPUQuota=25%
+
+[Service]
+Restart=on-failure
+RestartSec=10
+
+# Match the worker's SIGTERM handling: it finishes the current batch before
+# exiting, which usually completes in <5s. 15s leaves headroom; Podman
+# escalates to SIGKILL after this.
+StopTimeout=15
+
+[Install]
+WantedBy=default.target

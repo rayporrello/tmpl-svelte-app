@@ -1,11 +1,17 @@
-# deploy/quadlets/postgres.container — optional bundled Postgres for <project>
+# deploy/quadlets/postgres.container — bundled Postgres + WAL-G for <project>
 #
-# Use this when you want the template's turnkey self-hosted Postgres path.
-# Managed Postgres users can leave this file uninstalled and set DATABASE_URL
-# to the managed database instead.
+# Use this when you want the template's turnkey self-hosted Postgres path with
+# point-in-time recovery via WAL-G to Cloudflare R2. Managed Postgres users
+# leave this file uninstalled and set DATABASE_URL to the managed database.
+#
+# The image (built from deploy/Containerfile.postgres) is Postgres 18 with
+# WAL-G baked in. archive_command pushes a WAL segment to R2 every minute or
+# whenever a 16 MB WAL file fills, whichever fires first. Daily base backups
+# come from deploy/systemd/backup-base.timer. Restore docs live in
+# docs/operations/pitr-restore.md.
 #
 # Usage:
-#   1. Run `bun run init:site` to replace <project> placeholders.
+#   1. Run `bun run init:site` to replace <owner>/<project> placeholders.
 #   2. Copy deploy/quadlets/postgres.volume to
 #      ~/.config/containers/systemd/<project>-postgres-data.volume
 #   3. Copy this file to ~/.config/containers/systemd/<project>-postgres.container
@@ -13,16 +19,35 @@
 #   5. systemctl --user enable --now <project>-postgres
 #
 # The same %h/secrets/<project>.prod.env file is shared with web/worker. It
-# must define POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL, and
-# DATABASE_DIRECT_URL as shown in deploy/env.example.
+# must define POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL,
+# DATABASE_DIRECT_URL, and the R2_* + WALG_* variables — see
+# deploy/env.example.
 
 [Unit]
-Description=Postgres database — <project>
+Description=Postgres 18 + WAL-G — <project>
 After=network-online.target
 
 [Container]
-Image=docker.io/library/postgres:17-alpine
+# Replace <owner>/<project> with the actual GHCR repo+image and commit SHA.
+# Built from deploy/Containerfile.postgres. CI builds and pushes alongside
+# the web image; pull is forbidden at start time so unexpected GHCR drift
+# cannot silently substitute the binary.
+Image=ghcr.io/<owner>/<project>-postgres:<sha>
+Pull=never
+
 EnvironmentFile=%h/secrets/<project>.prod.env
+
+# Map user-facing R2_* env names to the AWS_* and WALG_* names WAL-G expects.
+# Set here so the rendered prod env stays operator-friendly while WAL-G sees
+# the standard envvars. Edit these alongside the R2_* entries — never split.
+Environment=AWS_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+Environment=AWS_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+Environment=AWS_ENDPOINT=${R2_ENDPOINT}
+Environment=AWS_REGION=auto
+Environment=AWS_S3_FORCE_PATH_STYLE=true
+Environment=WALG_S3_PREFIX=s3://${R2_BUCKET}/${R2_PREFIX}
+Environment=WALG_COMPRESSION_METHOD=zstd
+Environment=WALG_PREVENT_WAL_OVERWRITE=true
 
 # Web and worker containers reach Postgres by this hostname.
 Network=<project>.network
@@ -38,8 +63,20 @@ Volume=<project>-postgres-data:/var/lib/postgresql/data
 HealthCmd=pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 HealthInterval=10s
 HealthTimeout=3s
-HealthStartPeriod=10s
+HealthStartPeriod=15s
 HealthRetries=5
+
+# Postgres tuning + WAL archiving. Passed as -c flags so we can change them
+# without rebuilding the image. archive_timeout=60 caps the worst-case data
+# loss window at one minute (R2 PUT cost is negligible at this rate).
+Exec=postgres \
+	-c shared_buffers=128MB \
+	-c max_wal_senders=3 \
+	-c wal_level=replica \
+	-c archive_mode=on \
+	-c archive_timeout=60 \
+	-c archive_command='/usr/local/bin/wal-g wal-push %p' \
+	-c restore_command='/usr/local/bin/wal-g wal-fetch %f %p'
 
 [Service]
 Restart=on-failure

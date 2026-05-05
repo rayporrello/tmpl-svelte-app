@@ -1,0 +1,93 @@
+# deploy/quadlets/n8n.container — per-client self-hosted n8n.
+#
+# OPTIONAL. Only install for clients who actually run automations. Most
+# lead-gen sites can keep AUTOMATION_PROVIDER=n8n pointing at a remote n8n
+# (or AUTOMATION_PROVIDER=noop for no-automation sites). This file is for
+# clients who need their own isolated n8n instance.
+#
+# Why per-client and not shared: n8n's editor + credentials + execution
+# history all live in one namespace. A shared instance leaks credentials
+# and workflow definitions across unrelated clients. RBAC is Enterprise-
+# tier only. So each automation client gets their own bundle.
+#
+# Why one Postgres container: n8n shares the client's existing Postgres
+# instance (separate database, separate role). One PITR backup covers
+# both site data and n8n state atomically. See architecture.md.
+#
+# Activation:
+#   1. Run bun run n8n:enable — creates <project>_n8n database, role, and
+#      grants inside <project>-postgres.
+#   2. Confirm N8N_ENABLED=true and the n8n env section in the secrets
+#      file are filled (especially N8N_ENCRYPTION_KEY).
+#   3. Replace <owner>/<project> placeholders in this file.
+#   4. Copy to ~/.config/containers/systemd/<project>-n8n.container
+#   5. systemctl --user daemon-reload && systemctl --user enable --now <project>-n8n
+#   6. Add the n8n Caddy block from deploy/Caddyfile.example.
+#
+# Deactivation: stop the container and the schema/role stay around with
+# their data — re-enabling is a single systemctl start away.
+
+[Unit]
+Description=n8n — <project>
+After=network-online.target
+Requires=<project>-postgres.service
+After=<project>-postgres.service
+
+[Container]
+# n8nio/n8n is the official Docker image. Pin a specific tag (not :latest)
+# in production so version bumps are deliberate and visible in CHANGELOG.
+Image=docker.n8n.io/n8nio/n8n:1.84.1
+
+EnvironmentFile=%h/secrets/<project>.prod.env
+
+# Talk to the per-client Postgres on the project network. Database and
+# role are created by bun run n8n:enable.
+Environment=DB_TYPE=postgresdb
+Environment=DB_POSTGRESDB_HOST=<project>-postgres
+Environment=DB_POSTGRESDB_PORT=5432
+Environment=DB_POSTGRESDB_DATABASE=<project>_n8n
+Environment=DB_POSTGRESDB_USER=<project>_n8n_user
+# DB_POSTGRESDB_PASSWORD comes from the env file (set by enable-n8n).
+
+# Bound execution-history growth — without this, the n8n schema grows
+# without bound on busy sites and inflates WAL-G base backup size.
+# 14 days matches our PITR retention window.
+Environment=EXECUTIONS_DATA_PRUNE=true
+Environment=EXECUTIONS_DATA_MAX_AGE=336
+Environment=EXECUTIONS_DATA_PRUNE_MAX_COUNT=10000
+
+# Hostname for canonical URLs (webhook, editor). Set this and N8N_PROTOCOL
+# in the env file; the env vars below pick them up.
+Environment=N8N_HOST=${N8N_HOST}
+Environment=N8N_PROTOCOL=${N8N_PROTOCOL}
+Environment=N8N_PORT=5678
+# Webhook URL is the public address Caddy proxies. Editor is locked down
+# behind basic auth or a VPN — see Caddyfile snippet.
+Environment=WEBHOOK_URL=${N8N_PROTOCOL}://${N8N_HOST}/
+
+# n8n encrypts stored credentials with this key. Set once in the env file
+# and never rotate it casually (rotation invalidates every credential).
+Environment=N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+
+# Run as non-root inside the container.
+Environment=N8N_USER_FOLDER=/home/node/.n8n
+
+Network=<project>.network
+HostName=<project>-n8n
+
+# Caddy reaches the editor + webhook over loopback.
+PublishPort=127.0.0.1:5678:5678
+
+# Persistent state for credentials, workflows, executions. Note: most of
+# n8n's state lives in Postgres because we set DB_TYPE=postgresdb above;
+# this volume is mostly for the encryption key bootstrap and binary data
+# (file uploads in workflows).
+Volume=<project>-n8n-data:/home/node/.n8n
+
+[Service]
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

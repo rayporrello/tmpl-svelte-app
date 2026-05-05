@@ -1,0 +1,26 @@
+# deploy/systemd/backup-check.service — periodic PITR freshness check.
+#
+# Pairs with backup-check.timer. Verifies a recent base backup AND a recent
+# WAL archive both exist in R2. Failure is the loudest possible signal: PITR
+# is currently broken.
+#
+# Install per project:
+#   cp deploy/systemd/backup-check.service ~/.config/systemd/user/<project>-backup-check.service
+#   cp deploy/systemd/backup-check.timer   ~/.config/systemd/user/<project>-backup-check.timer
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now <project>-backup-check.timer
+
+[Unit]
+Description=PITR freshness check — <project>
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/<project>
+EnvironmentFile=%h/secrets/<project>.prod.env
+ExecStart=%h/<project>/scripts/backup-pitr-check.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

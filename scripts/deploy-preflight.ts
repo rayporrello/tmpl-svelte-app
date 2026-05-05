@@ -632,16 +632,29 @@ export async function checkPostgresArtifacts(
 	const slug = projectSlug(context.rootDir);
 	const problems = [
 		...missingFileOrLines(context.rootDir, 'deploy/quadlets/postgres.container', [
-			'Image=docker.io/library/postgres:17-alpine',
+			// Image must point at the project-built Postgres+WAL-G image, not
+			// a stock postgres:* tag. The template ships postgres:18-bookworm
+			// + WAL-G via deploy/Containerfile.postgres.
+			`Image=ghcr.io/`,
+			`-postgres:`,
 			`EnvironmentFile=%h/secrets/${slug}.prod.env`,
 			`Network=${slug}.network`,
 			`HostName=${slug}-postgres`,
 			'PublishPort=127.0.0.1:5432:5432',
 			`Volume=${slug}-postgres-data:/var/lib/postgresql/data`,
 			'HealthCmd=pg_isready',
+			// archive_command must be wired so WAL streams to R2.
+			'archive_mode=on',
+			'archive_command',
+			'wal-g wal-push',
 		]),
 		...missingFileOrLines(context.rootDir, 'deploy/quadlets/postgres.volume', [
 			`VolumeName=${slug}-postgres-data`,
+		]),
+		...missingFileOrLines(context.rootDir, 'deploy/Containerfile.postgres', [
+			'FROM docker.io/library/postgres:',
+			'WAL_G_VERSION',
+			'wal-g --version',
 		]),
 	];
 
@@ -650,14 +663,14 @@ export async function checkPostgresArtifacts(
 			'PREFLIGHT-POSTGRES-001',
 			label,
 			problems.join(' '),
-			'NEXT: Restore deploy/quadlets/postgres.container and postgres.volume or update them for this project.'
+			'NEXT: Restore deploy/quadlets/postgres.{container,volume}, deploy/Containerfile.postgres, or update them for this project.'
 		);
 	}
 
 	return pass(
 		'PREFLIGHT-POSTGRES-001',
 		label,
-		`Postgres container and volume artifacts are present for ${slug}.`,
+		`Postgres container, WAL-G image, and volume artifacts are present for ${slug}.`,
 		'NEXT: Install them for self-hosted Postgres, or leave them unused when using managed Postgres.'
 	);
 }
@@ -758,17 +771,16 @@ export async function checkPostgresEnvShape(
 export async function checkAutomationWorkerArtifact(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
-	const label = 'Automation worker systemd timer is wired';
+	const label = 'Automation worker container is wired';
 	const slug = projectSlug(context.rootDir);
 	const problems = [
-		...missingFileOrLines(context.rootDir, 'deploy/systemd/automation-worker.service', [
-			`WorkingDirectory=%h/${slug}`,
+		...missingFileOrLines(context.rootDir, 'deploy/quadlets/worker.container', [
+			'Image=ghcr.io/',
+			'Exec=bun run scripts/automation-worker.ts -- --daemon',
 			`EnvironmentFile=%h/secrets/${slug}.prod.env`,
-			'ExecStart=%h/.bun/bin/bun run automation:worker',
+			`Network=${slug}.network`,
+			`HostName=${slug}-worker`,
 			'Restart=on-failure',
-		]),
-		...missingFileOrLines(context.rootDir, 'deploy/systemd/automation-worker.timer', [
-			`Unit=${slug}-automation-worker.service`,
 		]),
 	];
 
@@ -777,15 +789,89 @@ export async function checkAutomationWorkerArtifact(
 			'PREFLIGHT-WORKER-001',
 			label,
 			problems.join(' '),
-			'NEXT: Restore deploy/systemd/automation-worker.{service,timer} or update them for this project.'
+			'NEXT: Restore deploy/quadlets/worker.container or update it for this project.'
 		);
 	}
 
 	return pass(
 		'PREFLIGHT-WORKER-001',
 		label,
-		`Automation worker service and timer are present for ${slug}.`,
-		'NEXT: Enable the timer if this project uses runtime automation outbox events.'
+		`Automation worker Quadlet container is present for ${slug}.`,
+		'NEXT: Install it as ~/.config/containers/systemd/<project>-worker.container alongside web and postgres.'
+	);
+}
+
+export async function checkBackupPitrConfig(
+	context: DeployPreflightContext
+): Promise<DeployPreflightResult> {
+	const label = 'PITR backup config is present for the bundled Postgres path';
+	const envReference = readProdEnv(context);
+	if (!envReference.ok) {
+		return fail(
+			'PREFLIGHT-BACKUP-PITR-001',
+			label,
+			envReference.detail,
+			'NEXT: Add the production env file before checking PITR config.'
+		);
+	}
+
+	const slug = projectSlug(context.rootDir);
+	const databaseUrl = envReference.env.DATABASE_URL?.trim();
+	if (databaseUrl) {
+		try {
+			const parsed = new URL(databaseUrl);
+			// Managed Postgres handles its own backups — skip cleanly.
+			if (parsed.hostname !== `${slug}-postgres`) {
+				return pass(
+					'PREFLIGHT-BACKUP-PITR-001',
+					label,
+					`DATABASE_URL targets ${parsed.hostname}; assuming managed Postgres handles backups.`,
+					'NEXT: Confirm the managed provider has PITR enabled and an off-host backup target.'
+				);
+			}
+		} catch {
+			// fall through to the bundled-path check
+		}
+	}
+
+	const requiredKeys = ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ENDPOINT', 'R2_BUCKET'];
+	const missing = requiredKeys.filter((key) => !envReference.env[key]?.trim());
+	if (missing.length) {
+		return fail(
+			'PREFLIGHT-BACKUP-PITR-001',
+			label,
+			`Bundled Postgres path requires R2 credentials but ${missing.join(', ')} ${
+				missing.length === 1 ? 'is' : 'are'
+			} missing.`,
+			'NEXT: Configure the R2_* values in the production env file. See docs/operations/backups.md.'
+		);
+	}
+
+	const baseTimerProblems = missingFileOrLines(
+		context.rootDir,
+		'deploy/systemd/backup-base.timer',
+		[`Unit=${slug}-backup-base.service`]
+	);
+	const checkTimerProblems = missingFileOrLines(
+		context.rootDir,
+		'deploy/systemd/backup-check.timer',
+		[`Unit=${slug}-backup-check.service`]
+	);
+
+	if (baseTimerProblems.length || checkTimerProblems.length) {
+		return fail(
+			'PREFLIGHT-BACKUP-PITR-001',
+			label,
+			[...baseTimerProblems, ...checkTimerProblems].join(' '),
+			'NEXT: Restore deploy/systemd/backup-base.{service,timer} and backup-check.{service,timer}.'
+		);
+	}
+
+	return pass(
+		'PREFLIGHT-BACKUP-PITR-001',
+		label,
+		`R2 credentials are set and backup-base/backup-check timers are wired for ${slug}.`,
+		'NEXT: Run bun run backup:pitr:check on the host to verify the chain end-to-end.'
 	);
 }
 
@@ -1000,6 +1086,11 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 		run: checkAutomationProviderConfig,
 	},
 	{ id: 'PREFLIGHT-GHCR-001', label: 'GHCR image name aligns', run: checkGhcrImageShape },
+	{
+		id: 'PREFLIGHT-BACKUP-PITR-001',
+		label: 'PITR backup config is present',
+		run: checkBackupPitrConfig,
+	},
 	{ id: 'PREFLIGHT-BACKUP-001', label: 'Backups configured or waived', run: checkBackupConfigured },
 	{
 		id: 'PREFLIGHT-LAUNCH-001',
