@@ -535,7 +535,8 @@ export const LAUNCH_BLOCKERS: LaunchBlocker[] = [
 		label: 'Default OG image is still the template asset',
 		severity: 'required',
 		check: checkOgDefault,
-		fixHint: 'NEXT: Replace static/og-default.png with a real 1200x630 PNG.',
+		fixHint:
+			'NEXT: Run bun run assets:generate-og or replace static/og-default.png with a real 1200x630 PNG.',
 		docsPath: 'docs/seo/launch-checklist.md',
 	},
 	{

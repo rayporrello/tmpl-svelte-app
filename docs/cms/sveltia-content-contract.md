@@ -17,15 +17,22 @@ The CMS configuration in `static/admin/config.yml` is a **data interface contrac
 		<title>Content Manager</title>
 	</head>
 	<body>
-		<script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+		<script src="/admin/sveltia/sveltia-cms.js"></script>
 	</body>
 </html>
 ```
 
+The bundle is self-hosted: `scripts/vendor-sveltia.ts` (postinstall hook) copies
+`node_modules/@sveltia/cms/dist/sveltia-cms.js` into `static/admin/sveltia/`.
+The directory is gitignored — bun.lock pins the active `@sveltia/cms` version.
+Self-hosting is what lets `/admin` drop `https://unpkg.com` and `'unsafe-eval'`
+from its CSP. To bump Sveltia: `bun add -d @sveltia/cms@latest`, then re-run
+`bun install` to regenerate the bundle.
+
 Do not add:
 
 ```html
-<link rel="stylesheet" href="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.css" />
+<link rel="stylesheet" href="/admin/sveltia/sveltia-cms.css" />
 ```
 
 Do not add `type="module"` to the script tag.

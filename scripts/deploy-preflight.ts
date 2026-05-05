@@ -13,7 +13,7 @@ import {
 	validateAutomationProviderConfig,
 } from '../src/lib/server/automation/providers';
 
-export type DeployPreflightStatus = 'pass' | 'fail';
+export type DeployPreflightStatus = 'pass' | 'fail' | 'skip';
 
 export type DeployPreflightResult = {
 	id: string;
@@ -61,6 +61,12 @@ type CheckDefinition = {
 	id: string;
 	label: string;
 	run: (context: DeployPreflightContext) => Promise<DeployPreflightResult>;
+	/**
+	 * When true, this check is skipped (with a synthesized 'skip' result) when
+	 * PREFLIGHT-ENV-001 fails. Avoids duplicating the same "no production env
+	 * file" error across every check that reads it.
+	 */
+	dependsOnEnv?: boolean;
 };
 
 const ROOT_DIR = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -89,6 +95,16 @@ function fail(id: string, label: string, detail: string, hint: string): DeployPr
 		label,
 		status: 'fail',
 		detail,
+		hint: hint.startsWith('NEXT:') ? hint : `NEXT: ${hint}`,
+	};
+}
+
+function skip(id: string, label: string, reason: string, hint: string): DeployPreflightResult {
+	return {
+		id,
+		label,
+		status: 'skip',
+		detail: reason,
 		hint: hint.startsWith('NEXT:') ? hint : `NEXT: ${hint}`,
 	};
 }
@@ -1134,8 +1150,14 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 		id: 'PREFLIGHT-DB-001',
 		label: 'DATABASE_URL is production-shaped',
 		run: checkDatabaseUrlShape,
+		dependsOnEnv: true,
 	},
-	{ id: 'PREFLIGHT-ENV-002', label: 'Origins are HTTPS and match', run: checkHttpsOrigins },
+	{
+		id: 'PREFLIGHT-ENV-002',
+		label: 'Origins are HTTPS and match',
+		run: checkHttpsOrigins,
+		dependsOnEnv: true,
+	},
 	{ id: 'PREFLIGHT-CADDY-001', label: 'Caddyfile domain is replaced', run: checkCaddyfileDomain },
 	{ id: 'PREFLIGHT-QUADLET-001', label: 'Quadlet names align', run: checkQuadletProject },
 	{ id: 'PREFLIGHT-QUADLET-002', label: 'Project network aligns', run: checkQuadletNetwork },
@@ -1154,6 +1176,7 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 		id: 'PREFLIGHT-POSTGRES-002',
 		label: 'Bundled Postgres env aligns',
 		run: checkPostgresEnvShape,
+		dependsOnEnv: true,
 	},
 	{
 		id: 'PREFLIGHT-WORKER-001',
@@ -1164,23 +1187,32 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 		id: 'PREFLIGHT-AUTOMATION-001',
 		label: 'Automation provider config is complete',
 		run: checkAutomationProviderConfig,
+		dependsOnEnv: true,
 	},
 	{
 		id: 'PREFLIGHT-N8N-001',
 		label: 'Per-client n8n bundle is isolated',
 		run: checkN8nBundleConfig,
+		dependsOnEnv: true,
 	},
 	{ id: 'PREFLIGHT-GHCR-001', label: 'GHCR image name aligns', run: checkGhcrImageShape },
 	{
 		id: 'PREFLIGHT-BACKUP-PITR-001',
 		label: 'PITR backup config is present',
 		run: checkBackupPitrConfig,
+		dependsOnEnv: true,
 	},
-	{ id: 'PREFLIGHT-BACKUP-001', label: 'Backups configured or waived', run: checkBackupConfigured },
+	{
+		id: 'PREFLIGHT-BACKUP-001',
+		label: 'Backups configured or waived',
+		run: checkBackupConfigured,
+		dependsOnEnv: true,
+	},
 	{
 		id: 'PREFLIGHT-LAUNCH-001',
 		label: 'Required launch blockers pass',
 		run: checkRequiredLaunchBlockers,
+		dependsOnEnv: true,
 	},
 ];
 
@@ -1193,7 +1225,37 @@ export async function runDeployPreflight(
 		runner: options.runner,
 		prodEnvPath: options.prodEnvPath,
 	};
-	const results = await Promise.all(DEPLOY_PREFLIGHT_CHECKS.map((check) => check.run(context)));
+
+	// Run PREFLIGHT-ENV-001 first so we can short-circuit env-dependent checks
+	// when the production env file is missing. This collapses what used to be
+	// 7+ duplicate "no production env file found" failures into a single FAIL
+	// plus SKIPs that point back at it.
+	const envCheck = DEPLOY_PREFLIGHT_CHECKS.find((check) => check.id === 'PREFLIGHT-ENV-001');
+	if (!envCheck) throw new Error('PREFLIGHT-ENV-001 is required in DEPLOY_PREFLIGHT_CHECKS.');
+	const envResult = await envCheck.run(context);
+	const envOk = envResult.status === 'pass';
+
+	const otherResults = await Promise.all(
+		DEPLOY_PREFLIGHT_CHECKS.filter((check) => check.id !== 'PREFLIGHT-ENV-001').map((check) => {
+			if (!envOk && check.dependsOnEnv) {
+				return Promise.resolve(
+					skip(
+						check.id,
+						check.label,
+						'depends on PREFLIGHT-ENV-001 (production env file missing)',
+						'NEXT: Provide a production env file, then re-run bun run deploy:preflight.'
+					)
+				);
+			}
+			return check.run(context);
+		})
+	);
+
+	const order = new Map(DEPLOY_PREFLIGHT_CHECKS.map((check, i) => [check.id, i]));
+	const results = [envResult, ...otherResults].sort(
+		(a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
+	);
+
 	return {
 		results,
 		exitCode: results.some((item) => item.status === 'fail') ? 1 : 0,
@@ -1216,9 +1278,9 @@ export async function main(
 	});
 	const lines = ['Deploy preflight'];
 	for (const item of result.results) {
-		const prefix = item.status === 'pass' ? 'OK  ' : 'FAIL';
+		const prefix = item.status === 'pass' ? 'OK  ' : item.status === 'skip' ? 'SKIP' : 'FAIL';
 		lines.push(`  ${prefix} ${item.id} ${item.detail}`);
-		if (item.status === 'fail') lines.push(`       ${item.hint}`);
+		if (item.status === 'fail' || item.status === 'skip') lines.push(`       ${item.hint}`);
 	}
 	lines.push('');
 

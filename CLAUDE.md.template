@@ -131,7 +131,7 @@ Full docs: [docs/cms/README.md](docs/cms/README.md) · Contract: [docs/cms/svelt
 - CMS image fields must render through `CmsImage`, not bare `<img>`
 - Local CMS editing uses Sveltia's **Work with Local Repository** browser flow; do not add `local_backend` to `config.yml`
 - To add a collection: schema + config + starter file + loader + route/SEO + docs
-- `static/admin/index.html` must use a plain `<script src="...sveltia-cms.js">` in `<body>` — no stylesheet link, no `type="module"`. Sveltia bundles its styles in the JS file and is not an ES module. Do not copy Static CMS / Netlify CMS patterns here.
+- `static/admin/index.html` must use a plain `<script src="/admin/sveltia/sveltia-cms.js">` in `<body>` — no stylesheet link, no `type="module"`. The bundle is vendored from `node_modules/@sveltia/cms` by `scripts/vendor-sveltia.ts` (postinstall hook); `static/admin/sveltia/` is gitignored. Sveltia bundles its styles in the JS file and is not an ES module. Do not copy Static CMS / Netlify CMS patterns here, and do not switch back to loading from `https://unpkg.com` — the `/admin` CSP intentionally drops that origin and `'unsafe-eval'`.
 
 ### AI reference for config.yml edits
 

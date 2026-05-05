@@ -82,12 +82,14 @@ function buildDirectives(isAdmin: boolean): CspDirectives {
 	};
 
 	if (isAdmin) {
-		// /admin loads Sveltia CMS from unpkg.com. The bundle is a UMD IIFE that
-		// may use eval() for dynamic features. These exceptions are scoped to /admin
-		// only; the public site uses the default restrictive script-src.
-		// See ADR-019 for rationale.
-		base['script-src'] = ["'self'", 'https://unpkg.com', "'unsafe-inline'", "'unsafe-eval'"];
-		base['connect-src'] = ["'self'", 'https://api.github.com', 'https://unpkg.com'];
+		// /admin loads the self-hosted Sveltia bundle from /admin/sveltia/. The
+		// bundle is vendored from node_modules/@sveltia/cms by scripts/vendor-sveltia.ts.
+		// 'unsafe-inline' stays because Sveltia attaches inline styles at runtime.
+		// unpkg.com and 'unsafe-eval' were dropped after self-hosting — re-add
+		// 'unsafe-eval' here only if a future Sveltia bundle reintroduces eval()
+		// usage. https://api.github.com is kept so the editor can commit content.
+		base['script-src'] = ["'self'", "'unsafe-inline'"];
+		base['connect-src'] = ["'self'", 'https://api.github.com'];
 	} else {
 		// Public pages: GTM and Cloudflare script hosts added when analytics is enabled.
 		base['script-src'] = [

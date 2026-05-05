@@ -74,3 +74,9 @@ backups/
 # static/uploads/optimized/
 # static/uploads/responsive/
 # static/uploads/generated/
+
+# ── Vendored third-party bundles ──────────────────────────────────────────────
+# Sveltia CMS bundle — regenerated from node_modules/@sveltia/cms by
+# scripts/vendor-sveltia.ts (postinstall hook). Version is pinned by bun.lock;
+# the rendered bundle and SHA-256 stamp are not source-of-truth.
+static/admin/sveltia/

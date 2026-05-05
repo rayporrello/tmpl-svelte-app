@@ -17,6 +17,7 @@ function setEnv(vars: Record<string, string | undefined>) {
 	delete process.env.ORIGIN;
 	delete process.env.PUBLIC_SITE_URL;
 	delete process.env.DATABASE_URL;
+	delete process.env.IN_CONTAINER;
 	// Apply new values
 	for (const [k, v] of Object.entries(vars)) {
 		if (v === undefined) delete process.env[k];
@@ -106,5 +107,66 @@ describe('initEnv()', () => {
 		// remove vars — second call should use cached result, not re-validate
 		delete process.env.ORIGIN;
 		expect(() => initEnv()).not.toThrow();
+	});
+});
+
+describe('initEnv() — container DATABASE_URL guard', () => {
+	beforeEach(() => {
+		vi.resetModules();
+		restoreEnv();
+	});
+
+	it('throws when DATABASE_URL is loopback inside a container', async () => {
+		setEnv({
+			ORIGIN: 'https://mysite.com',
+			PUBLIC_SITE_URL: 'https://mysite.com',
+			DATABASE_URL: 'postgres://user:pass@127.0.0.1:5432/db',
+			IN_CONTAINER: '1',
+		});
+		const { initEnv } = await import('$lib/server/env');
+		expect(() => initEnv()).toThrow(/container hostname/);
+	});
+
+	it('throws when DATABASE_URL hostname is "localhost" inside a container', async () => {
+		setEnv({
+			ORIGIN: 'https://mysite.com',
+			PUBLIC_SITE_URL: 'https://mysite.com',
+			DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+			IN_CONTAINER: '1',
+		});
+		const { initEnv } = await import('$lib/server/env');
+		expect(() => initEnv()).toThrow(/container hostname/);
+	});
+
+	it('passes when DATABASE_URL uses a container hostname', async () => {
+		setEnv({
+			ORIGIN: 'https://mysite.com',
+			PUBLIC_SITE_URL: 'https://mysite.com',
+			DATABASE_URL: 'postgres://user:pass@acme-postgres:5432/db',
+			IN_CONTAINER: '1',
+		});
+		const { initEnv } = await import('$lib/server/env');
+		expect(() => initEnv()).not.toThrow();
+	});
+
+	it('does not enforce the guard when IN_CONTAINER is unset (host-side)', async () => {
+		setEnv({
+			ORIGIN: 'https://mysite.com',
+			PUBLIC_SITE_URL: 'https://mysite.com',
+			DATABASE_URL: 'postgres://user:pass@127.0.0.1:5432/db',
+		});
+		const { initEnv } = await import('$lib/server/env');
+		expect(() => initEnv()).not.toThrow();
+	});
+
+	it('throws on a malformed DATABASE_URL inside a container', async () => {
+		setEnv({
+			ORIGIN: 'https://mysite.com',
+			PUBLIC_SITE_URL: 'https://mysite.com',
+			DATABASE_URL: 'not-a-url',
+			IN_CONTAINER: '1',
+		});
+		const { initEnv } = await import('$lib/server/env');
+		expect(() => initEnv()).toThrow(/not a valid URL/);
 	});
 });

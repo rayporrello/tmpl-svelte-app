@@ -3,8 +3,15 @@
  *
  * Scope: single-node, process-lifetime. This is a local abuse guard, not
  * distributed security — buckets reset on server restart and are not shared
- * across instances. For distributed rate limiting, use a Redis-backed solution
- * (Upstash, etc.) and replace this module with your own EmailProvider middleware.
+ * across instances.
+ *
+ * Production layering: pair this with an edge limiter for durable protection.
+ * - Cloudflare WAF rate-limit rules on POST /contact* and /admin* are the
+ *   default. Free tier handles normal abuse loads.
+ * - Caddy + caddy-ratelimit recipe is in deploy/Caddyfile.example (commented).
+ *   Enable both zones (contact_post, admin_all) when Cloudflare is not in front.
+ * - Redis-backed (Upstash, etc.) is the upgrade path when distributed
+ *   coordination is required; replace this module.
  *
  * Activation: set RATE_LIMIT_ENABLED=true in your env. Without this flag,
  * checkRateLimit() always returns true (allow all).

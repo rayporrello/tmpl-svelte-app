@@ -1,7 +1,9 @@
 # CI — validate, bootstrap-smoke, init-site acceptance, image, and launch gates.
 #
 # Trivy gates on CRITICAL only initially; HIGH is reported but non-blocking.
-# Tighten to HIGH after 3 successful releases without false positives (ADR-018).
+# Flip target: at the v1.0.0 tag, switch the HIGH steps to exit-code: '1' and
+# drop continue-on-error so HIGH gates the run. Same for `bun audit`. Until
+# then, treat both as advisory and watch the run output. ADR-018.
 
 name: CI
 
@@ -53,9 +55,9 @@ jobs:
         run: bun install --frozen-lockfile
 
       # bun audit reports advisories from the npm registry against bun.lock.
-      # Currently advisory-only (matching the Trivy HIGH pattern). Tighten to
-      # gating once we've seen a clean run or two.
-      - name: bun audit (advisory)
+      # Advisory-only until v1.0.0 tag; flip to gating then by removing
+      # continue-on-error and (if needed) failing on bun audit's exit code.
+      - name: bun audit (advisory until v1.0.0)
         run: bun audit
         continue-on-error: true
 
@@ -309,8 +311,10 @@ jobs:
           severity: CRITICAL
           trivyignores: .trivyignore
 
-      # ── Trivy: HIGH — reports only, non-blocking ───────────────────────────
-      - name: Trivy scan — HIGH (reporting only)
+      # ── Trivy: HIGH — reports only, non-blocking until v1.0.0 ──────────────
+      # At the v1.0.0 tag, change exit-code: '0' → '1' and remove
+      # continue-on-error to gate on HIGH alongside CRITICAL.
+      - name: Trivy scan — HIGH (reporting only until v1.0.0)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
@@ -322,13 +326,16 @@ jobs:
         continue-on-error: true
 
       # ── Build-then-run smoke: start container, poll /healthz up to 30s ────
+      # The DATABASE_URL hostname is a non-loopback stub so the container's
+      # IN_CONTAINER guard in src/lib/server/env.ts passes. /healthz does not
+      # query the DB, so the URL never has to be reachable here.
       - name: Smoke test — /healthz returns 200
         run: |
           docker run --rm -d \
             -p 127.0.0.1:45139:3000 \
             -e ORIGIN=http://127.0.0.1:45139 \
             -e PUBLIC_SITE_URL=http://127.0.0.1:45139 \
-            -e DATABASE_URL=postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub \
+            -e DATABASE_URL=postgres://ci_stub:ci_stub@stub-db:5432/ci_stub \
             --name smoke \
             "${{ env.IMAGE_NAME }}:${{ github.sha }}"
 
@@ -405,7 +412,7 @@ jobs:
           severity: CRITICAL
           trivyignores: .trivyignore
 
-      - name: Trivy scan — HIGH (reporting only)
+      - name: Trivy scan — HIGH (reporting only until v1.0.0)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE_NAME }}-postgres:${{ github.sha }}

@@ -4,6 +4,18 @@
 **Date:** 2026-04-27  
 **Batch:** B
 
+> **Amendment 2026-05-05 — Sveltia self-hosted, `/admin` carve-out narrowed.**
+> The original decision below allowed `https://unpkg.com` and `'unsafe-eval'`
+> in the `/admin` CSP because Sveltia CMS was loaded from the unpkg CDN.
+> Sveltia is now vendored from `node_modules/@sveltia/cms` into
+> `static/admin/sveltia/` by `scripts/vendor-sveltia.ts` (postinstall hook).
+> The `/admin` CSP now reads `script-src 'self' 'unsafe-inline'` and
+> `connect-src 'self' https://api.github.com`. `'unsafe-inline'` stays
+> because Sveltia attaches inline styles at runtime; `'unsafe-eval'` and
+> `https://unpkg.com` are gone. The unpkg references in this ADR are kept
+> for historical context — see the README and `docs/cms/sveltia-content-contract.md`
+> for the current contract.
+
 ---
 
 ## Context

@@ -164,10 +164,43 @@ export function initEnv(): void {
 		);
 	}
 
+	// Container shape guard. Inside a container, DATABASE_URL must reach Postgres
+	// via the container hostname (e.g. <project>-postgres), not 127.0.0.1. The
+	// loopback variant is DATABASE_DIRECT_URL, which is for host-side tooling
+	// (migrations, backups, Drizzle Studio). Mixing the two is the most common
+	// production footgun this template can prevent at boot.
+	if (process.env.IN_CONTAINER === '1') {
+		const containerError = checkContainerDatabaseUrl(process.env.DATABASE_URL ?? '');
+		if (containerError) {
+			throw new Error(
+				`[env] ${containerError}\n\nSee .env.example for the DATABASE_URL / DATABASE_DIRECT_URL contract.`
+			);
+		}
+	}
+
 	// TypeScript cannot narrow publicResult.output through the errors.length guard;
 	// the cast is safe because we throw above when !publicResult.success.
 	_publicEnv = publicResult.output as PublicEnv;
 	_privateEnv = privateResult.output as PrivateEnv;
+}
+
+/**
+ * Container-runtime check for DATABASE_URL. Returns null when the URL is
+ * acceptable inside a container; returns an error string otherwise. Exported
+ * for tests; runtime use goes through initEnv().
+ */
+export function checkContainerDatabaseUrl(databaseUrl: string): string | null {
+	let parsed: URL;
+	try {
+		parsed = new URL(databaseUrl);
+	} catch {
+		return 'DATABASE_URL is not a valid URL.';
+	}
+	const host = parsed.hostname.toLowerCase();
+	if (host === '127.0.0.1' || host === 'localhost' || host === '::1') {
+		return `DATABASE_URL host is "${parsed.hostname}" inside a container. Containers must reach Postgres via the container hostname (e.g. <project>-postgres). Use DATABASE_DIRECT_URL for host-side migrations, backups, and Drizzle Studio.`;
+	}
+	return null;
 }
 
 // ── Lazy accessors ────────────────────────────────────────────────────────────

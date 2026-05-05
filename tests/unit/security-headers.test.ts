@@ -23,7 +23,10 @@ describe('security header policy', () => {
 		applySecurityHeaders(adminHttps, new URL('https://example.com/admin/index.html'));
 		expect(adminHttps.get('Strict-Transport-Security')).toBe(STRICT_TRANSPORT_SECURITY);
 		expect(adminHttps.get('Cache-Control')).toBe(NO_STORE_CACHE_CONTROL);
-		expect(adminHttps.get('Content-Security-Policy')).toContain('https://unpkg.com');
+		const adminCsp = adminHttps.get('Content-Security-Policy') ?? '';
+		expect(adminCsp).toContain('https://api.github.com');
+		expect(adminCsp).not.toContain('https://unpkg.com');
+		expect(adminCsp).not.toContain("'unsafe-eval'");
 
 		const contactPost = new Headers();
 		applySecurityHeaders(contactPost, new URL('https://example.com/contact'), { method: 'POST' });

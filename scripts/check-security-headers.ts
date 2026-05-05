@@ -143,16 +143,29 @@ export function evaluateSecurityHeaders(
 
 		const csp = headers.get('Content-Security-Policy') ?? '';
 		if (scenario.expectAdminCsp) {
-			if (csp.includes('https://unpkg.com') && csp.includes("'unsafe-eval'")) {
-				results.push(pass('SECURITY-CSP-ADMIN', label, '/admin CSP allows Sveltia CMS hosts.'));
-			} else {
+			// /admin loads the self-hosted Sveltia bundle from /admin/sveltia/ and
+			// commits content via api.github.com. The CDN carve-out (unpkg.com) and
+			// 'unsafe-eval' were dropped after self-hosting; this check enforces both.
+			const reasons: string[] = [];
+			if (csp.includes('https://unpkg.com')) {
+				reasons.push('still allows unpkg.com');
+			}
+			if (csp.includes("'unsafe-eval'")) {
+				reasons.push("still allows 'unsafe-eval'");
+			}
+			if (!csp.includes('https://api.github.com')) {
+				reasons.push('does not allow api.github.com');
+			}
+			if (reasons.length === 0) {
 				results.push(
-					fail(
+					pass(
 						'SECURITY-CSP-ADMIN',
 						label,
-						'/admin CSP is missing Sveltia CMS allowances for unpkg.com or unsafe-eval.'
+						'/admin CSP is same-origin with api.github.com (Sveltia self-hosted).'
 					)
 				);
+			} else {
+				results.push(fail('SECURITY-CSP-ADMIN', label, `/admin CSP ${reasons.join('; ')}.`));
 			}
 		} else if (csp.includes("'unsafe-eval'")) {
 			results.push(fail('SECURITY-CSP-PUBLIC', label, 'Public CSP includes unsafe-eval.'));
