@@ -1,6 +1,6 @@
 # Deployment
 
-Documentation for deploying sites built from this template. The deployment model uses **rootless Podman + host-installed Caddy**: the app publishes a loopback-only port, and Caddy is the public reverse proxy.
+Documentation for deploying sites built from this template. The deployment model uses **rootless Podman + host-installed Caddy**: the app publishes a loopback-only port, Caddy is the public reverse proxy, and each site runs its own dedicated Postgres container.
 
 ---
 
@@ -55,7 +55,7 @@ podman build --format docker -f Containerfile -t my-site .
 podman run --rm -p 127.0.0.1:3000:3000 \
   -e ORIGIN=http://127.0.0.1:3000 \
   -e PUBLIC_SITE_URL=http://127.0.0.1:3000 \
-  -e DATABASE_URL=postgres://site_user:yourpassword@host.containers.internal:5432/site_db \
+  -e DATABASE_URL=postgres://project_app_user:yourpassword@host.containers.internal:5432/project_app \
   my-site
 
 # 3. Verify liveness
@@ -97,8 +97,8 @@ Sites built from this template are self-hosted on a Linux server:
 
 - **App container**: Podman running the SvelteKit + Bun image
 - **Reverse proxy**: host-installed Caddy (handles TLS, HSTS, compression, access logging) proxying to `127.0.0.1:<app_port>`
-- **Automation layer** (optional): n8n as a separate container or external service; the app's outbox worker is a systemd timer
-- **Database**: optional bundled Postgres container, or managed Postgres when you prefer provider backups/HA
+- **Automation layer**: the required per-site outbox worker container; optional per-client n8n container when this client needs n8n
+- **Database**: required bundled `<project>-postgres` container/cluster with app and optional n8n databases isolated by role
 - **Process management**: systemd user units via Podman Quadlet
 
 The default reachability model is deliberate: `deploy/quadlets/web.container`

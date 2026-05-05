@@ -356,14 +356,36 @@ function rewriteAppHtml(content: string, manifest: SiteProjectManifest): string 
 
 function rewriteEnvExample(content: string, manifest: SiteProjectManifest): string {
 	let out = content;
+	const dbSlug = manifest.project.projectSlug.replace(/-/g, '_');
 	out = out.replace(/^ORIGIN=.*/mu, `ORIGIN=${manifest.site.productionUrl}`);
 	out = out.replace(/^PUBLIC_SITE_URL=.*/mu, `PUBLIC_SITE_URL=${manifest.site.productionUrl}`);
+	out = out.replace(/<project>/gu, manifest.project.projectSlug);
+	out = out.replace(
+		/^DATABASE_URL=.*/mu,
+		`DATABASE_URL=postgres://${dbSlug}_app_user:replace-me@${manifest.project.projectSlug}-postgres:5432/${dbSlug}_app`
+	);
+	out = out.replace(
+		/^DATABASE_DIRECT_URL=.*/mu,
+		`DATABASE_DIRECT_URL=postgres://${dbSlug}_app_user:replace-me@127.0.0.1:5432/${dbSlug}_app`
+	);
+	out = out.replace(/^POSTGRES_DB=.*/mu, `POSTGRES_DB=${dbSlug}_app`);
+	out = out.replace(/^POSTGRES_USER=.*/mu, `POSTGRES_USER=${dbSlug}_app_user`);
 	return out;
 }
 
 function rewriteDeployEnvExample(content: string, manifest: SiteProjectManifest): string {
 	let out = rewriteEnvExample(content, manifest);
-	out = out.replace(/<project>/gu, manifest.project.projectSlug);
+	const dbSlug = manifest.project.projectSlug.replace(/-/g, '_');
+	out = out.replace(
+		/^DATABASE_URL=.*/mu,
+		`DATABASE_URL=postgres://${dbSlug}_app_user:replace-me@${manifest.project.projectSlug}-postgres:5432/${dbSlug}_app`
+	);
+	out = out.replace(
+		/^DATABASE_DIRECT_URL=.*/mu,
+		`DATABASE_DIRECT_URL=postgres://${dbSlug}_app_user:replace-me@127.0.0.1:5432/${dbSlug}_app`
+	);
+	out = out.replace(/^POSTGRES_DB=.*/mu, `POSTGRES_DB=${dbSlug}_app`);
+	out = out.replace(/^POSTGRES_USER=.*/mu, `POSTGRES_USER=${dbSlug}_app_user`);
 	return out;
 }
 
@@ -568,6 +590,7 @@ function rewriteBackupCheckSystemd(content: string, manifest: SiteProjectManifes
 }
 
 function rewriteN8nQuadlet(content: string, manifest: SiteProjectManifest): string {
+	const dbSlug = manifest.project.projectSlug.replace(/-/g, '_');
 	let out = content
 		.replace(/<owner>/gu, manifest.project.githubOwner)
 		.replace(/<name>/gu, manifest.project.githubRepo)
@@ -579,6 +602,14 @@ function rewriteN8nQuadlet(content: string, manifest: SiteProjectManifest): stri
 	out = out.replace(
 		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
 		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	out = out.replace(
+		/^(Environment=DB_POSTGRESDB_DATABASE=)(.+)$/mu,
+		(_, prefix) => `${prefix}${dbSlug}_n8n`
+	);
+	out = out.replace(
+		/^(Environment=DB_POSTGRESDB_USER=)(.+)$/mu,
+		(_, prefix) => `${prefix}${dbSlug}_n8n_user`
 	);
 	return out;
 }

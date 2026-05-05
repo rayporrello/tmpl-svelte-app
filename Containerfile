@@ -20,7 +20,7 @@
 # Run:    podman run --rm -p 127.0.0.1:3000:3000 \
 #           -e ORIGIN=https://example.com \
 #           -e PUBLIC_SITE_URL=https://example.com \
-#           -e DATABASE_URL=postgres://user:pass@host:5432/db \
+#           -e DATABASE_URL=postgres://project_app_user:pass@project-postgres:5432/project_app \
 #           <image>
 
 ARG BUN_VERSION=1.3.13

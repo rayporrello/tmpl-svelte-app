@@ -83,10 +83,17 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 	'static/admin/config.yml': ['repo: acme-org/my-cool-site'],
 	'static/site.webmanifest': ['"name": "Acme Studio"', '"short_name": "Acme"'],
 	'README.md': ['# Acme Studio'],
-	'.env.example': ['ORIGIN=https://acme-studio.dev'],
+	'.env.example': [
+		'ORIGIN=https://acme-studio.dev',
+		'DATABASE_URL=postgres://my_cool_site_app_user:replace-me@my-cool-site-postgres:5432/my_cool_site_app',
+	],
 	'deploy/env.example': [
 		'ORIGIN=https://acme-studio.dev',
 		'PUBLIC_SITE_URL=https://acme-studio.dev',
+		'DATABASE_URL=postgres://my_cool_site_app_user:replace-me@my-cool-site-postgres:5432/my_cool_site_app',
+		'DATABASE_DIRECT_URL=postgres://my_cool_site_app_user:replace-me@127.0.0.1:5432/my_cool_site_app',
+		'POSTGRES_DB=my_cool_site_app',
+		'POSTGRES_USER=my_cool_site_app_user',
 	],
 	'deploy/Caddyfile.example': ['acme-studio.dev {', 'www.acme-studio.dev {'],
 	'deploy/quadlets/web.container': [
@@ -100,7 +107,7 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 	],
 	'deploy/quadlets/web.network': ['Description=Project network — my-cool-site'],
 	'deploy/quadlets/postgres.container': [
-		'Description=Postgres database — my-cool-site',
+		'Description=Postgres 18 + WAL-G — my-cool-site',
 		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
 		'Network=my-cool-site.network',
 		'HostName=my-cool-site-postgres',
@@ -118,6 +125,8 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 	'deploy/quadlets/n8n.container': [
 		'Description=n8n — my-cool-site',
 		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
+		'Environment=DB_POSTGRESDB_DATABASE=my_cool_site_n8n',
+		'Environment=DB_POSTGRESDB_USER=my_cool_site_n8n_user',
 	],
 	'deploy/quadlets/n8n.volume': ['VolumeName=my-cool-site-n8n-data'],
 	'deploy/systemd/backup.service': [

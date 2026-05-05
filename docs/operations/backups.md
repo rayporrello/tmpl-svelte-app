@@ -1,18 +1,21 @@
 # Backups
 
-Backup procedures for Postgres databases and file uploads. Sites built from this template use `pg_dump` (custom format) for databases and `tar -czf` for uploads.
+Backup procedures for the dedicated per-site Postgres cluster and file uploads.
+Production uses WAL-G/PITR for reliability and `pg_dump` for convenience
+exports.
 
 ---
 
 ## What needs backing up
 
-| Asset                      | Method                  | Notes                                                  |
-| -------------------------- | ----------------------- | ------------------------------------------------------ |
-| Postgres database          | `pg_dump` custom format | Contact submissions, automation events, dead letters   |
-| `static/uploads/`          | `tar -czf` with SHA256  | User-uploaded images and any CMS-managed files         |
-| `content/` (Markdown/YAML) | Git                     | Already versioned — no separate backup needed          |
-| `secrets.yaml`             | Git                     | Safe to commit when encrypted with SOPS + age          |
-| App code                   | Git + GHCR              | Every push tags an image by SHA — inherently versioned |
+| Asset                      | Method                   | Notes                                                  |
+| -------------------------- | ------------------------ | ------------------------------------------------------ |
+| Postgres cluster           | WAL-G base backups + WAL | App database and optional per-client n8n database      |
+| App database export        | `pg_dump` custom format  | Convenience copy of submissions, outbox, dead letters  |
+| `static/uploads/`          | `tar -czf` with SHA256   | User-uploaded images and any CMS-managed files         |
+| `content/` (Markdown/YAML) | Git                      | Already versioned — no separate backup needed          |
+| `secrets.yaml`             | Git                      | Safe to commit when encrypted with SOPS + age          |
+| App code                   | Git + GHCR               | Every push tags an image by SHA — inherently versioned |
 
 ---
 
@@ -115,8 +118,8 @@ R2_PREFIX=<project-slug>/postgres
 PITR_RETENTION_DAYS=14
 ```
 
-`bun run deploy:preflight` fails if any R2\_\* value is missing on the
-bundled Postgres path. Managed Postgres skips this check.
+`bun run deploy:preflight` fails if the production env is missing the R2/WAL-G
+values. There is no managed-provider backup path in this template.
 
 ### Manual operations
 

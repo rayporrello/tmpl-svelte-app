@@ -9,6 +9,7 @@ import { BootstrapScriptError } from './lib/errors';
 import { readEnv, type EnvMap } from './lib/env-file';
 import { evaluateLaunchBlockers, type LaunchEnvSource } from './lib/launch-blockers';
 import { checkBun, detectContainerRuntime, gitWorkingTreeDirty } from './lib/preflight';
+import { sanitizeProjectSlug } from './lib/postgres-dev';
 import type { PrintStream } from './lib/print';
 import { redactSecrets, run as runCommand, type RunOptions, type RunResult } from './lib/run';
 import { REQUIRED_PRIVATE_ENV_VARS, REQUIRED_PUBLIC_ENV_VARS } from '../src/lib/server/env';
@@ -222,6 +223,19 @@ function readPackageName(rootDir: string): string | null {
 	}
 }
 
+function readProjectSlug(rootDir: string): string {
+	try {
+		const parsed = JSON.parse(readFileSync(join(rootDir, 'site.project.json'), 'utf8')) as {
+			project?: { projectSlug?: unknown };
+		};
+		const value = parsed.project?.projectSlug;
+		if (typeof value === 'string' && value.trim()) return sanitizeProjectSlug(value);
+	} catch {
+		// Fall back to package.json below.
+	}
+	return sanitizeProjectSlug(readPackageName(rootDir) ?? TEMPLATE_PACKAGE_NAME);
+}
+
 function parseDatabaseUrl(value: string): URL | null {
 	try {
 		const parsed = new URL(value);
@@ -306,6 +320,10 @@ function databaseUrlFrom(envFile: EnvMap | null, env: NodeJS.ProcessEnv): string
 	return envFile?.DATABASE_URL?.trim() || env.DATABASE_URL?.trim() || null;
 }
 
+function directDatabaseUrlFrom(envFile: EnvMap | null, env: NodeJS.ProcessEnv): string | null {
+	return envFile?.DATABASE_DIRECT_URL?.trim() || env.DATABASE_DIRECT_URL?.trim() || null;
+}
+
 async function environmentSection(
 	rootDir: string,
 	env: NodeJS.ProcessEnv,
@@ -355,9 +373,9 @@ async function environmentSection(
 			warn(
 				'BOOT-PG-001',
 				'Container runtime is available',
-				'No Podman or Docker runtime detected',
+				'No Podman runtime detected',
 				'recommended',
-				'Install Podman or Docker, or provide a reachable external DATABASE_URL.'
+				'Install Podman; it is the expected local and production container runtime.'
 			)
 		);
 	}
@@ -405,6 +423,7 @@ function configurationSection(
 	checks.push(envCheck);
 
 	const databaseUrl = databaseUrlFrom(envFile, env);
+	const directDatabaseUrl = directDatabaseUrlFrom(envFile, env);
 	if (!databaseUrl) {
 		checks.push(
 			fail(
@@ -427,6 +446,37 @@ function configurationSection(
 				'DATABASE_URL must use postgres://user:pw@host:port/db',
 				'required',
 				'Fix DATABASE_URL in .env.'
+			)
+		);
+	}
+
+	if (!directDatabaseUrl) {
+		checks.push(
+			warn(
+				'doctor-direct-db-url',
+				'DATABASE_DIRECT_URL is set',
+				'DATABASE_DIRECT_URL is missing from .env and process env',
+				'recommended',
+				'Set DATABASE_DIRECT_URL for host-side migrations, backups, restores, and Drizzle Studio.'
+			)
+		);
+	} else if (parseDatabaseUrl(directDatabaseUrl)) {
+		checks.push(
+			pass(
+				'doctor-direct-db-url',
+				'DATABASE_DIRECT_URL is set',
+				'DATABASE_DIRECT_URL uses a Postgres URL',
+				'recommended'
+			)
+		);
+	} else {
+		checks.push(
+			warn(
+				'doctor-direct-db-url',
+				'DATABASE_DIRECT_URL is set',
+				'DATABASE_DIRECT_URL must use postgres://user:pw@host:port/db',
+				'recommended',
+				'Fix DATABASE_DIRECT_URL in .env.'
 			)
 		);
 	}
@@ -522,6 +572,131 @@ function configurationSection(
 		envFile,
 		databaseUrl,
 	};
+}
+
+function runtimeContractSection(
+	rootDir: string,
+	envFile: EnvMap | null,
+	env: NodeJS.ProcessEnv
+): DoctorSection {
+	const checks: DoctorCheck[] = [];
+	const slug = readProjectSlug(rootDir);
+	const safeSlug = slug.replace(/-/g, '_');
+	const expected = {
+		network: `${slug}.network`,
+		web: `${slug}-web`,
+		postgres: `${slug}-postgres`,
+		worker: `${slug}-worker`,
+		postgresVolume: `${slug}-postgres-data`,
+		appDatabase: `${safeSlug}_app`,
+		appRole: `${safeSlug}_app_user`,
+		n8n: `${slug}-n8n`,
+		n8nDatabase: `${safeSlug}_n8n`,
+		n8nRole: `${safeSlug}_n8n_user`,
+		backupPrefix: `${slug}/postgres`,
+		secretsPath: `~/secrets/${slug}.prod.env`,
+	};
+	checks.push(
+		pass(
+			'doctor-project-slug',
+			'Project runtime names are deterministic',
+			`slug=${slug}; web=${expected.web}; postgres=${expected.postgres}; worker=${expected.worker}; network=${expected.network}; app db/role=${expected.appDatabase}/${expected.appRole}; secrets=${expected.secretsPath}`,
+			'required'
+		)
+	);
+
+	const databaseUrl = databaseUrlFrom(envFile, env);
+	const parsedRuntime = databaseUrl ? parseDatabaseUrl(databaseUrl) : null;
+	if (parsedRuntime?.hostname === expected.postgres) {
+		checks.push(
+			pass(
+				'doctor-runtime-db-url',
+				'DATABASE_URL uses project-network Postgres',
+				`DATABASE_URL host is ${expected.postgres}`,
+				'recommended'
+			)
+		);
+	} else {
+		checks.push(
+			warn(
+				'doctor-runtime-db-url',
+				'DATABASE_URL uses project-network Postgres',
+				parsedRuntime
+					? `DATABASE_URL host is ${parsedRuntime.hostname}; expected ${expected.postgres}`
+					: 'DATABASE_URL is missing or unparseable',
+				'recommended',
+				`Use ${expected.postgres} inside web and worker containers; use DATABASE_DIRECT_URL for host access.`
+			)
+		);
+	}
+
+	const directUrl = directDatabaseUrlFrom(envFile, env);
+	const parsedDirect = directUrl ? parseDatabaseUrl(directUrl) : null;
+	if (parsedDirect && ['127.0.0.1', 'localhost'].includes(parsedDirect.hostname)) {
+		checks.push(
+			pass(
+				'doctor-direct-db-host',
+				'DATABASE_DIRECT_URL uses host access',
+				`DATABASE_DIRECT_URL host is ${parsedDirect.hostname}`,
+				'recommended'
+			)
+		);
+	} else {
+		checks.push(
+			warn(
+				'doctor-direct-db-host',
+				'DATABASE_DIRECT_URL uses host access',
+				parsedDirect
+					? `DATABASE_DIRECT_URL host is ${parsedDirect.hostname}`
+					: 'DATABASE_DIRECT_URL is missing or unparseable',
+				'recommended',
+				'Point DATABASE_DIRECT_URL at the loopback-published Postgres port for migrations/backups/restores.'
+			)
+		);
+	}
+
+	const backupEnv = [
+		'R2_ACCESS_KEY_ID',
+		'R2_SECRET_ACCESS_KEY',
+		'R2_ENDPOINT',
+		'R2_BUCKET',
+		'R2_PREFIX',
+	];
+	const missingBackup = backupEnv.filter((key) => !(envFile?.[key]?.trim() || env[key]?.trim()));
+	if (missingBackup.length) {
+		checks.push(
+			warn(
+				'doctor-backup-env',
+				'PITR backup env is present',
+				`Missing: ${missingBackup.join(', ')}; expected R2_PREFIX like ${expected.backupPrefix}`,
+				'recommended',
+				'Configure WAL-G/R2 values before production deploy.'
+			)
+		);
+	} else {
+		checks.push(
+			pass(
+				'doctor-backup-env',
+				'PITR backup env is present',
+				'R2/WAL-G env names are set',
+				'recommended'
+			)
+		);
+	}
+
+	const n8nEnabled = (envFile?.N8N_ENABLED ?? env.N8N_ENABLED ?? '').toLowerCase() === 'true';
+	checks.push(
+		pass(
+			'doctor-n8n-state',
+			'n8n bundle state is explicit',
+			n8nEnabled
+				? `enabled; expected database/role ${expected.n8nDatabase}/${expected.n8nRole}`
+				: `absent; optional container would be ${expected.n8n}`,
+			'recommended'
+		)
+	);
+
+	return { id: 'runtime-contract', label: 'Runtime Contract', checks };
 }
 
 function parseFailure(output: string, fallback: string): Pick<DoctorCheck, 'id' | 'hint'> {
@@ -929,6 +1104,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 
 	const environment = await environmentSection(rootDir, env, runner);
 	const configuration = configurationSection(rootDir, env);
+	const runtimeContract = runtimeContractSection(rootDir, configuration.envFile, env);
 	const runtime = await runtimeSection(
 		rootDir,
 		env,
@@ -944,6 +1120,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 	const sections = [
 		environment,
 		configuration.section,
+		runtimeContract,
 		runtime,
 		validation,
 		launchBlockers,

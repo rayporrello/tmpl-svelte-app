@@ -68,11 +68,11 @@ export function postgresIdentifiers(slug: string): {
 	container: string;
 } {
 	const containerSlug = sanitizeProjectSlug(slug);
-	const database = containerSlug.replace(/-/g, '_');
+	const database = `${containerSlug.replace(/-/g, '_')}_app`;
 	return {
 		database,
 		user: `${database}_user`,
-		container: `${containerSlug}-pg`,
+		container: `${containerSlug}-postgres`,
 	};
 }
 
@@ -204,11 +204,11 @@ export async function provisionLocalPostgres(
 	}
 
 	const runtime = options.runtime === undefined ? await detectContainerRuntime() : options.runtime;
-	if (!runtime) {
+	if (runtime !== 'podman') {
 		throw new BootstrapScriptError(
 			'BOOT-PG-001',
-			'No reachable Postgres database and no container runtime detected.',
-			'NEXT: Install Podman or Docker, or set DATABASE_URL to a reachable Postgres database.'
+			'No reachable Postgres database and no Podman runtime detected.',
+			'NEXT: Install Podman or set DATABASE_URL to a reachable local project Postgres database.'
 		);
 	}
 

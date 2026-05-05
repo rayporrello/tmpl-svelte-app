@@ -12,6 +12,18 @@ The companion docs:
 
 ---
 
+## Per-client n8n bundle
+
+n8n is optional, but it is never shared across unrelated clients. When a site
+uses n8n, run `bun run n8n:enable` first. The helper creates a separate
+`<project>_n8n` database and `<project>_n8n_user` role inside the client's
+existing `<project>-postgres` cluster. The app role cannot read n8n data, and
+the n8n role cannot read app tables. WAL-G/PITR backs up the whole client
+cluster atomically.
+
+Do not create a second Postgres container for n8n and do not point multiple
+client sites at one global n8n editor.
+
 ## What the site sends
 
 Every event is a single HTTP request:

@@ -179,9 +179,11 @@ The new machine can now decrypt. The old key still works until removed.
 
 These values belong in `secrets.yaml`:
 
-- `DATABASE_URL` — includes username and password
-- `DATABASE_DIRECT_URL` — optional host-side database URL for migrations/backups/restores when it differs from `DATABASE_URL`
-- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — bundled Postgres initialization values when using `deploy/quadlets/postgres.container`
+- `DATABASE_URL` — internal Podman-network URL used by web/worker containers to reach `<project>-postgres`
+- `DATABASE_DIRECT_URL` — host/operator URL for migrations, backups, restores, and Drizzle Studio against the same bundled Postgres
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — required bundled Postgres initialization values
+- `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_PREFIX` — WAL-G/PITR backup target for the dedicated client cluster
+- `DB_POSTGRESDB_PASSWORD` — n8n database role password when this client enables the optional n8n bundle
 - `POSTMARK_SERVER_TOKEN` — transactional email API key
 - `SESSION_SECRET` — must be a long random string; never a placeholder
 - OAuth client secrets and callback tokens

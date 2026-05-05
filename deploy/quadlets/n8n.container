@@ -1,9 +1,8 @@
 # deploy/quadlets/n8n.container — per-client self-hosted n8n.
 #
-# OPTIONAL. Only install for clients who actually run automations. Most
-# lead-gen sites can keep AUTOMATION_PROVIDER=n8n pointing at a remote n8n
-# (or AUTOMATION_PROVIDER=noop for no-automation sites). This file is for
-# clients who need their own isolated n8n instance.
+# OPTIONAL. Only install when this client runs its own n8n automations.
+# Sites with no automation set AUTOMATION_PROVIDER=noop; sites that use n8n
+# run this per-client bundle rather than a shared/global n8n instance.
 #
 # Why per-client and not shared: n8n's editor + credentials + execution
 # history all live in one namespace. A shared instance leaks credentials
@@ -16,7 +15,8 @@
 #
 # Activation:
 #   1. Run bun run n8n:enable — creates <project>_n8n database, role, and
-#      grants inside <project>-postgres.
+#      grants inside <project>-postgres. Hyphens in the project slug become
+#      underscores in Postgres identifiers.
 #   2. Confirm N8N_ENABLED=true and the n8n env section in the secrets
 #      file are filled (especially N8N_ENCRYPTION_KEY).
 #   3. Replace <owner>/<project> placeholders in this file.

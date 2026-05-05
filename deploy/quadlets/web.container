@@ -24,9 +24,8 @@ Image=ghcr.io/<owner>/<name>:<sha>
 # This file is produced by bun run secrets:render and contains ORIGIN, PUBLIC_SITE_URL, etc.
 EnvironmentFile=%h/secrets/<project>.prod.env
 
-# Join the project network so the app can reach the bundled Postgres container
-# at <project>-postgres:5432. Managed Postgres users can keep the network and
-# simply set DATABASE_URL to the managed database URL.
+# Join the project network so the app can reach the required per-project
+# Postgres container at <project>-postgres:5432.
 Network=<project>.network
 
 # Host-installed Caddy reaches the app through this loopback-only publish.

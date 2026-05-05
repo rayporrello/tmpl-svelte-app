@@ -4,10 +4,11 @@ How to restore a Postgres database or uploads archive from a backup. Read this *
 
 Two restore paths:
 
-- **PITR via WAL-G** (production default for the bundled Postgres path) — restore the database to any moment in the last 14 days. Atomic across both `<project>_app` and `<project>_n8n` because they live in the same cluster.
-- **pg_dump restore** (convenience / cross-host export) — restore a logical snapshot. Use when handing a copy to a client, rebuilding from a portable export, or when PITR is unavailable (managed Postgres without point-in-time access).
+- **PITR via WAL-G** (production default) — restore the cluster to any moment in the last 14 days. Atomic across both `<project>_app` and `<project>_n8n` because they live in the same client cluster.
+- **pg_dump restore** (convenience / cross-host export) — restore a logical snapshot. Use when handing a copy to a client, rebuilding from a portable export, or inspecting data in a scratch database.
 
-If you are choosing under pressure: PITR is almost always the right answer for the bundled Postgres path. Faster, more recent, atomic across all databases.
+If you are choosing under pressure: PITR is almost always the right answer.
+Faster, more recent, atomic across all databases.
 
 ---
 

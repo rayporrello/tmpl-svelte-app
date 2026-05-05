@@ -57,6 +57,7 @@ const privateSchema = v.object({
 	N8N_ENCRYPTION_KEY: v.optional(v.string()),
 	N8N_HOST: v.optional(v.string()),
 	N8N_PROTOCOL: v.optional(v.string()),
+	DB_POSTGRESDB_PASSWORD: v.optional(v.string()),
 	// PITR / WAL-G backup target (Cloudflare R2 by default).
 	R2_ACCESS_KEY_ID: v.optional(v.string()),
 	R2_SECRET_ACCESS_KEY: v.optional(v.string()),
@@ -128,6 +129,7 @@ export function initEnv(): void {
 		N8N_ENCRYPTION_KEY: process.env.N8N_ENCRYPTION_KEY,
 		N8N_HOST: process.env.N8N_HOST,
 		N8N_PROTOCOL: process.env.N8N_PROTOCOL,
+		DB_POSTGRESDB_PASSWORD: process.env.DB_POSTGRESDB_PASSWORD,
 		R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
 		R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
 		R2_ENDPOINT: process.env.R2_ENDPOINT,

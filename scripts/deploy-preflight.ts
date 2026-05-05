@@ -76,6 +76,7 @@ const PROD_ENV_PATH_ENV_KEYS = [
 	'LAUNCH_PROD_ENV_FILE',
 	'PRODUCTION_ENV_FILE',
 ];
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1']);
 const FORBIDDEN_PROD_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
 function pass(id: string, label: string, detail: string, hint: string): DeployPreflightResult {
@@ -305,7 +306,8 @@ export async function checkDatabaseUrlShape(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
 	const envReference = readProdEnv(context);
-	const label = 'Production DATABASE_URL is not local';
+	const slug = projectSlug(context.rootDir);
+	const label = 'Production DATABASE_URL targets bundled Postgres';
 	if (!envReference.ok) {
 		return fail(
 			'PREFLIGHT-DB-001',
@@ -321,7 +323,7 @@ export async function checkDatabaseUrlShape(
 			'PREFLIGHT-DB-001',
 			label,
 			'DATABASE_URL is missing.',
-			'NEXT: Add the production Postgres URL.'
+			'NEXT: Set DATABASE_URL to postgres://...@<project>-postgres:5432/<project>_app.'
 		);
 	}
 
@@ -345,19 +347,19 @@ export async function checkDatabaseUrlShape(
 			'NEXT: Use the production Postgres URL.'
 		);
 	}
-	if (hostIsForbidden(parsed.hostname)) {
+	if (parsed.hostname !== `${slug}-postgres`) {
 		return fail(
 			'PREFLIGHT-DB-001',
 			label,
 			`DATABASE_URL points to ${parsed.hostname}.`,
-			'NEXT: Use a production database host, not localhost.'
+			`NEXT: Use the internal Podman-network host ${slug}-postgres for web and worker containers.`
 		);
 	}
 	return pass(
 		'PREFLIGHT-DB-001',
 		label,
-		'DATABASE_URL uses a non-local Postgres host.',
-		'NEXT: Verify the database accepts the deployed app user.'
+		`DATABASE_URL uses the internal ${slug}-postgres host.`,
+		'NEXT: Keep DATABASE_DIRECT_URL for host migrations/backups/restores.'
 	);
 }
 
@@ -592,7 +594,11 @@ export async function checkEnvExamples(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
 	const label = 'Required runtime env names are documented';
-	const required = [...REQUIRED_PUBLIC_ENV_VARS, ...REQUIRED_PRIVATE_ENV_VARS];
+	const required = [
+		...REQUIRED_PUBLIC_ENV_VARS,
+		...REQUIRED_PRIVATE_ENV_VARS,
+		'DATABASE_DIRECT_URL',
+	];
 	const files = ['.env.example', 'deploy/env.example'];
 	const problems: string[] = [];
 
@@ -671,14 +677,14 @@ export async function checkPostgresArtifacts(
 		'PREFLIGHT-POSTGRES-001',
 		label,
 		`Postgres container, WAL-G image, and volume artifacts are present for ${slug}.`,
-		'NEXT: Install them for self-hosted Postgres, or leave them unused when using managed Postgres.'
+		'NEXT: Install them with the web and worker Quadlets for every production project.'
 	);
 }
 
 export async function checkPostgresEnvShape(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
-	const label = 'Bundled Postgres env values are present when used';
+	const label = 'Bundled Postgres env values are present';
 	const envReference = readProdEnv(context);
 	if (!envReference.ok) {
 		return fail(
@@ -696,7 +702,7 @@ export async function checkPostgresEnvShape(
 			'PREFLIGHT-POSTGRES-002',
 			label,
 			'DATABASE_URL is missing.',
-			'NEXT: Set DATABASE_URL to either managed Postgres or postgres://...@<project>-postgres:5432/...'
+			'NEXT: Set DATABASE_URL to postgres://...@<project>-postgres:5432/<project>_app.'
 		);
 	}
 
@@ -713,11 +719,11 @@ export async function checkPostgresEnvShape(
 	}
 
 	if (parsedDatabaseUrl.hostname !== `${slug}-postgres`) {
-		return pass(
+		return fail(
 			'PREFLIGHT-POSTGRES-002',
 			label,
-			`DATABASE_URL targets ${parsedDatabaseUrl.hostname}; assuming managed/external Postgres.`,
-			'NEXT: Use DATABASE_DIRECT_URL only when host-side tools need a different connection URL.'
+			`DATABASE_URL targets ${parsedDatabaseUrl.hostname}; expected ${slug}-postgres.`,
+			'NEXT: DATABASE_URL is the internal app/worker URL on the project Podman network.'
 		);
 	}
 
@@ -739,6 +745,26 @@ export async function checkPostgresEnvShape(
 		);
 	}
 
+	const expectedDbSlug = slug.replace(/-/g, '_');
+	const expectedDatabase = `${expectedDbSlug}_app`;
+	const expectedUser = `${expectedDbSlug}_app_user`;
+	const runtimeDatabase = decodeURIComponent(parsedDatabaseUrl.pathname.replace(/^\/+/u, ''));
+	if (
+		runtimeDatabase !== expectedDatabase ||
+		decodeURIComponent(parsedDatabaseUrl.username) !== expectedUser ||
+		envReference.env.POSTGRES_DB !== expectedDatabase ||
+		envReference.env.POSTGRES_USER !== expectedUser
+	) {
+		return fail(
+			'PREFLIGHT-POSTGRES-002',
+			label,
+			`Expected app database/role ${expectedDatabase}/${expectedUser}; found DATABASE_URL user/db ${decodeURIComponent(
+				parsedDatabaseUrl.username
+			)}/${runtimeDatabase} and POSTGRES_DB/USER ${envReference.env.POSTGRES_DB}/${envReference.env.POSTGRES_USER}.`,
+			'NEXT: Use the generated per-project app database and role names; hyphens in the project slug become underscores in Postgres identifiers.'
+		);
+	}
+
 	let directUrl: URL;
 	try {
 		directUrl = new URL(envReference.env.DATABASE_DIRECT_URL ?? '');
@@ -751,7 +777,7 @@ export async function checkPostgresEnvShape(
 		);
 	}
 
-	if (!['127.0.0.1', 'localhost'].includes(directUrl.hostname)) {
+	if (!LOOPBACK_HOSTS.has(directUrl.hostname)) {
 		return fail(
 			'PREFLIGHT-POSTGRES-002',
 			label,
@@ -804,7 +830,7 @@ export async function checkAutomationWorkerArtifact(
 export async function checkBackupPitrConfig(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
-	const label = 'PITR backup config is present for the bundled Postgres path';
+	const label = 'PITR backup config is present for bundled Postgres';
 	const envReference = readProdEnv(context);
 	if (!envReference.ok) {
 		return fail(
@@ -816,25 +842,15 @@ export async function checkBackupPitrConfig(
 	}
 
 	const slug = projectSlug(context.rootDir);
-	const databaseUrl = envReference.env.DATABASE_URL?.trim();
-	if (databaseUrl) {
-		try {
-			const parsed = new URL(databaseUrl);
-			// Managed Postgres handles its own backups — skip cleanly.
-			if (parsed.hostname !== `${slug}-postgres`) {
-				return pass(
-					'PREFLIGHT-BACKUP-PITR-001',
-					label,
-					`DATABASE_URL targets ${parsed.hostname}; assuming managed Postgres handles backups.`,
-					'NEXT: Confirm the managed provider has PITR enabled and an off-host backup target.'
-				);
-			}
-		} catch {
-			// fall through to the bundled-path check
-		}
-	}
 
-	const requiredKeys = ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ENDPOINT', 'R2_BUCKET'];
+	const requiredKeys = [
+		'R2_ACCESS_KEY_ID',
+		'R2_SECRET_ACCESS_KEY',
+		'R2_ENDPOINT',
+		'R2_BUCKET',
+		'R2_PREFIX',
+		'PITR_RETENTION_DAYS',
+	];
 	const missing = requiredKeys.filter((key) => !envReference.env[key]?.trim());
 	if (missing.length) {
 		return fail(
@@ -975,6 +991,70 @@ export async function checkAutomationProviderConfig(
 	);
 }
 
+export async function checkN8nBundleConfig(
+	context: DeployPreflightContext
+): Promise<DeployPreflightResult> {
+	const label = 'Per-client n8n bundle is isolated when enabled';
+	const envReference = readProdEnv(context);
+	if (!envReference.ok) {
+		return fail(
+			'PREFLIGHT-N8N-001',
+			label,
+			envReference.detail,
+			'NEXT: Add the production env file before checking n8n bundle config.'
+		);
+	}
+
+	const enabled = envReference.env.N8N_ENABLED?.trim().toLowerCase() === 'true';
+	if (!enabled) {
+		return pass(
+			'PREFLIGHT-N8N-001',
+			label,
+			'N8N_ENABLED is not true; no per-client n8n container is expected.',
+			'NEXT: Run bun run n8n:enable before enabling the n8n Quadlet for this client.'
+		);
+	}
+
+	const slug = projectSlug(context.rootDir);
+	const safeSlug = slug.replace(/-/g, '_');
+	const requiredKeys = ['N8N_ENCRYPTION_KEY', 'N8N_HOST', 'N8N_PROTOCOL', 'DB_POSTGRESDB_PASSWORD'];
+	const missing = requiredKeys.filter((key) => !envReference.env[key]?.trim());
+	const artifactProblems = [
+		...missingFileOrLines(context.rootDir, 'deploy/quadlets/n8n.container', [
+			`Requires=${slug}-postgres.service`,
+			`DB_POSTGRESDB_HOST=${slug}-postgres`,
+			`DB_POSTGRESDB_DATABASE=${safeSlug}_n8n`,
+			`DB_POSTGRESDB_USER=${safeSlug}_n8n_user`,
+			`EnvironmentFile=%h/secrets/${slug}.prod.env`,
+			`Network=${slug}.network`,
+		]),
+		...missingFileOrLines(context.rootDir, 'deploy/quadlets/n8n.volume', [
+			`VolumeName=${slug}-n8n-data`,
+		]),
+	];
+
+	if (missing.length || artifactProblems.length) {
+		return fail(
+			'PREFLIGHT-N8N-001',
+			label,
+			[
+				missing.length ? `Missing env: ${missing.join(', ')}.` : null,
+				artifactProblems.length ? artifactProblems.join(' ') : null,
+			]
+				.filter(Boolean)
+				.join(' '),
+			"NEXT: Run bun run n8n:enable, add the printed values to secrets.yaml, render env, then install only this client's n8n Quadlet."
+		);
+	}
+
+	return pass(
+		'PREFLIGHT-N8N-001',
+		label,
+		`n8n is enabled with database ${safeSlug}_n8n and role ${safeSlug}_n8n_user inside ${slug}-postgres.`,
+		'NEXT: Keep n8n per-client; never point unrelated sites at this n8n database or editor.'
+	);
+}
+
 export async function checkBackupConfigured(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
@@ -1084,6 +1164,11 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 		id: 'PREFLIGHT-AUTOMATION-001',
 		label: 'Automation provider config is complete',
 		run: checkAutomationProviderConfig,
+	},
+	{
+		id: 'PREFLIGHT-N8N-001',
+		label: 'Per-client n8n bundle is isolated',
+		run: checkN8nBundleConfig,
 	},
 	{ id: 'PREFLIGHT-GHCR-001', label: 'GHCR image name aligns', run: checkGhcrImageShape },
 	{

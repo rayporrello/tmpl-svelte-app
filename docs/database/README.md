@@ -24,7 +24,7 @@ Postgres + Drizzle is the default data layer for this template. Every project bu
 - `connect_timeout: 10` — fail fast on connection attempts; surfaces DB outages instead of hanging requests.
 - `max` — left at the postgres-js default (10), which is appropriate for a single-instance marketing site. Tune upward if you add high-traffic routes or run multiple worker processes.
 
-A `statement_timeout` is intentionally not set client-side — enforce it on the Postgres role with `ALTER ROLE site_user SET statement_timeout = '5s'` for portable enforcement across all clients.
+A `statement_timeout` is intentionally not set client-side — enforce it on the app Postgres role with `ALTER ROLE <project>_app_user SET statement_timeout = '5s'` for portable enforcement across all clients.
 
 ---
 
@@ -65,36 +65,41 @@ Default retention windows live in `src/lib/server/privacy/retention.ts` and are 
 
 ---
 
+## Runtime Contract
+
+Production always runs a dedicated bundled Postgres container for each site:
+
+- `<project>-postgres` is the only production database service for the site.
+- `<project>_app` is the app database and `<project>_app_user` is the app role.
+- Web and worker containers use `DATABASE_URL=postgres://...@<project>-postgres:5432/<project>_app`.
+- Host tools use `DATABASE_DIRECT_URL=postgres://...@127.0.0.1:5432/<project>_app`.
+- `DATABASE_DIRECT_URL` is for migrations, backups, restores, and Drizzle Studio; do not use it inside web/worker containers.
+- Managed Postgres providers and shared client clusters are not supported production paths for this template.
+
+Hyphens in the project slug become underscores for Postgres identifiers.
+
+When n8n is enabled, `bun run n8n:enable` provisions `<project>_n8n` and
+`<project>_n8n_user` inside the same client cluster. App and n8n roles are
+isolated from each other's databases, and WAL-G/PITR captures the whole client
+cluster atomically.
+
 ## Local setup
 
-1. **Create a Postgres database:**
+Use `./bootstrap` for local development. It provisions the local Podman
+Postgres container, writes both database URLs to `.env`, runs migrations, and
+verifies connectivity.
 
-   ```bash
-   createdb site_db
-   createuser site_user --pwprompt
-   psql site_db -c "GRANT ALL ON DATABASE site_db TO site_user;"
-   psql site_db -c "GRANT ALL ON SCHEMA public TO site_user;"
-   ```
+```bash
+./bootstrap
+bun run check:db
+```
 
-   For production you can either use managed Postgres or install the bundled
-   `deploy/quadlets/postgres.container` + `postgres.volume` artifacts.
+If you edit schema after bootstrap, generate and apply migrations:
 
-2. **Set `DATABASE_URL` in your environment:**
-
-   ```
-   DATABASE_URL=postgres://site_user:yourpassword@127.0.0.1:5432/site_db
-   ```
-
-   - For SOPS workflow: add to `secrets.yaml`, then `bun run secrets:render`.
-   - For direct `.env` workflow: copy `.env.example` to `.env` and fill in the value.
-   - For bundled production Postgres: set `DATABASE_URL` to the project network
-     host (`<project>-postgres`) and `DATABASE_DIRECT_URL` to the loopback host
-     tools path (`127.0.0.1`).
-
-3. **Run migrations:**
-   ```bash
-   bun run db:migrate
-   ```
+```bash
+bun run db:generate
+bun run db:migrate
+```
 
 ---
 
@@ -133,8 +138,10 @@ Default retention windows live in `src/lib/server/privacy/retention.ts` and are 
 
 Before going live:
 
-- [ ] `DATABASE_URL` is in `secrets.yaml` (encrypted) and verified non-empty
-- [ ] `DATABASE_DIRECT_URL` is set when migrations/backups/restores run from the host against bundled Postgres
+- [ ] `DATABASE_URL` is in `secrets.yaml` and points to `<project>-postgres` on the Podman network
+- [ ] `DATABASE_DIRECT_URL` is in `secrets.yaml` and points to the loopback-published host port
+- [ ] `deploy/quadlets/postgres.container` and `postgres.volume` are installed for the project
+- [ ] `deploy/quadlets/worker.container` is installed for the durable outbox worker
 - [ ] `bun run db:migrate` has been run against the production database
 - [ ] The Postgres user has `CONNECT`, `SELECT`, `INSERT`, `UPDATE`, `DELETE` on application tables — not superuser
 - [ ] `/readyz` returns 200 with the production URL

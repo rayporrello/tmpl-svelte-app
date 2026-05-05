@@ -285,7 +285,9 @@ This template uses `svelte-adapter-bun`. Output goes to `build/` and is served w
 - Bun-native servers
 - SSR sites with server-side logic
 
-If a future project needs a fully static output (no server), swap to `@sveltejs/adapter-static` and enable prerender in `svelte.config.js`. That change requires an ADR update and a test of the full build pipeline.
+Fully static output is out of scope for this template. A project that needs it
+must fork the runtime strategy, write a new ADR, and test the full build
+pipeline; it is not a first-class production path here.
 
 ---
 

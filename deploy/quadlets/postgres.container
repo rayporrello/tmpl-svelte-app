@@ -1,14 +1,14 @@
 # deploy/quadlets/postgres.container — bundled Postgres + WAL-G for <project>
 #
-# Use this when you want the template's turnkey self-hosted Postgres path with
-# point-in-time recovery via WAL-G to Cloudflare R2. Managed Postgres users
-# leave this file uninstalled and set DATABASE_URL to the managed database.
+# Required production infrastructure for this template. Every production site
+# gets its own dedicated Postgres container/cluster with point-in-time recovery
+# via WAL-G to Cloudflare R2.
 #
 # The image (built from deploy/Containerfile.postgres) is Postgres 18 with
 # WAL-G baked in. archive_command pushes a WAL segment to R2 every minute or
 # whenever a 16 MB WAL file fills, whichever fires first. Daily base backups
 # come from deploy/systemd/backup-base.timer. Restore docs live in
-# docs/operations/pitr-restore.md.
+# docs/operations/restore.md.
 #
 # Usage:
 #   1. Run `bun run init:site` to replace <owner>/<project> placeholders.

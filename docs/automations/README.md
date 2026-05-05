@@ -23,7 +23,7 @@ outbox event in one Postgres transaction:
 
 1. A server action validates input and saves the primary record to Postgres.
 2. **In the same transaction** it inserts a minimized outbox row in `automation_events`.
-3. `bun run automation:worker` (a per-site systemd timer in production) claims
+3. `bun run automation:worker:daemon` (a required per-site worker container in production) claims
    pending rows with Postgres `SKIP LOCKED`.
 4. The worker joins back to source tables, builds the typed event, sends it
    to n8n with auth + observability headers, retries transient failures with
@@ -44,7 +44,7 @@ required config — silent skips are not allowed in production.
 
 | Provider  | Use                                                                     | Required env                                                  | Production gate                                                                                                                     |
 | --------- | ----------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `n8n`     | **Default.** Self-hosted n8n instance, per-client.                      | `N8N_WEBHOOK_URL` (HTTPS), `N8N_WEBHOOK_SECRET`               | Required: URL must be HTTPS, secret must be set.                                                                                    |
+| `n8n`     | Per-client n8n instance for sites that need workflow orchestration.     | `N8N_WEBHOOK_URL` (HTTPS), `N8N_WEBHOOK_SECRET`               | Required: URL must be HTTPS, secret must be set. Run `bun run n8n:enable` before installing the n8n Quadlet for this client.        |
 | `webhook` | Escape hatch for Make, Zapier, or any generic HTTP POST receiver.       | `AUTOMATION_WEBHOOK_URL` (HTTPS), `AUTOMATION_WEBHOOK_SECRET` | Required: URL must be HTTPS, secret must be set.                                                                                    |
 | `console` | Local dev visibility without outbound calls. Worker logs the envelope.  | none                                                          | **Forbidden in production.** Preflight and launch both fail with a hint to use `n8n` or explicit `noop`.                            |
 | `noop`    | Sites that have no automations. Worker marks events delivered silently. | none                                                          | Allowed when set explicitly. Used as the explicit "this site has no automation" signal so leads aren't lost to a misconfigured n8n. |
@@ -100,7 +100,7 @@ Update any active workflow expressions from `type`/`createdAt`/`payload` to `eve
 - `enqueueLeadCreated()` / `emitLeadCreated()` at `src/lib/server/automation/events.ts`
 - `enqueueBusinessFormSubmitted()` for scaffolded typed forms
 - Automation handler registry at `src/lib/server/automation/registry.ts`
-- `bun run automation:worker` for durable delivery, retry, and dead-lettering
+- `bun run automation:worker:daemon` for durable production delivery, retry, and dead-lettering
 - `AutomationProvider` at `src/lib/server/automation/automation-provider.ts`
 - Static provider resolver at `src/lib/server/automation/providers/index.ts`
 - Four providers: `n8n`, `webhook`, `console`, `noop`

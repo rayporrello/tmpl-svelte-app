@@ -75,7 +75,7 @@ describe('backup:check', () => {
 		);
 		expect(runner).toHaveBeenLastCalledWith(
 			'podman',
-			['rm', '-f', `ready-site-pg-backup-check-${process.pid}-123`],
+			['rm', '-f', `ready-site-postgres-backup-check-${process.pid}-123`],
 			{ capture: true }
 		);
 		expect(rowCounter).toHaveBeenCalledTimes(2);
@@ -101,14 +101,15 @@ describe('backup:check', () => {
 			now: () => 456,
 		});
 
+		const detail = result.detail;
 		expect(result).toMatchObject({
 			status: 'fail',
 			detail: expect.stringContaining('pg_restore failed'),
 		});
-		expect(result.detail).toContain('archive file is too short');
+		expect(detail).toContain('archive file is too short');
 		expect(runner).toHaveBeenCalledWith(
 			'podman',
-			['rm', '-f', `ready-site-pg-backup-check-${process.pid}-456`],
+			['rm', '-f', `ready-site-postgres-backup-check-${process.pid}-456`],
 			{
 				capture: true,
 			}

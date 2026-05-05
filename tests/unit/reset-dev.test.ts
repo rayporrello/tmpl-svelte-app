@@ -26,9 +26,9 @@ function writeBootstrappedState(rootDir: string): void {
 		JSON.stringify(
 			{
 				createdAt: '2026-05-01T00:00:00.000Z',
-				createdContainer: 'ready-site-pg',
+				createdContainer: 'ready-site-postgres',
 				createdContainerPort: 55432,
-				createdEnvKeys: ['DATABASE_URL'],
+				createdEnvKeys: ['DATABASE_URL', 'DATABASE_DIRECT_URL'],
 				bootstrapContractVersion: 1,
 			},
 			null,
@@ -37,7 +37,11 @@ function writeBootstrappedState(rootDir: string): void {
 	);
 	writeFileSync(
 		join(rootDir, '.env'),
-		'DATABASE_URL=postgres://ready_site_user:secret@127.0.0.1:55432/ready_site\n'
+		[
+			'DATABASE_URL=postgres://ready_site_app_user:secret@127.0.0.1:55432/ready_site_app',
+			'DATABASE_DIRECT_URL=postgres://ready_site_app_user:secret@127.0.0.1:55432/ready_site_app',
+			'',
+		].join('\n')
 	);
 }
 
@@ -71,7 +75,7 @@ describe('reset:dev', () => {
 		});
 
 		expect(result.exitCode).toBe(0);
-		expect(runner).toHaveBeenCalledWith('podman', ['rm', '-f', 'ready-site-pg'], {
+		expect(runner).toHaveBeenCalledWith('podman', ['rm', '-f', 'ready-site-postgres'], {
 			capture: true,
 		});
 		expect(existsSync(join(rootDir, '.env'))).toBe(false);
@@ -110,7 +114,7 @@ describe('reset:dev', () => {
 
 		expect(result.exitCode).toBe(1);
 		expect(result.messages.join('\n')).toContain('external Postgres');
-		expect(runner).not.toHaveBeenCalledWith('podman', ['rm', '-f', 'ready-site-pg'], {
+		expect(runner).not.toHaveBeenCalledWith('podman', ['rm', '-f', 'ready-site-postgres'], {
 			capture: true,
 		});
 		expect(existsSync(join(rootDir, '.env'))).toBe(true);
@@ -125,7 +129,7 @@ describe('reset:dev', () => {
 
 		expect(result.exitCode).toBe(1);
 		expect(result.messages.join('\n')).toContain('does not carry matching bootstrap labels');
-		expect(runner).not.toHaveBeenCalledWith('podman', ['rm', '-f', 'ready-site-pg'], {
+		expect(runner).not.toHaveBeenCalledWith('podman', ['rm', '-f', 'ready-site-postgres'], {
 			capture: true,
 		});
 		expect(existsSync(join(rootDir, '.env'))).toBe(true);

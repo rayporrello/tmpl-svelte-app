@@ -16,9 +16,9 @@ describe('postgres-dev helper', () => {
 	it('sanitizes container slug and Postgres identifiers', () => {
 		expect(sanitizeProjectSlug('Acme Studio!')).toBe('acme-studio');
 		expect(postgresIdentifiers('acme-studio')).toEqual({
-			database: 'acme_studio',
-			user: 'acme_studio_user',
-			container: 'acme-studio-pg',
+			database: 'acme_studio_app',
+			user: 'acme_studio_app_user',
+			container: 'acme-studio-postgres',
 		});
 	});
 
@@ -40,7 +40,7 @@ describe('postgres-dev helper', () => {
 	it('returns an existing reachable DATABASE_URL without provisioning a container', async () => {
 		const result = await provisionLocalPostgres({
 			projectSlug: 'acme-studio',
-			existingDatabaseUrl: 'postgres://user:pw@db:5432/app',
+			existingDatabaseUrl: 'postgres://user:pw@127.0.0.1:5432/app',
 			isDatabaseReachable: async () => true,
 			runtime: null,
 		});
@@ -49,7 +49,7 @@ describe('postgres-dev helper', () => {
 			runtime: 'external',
 			container: null,
 			port: null,
-			databaseUrl: 'postgres://user:pw@db:5432/app',
+			databaseUrl: 'postgres://user:pw@127.0.0.1:5432/app',
 		});
 	});
 
@@ -80,8 +80,8 @@ describe('postgres-dev helper', () => {
 		});
 
 		expect(result.runtime).toBe('podman');
-		expect(result.container).toBe('acme-studio-pg');
-		expect(result.databaseUrl).toContain('postgres://acme_studio_user:');
+		expect(result.container).toBe('acme-studio-postgres');
+		expect(result.databaseUrl).toContain('postgres://acme_studio_app_user:');
 		expect(calls).toEqual(
 			expect.arrayContaining([
 				{ command: 'podman', args: ['pull', POSTGRES_IMAGE] },
@@ -96,9 +96,9 @@ describe('postgres-dev helper', () => {
 						'-p',
 						expect.stringMatching(/^127\.0\.0\.1:\d+:5432$/u),
 						'-e',
-						'POSTGRES_DB=acme_studio',
+						'POSTGRES_DB=acme_studio_app',
 						'-e',
-						'POSTGRES_USER=acme_studio_user',
+						'POSTGRES_USER=acme_studio_app_user',
 						POSTGRES_IMAGE,
 					]),
 				}),
@@ -106,12 +106,12 @@ describe('postgres-dev helper', () => {
 					command: 'podman',
 					args: [
 						'exec',
-						'acme-studio-pg',
+						'acme-studio-postgres',
 						'pg_isready',
 						'-U',
-						'acme_studio_user',
+						'acme_studio_app_user',
 						'-d',
-						'acme_studio',
+						'acme_studio_app',
 					],
 				},
 			])
@@ -122,7 +122,7 @@ describe('postgres-dev helper', () => {
 		await expect(
 			provisionLocalPostgres({
 				projectSlug: 'acme-studio',
-				runtime: 'docker',
+				runtime: 'podman',
 				commandRunner: async () => ({
 					...okResult,
 					stdout: JSON.stringify({ 'tmpl-svelte-app.bootstrap': 'false' }),
@@ -134,8 +134,8 @@ describe('postgres-dev helper', () => {
 	it('reuses a bootstrap-owned container without replacing the existing DATABASE_URL', async () => {
 		const result = await provisionLocalPostgres({
 			projectSlug: 'acme-studio',
-			runtime: 'docker',
-			existingDatabaseUrl: 'postgres://acme_studio_user:old@127.0.0.1:55555/acme_studio',
+			runtime: 'podman',
+			existingDatabaseUrl: 'postgres://acme_studio_app_user:old@127.0.0.1:55555/acme_studio_app',
 			isDatabaseReachable: async () => false,
 			readinessIntervalMs: 1,
 			commandRunner: async (_command, args) => {
@@ -154,7 +154,9 @@ describe('postgres-dev helper', () => {
 			},
 		});
 
-		expect(result.databaseUrl).toBe('postgres://acme_studio_user:old@127.0.0.1:55555/acme_studio');
+		expect(result.databaseUrl).toBe(
+			'postgres://acme_studio_app_user:old@127.0.0.1:55555/acme_studio_app'
+		);
 		expect(result.port).toBe(55555);
 	});
 });

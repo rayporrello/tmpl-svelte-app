@@ -135,7 +135,7 @@ swap in pgBackRest deliberately, with its own ADR.
 
 ---
 
-## Why R2 (not S3 / B2 / managed Postgres backups)
+## Why R2 (not S3 / B2 / provider-only backups)
 
 - **R2 is the operator's existing primary cloud.** All client sites
   already use R2 for image storage when they need it. One vendor, one
@@ -145,11 +145,10 @@ swap in pgBackRest deliberately, with its own ADR.
   restore-cost-anxiety that AWS S3 imposes.
 - **S3-compatible API.** Anything that speaks S3 (WAL-G, rclone,
   s3cmd, Postman) works against R2 unchanged.
-- **Managed Postgres providers** (Supabase, Neon, RDS) handle their
-  own backups. The template detects this case via `DATABASE_URL`
-  hostname — when it does not point at `<project>-postgres`, the PITR
-  preflight check skips cleanly with a "managed provider handles its
-  own backups" pass.
+- **Provider-only backups are outside the current template path.**
+  ADR-023 supersedes the older managed-database opt-out. Production
+  preflight now expects the bundled `<project>-postgres` cluster and
+  WAL-G/R2 values for every production site.
 
 ---
 
@@ -210,13 +209,12 @@ per client, doubles RAM cost, complicates n8n's per-client database
 boundaries. Worth re-evaluating if a future client outgrows PITR (e.g.,
 streaming financial data with sub-minute RPO requirements).
 
-### Managed Postgres for everything
+### Provider-hosted Postgres for everything
 
 Rejected as a default. The template's value is "lead-gen website
 superpower on a Linux box you operate" — outsourcing Postgres
-contradicts that. The bundled path is the default; managed Postgres is
-fully supported as an opt-out (PITR preflight detects and skips, the
-operator runs whatever backup story their provider offers).
+contradicts that. ADR-023 makes the bundled per-site cluster the only
+supported production path.
 
 ---
 

@@ -35,7 +35,7 @@ Step-by-step guide for turning `tmpl-svelte-app` into a production site.
 
 - **Bun** in the range `>=1.3.13 <1.4.0` installed (`bun --version`). The exact pin lives in `package.json` (`packageManager: bun@1.3.13`); the `preinstall` guard rejects mismatches with a clear error code.
 - **Git** and a GitHub account (the CMS uses GitHub as its backend)
-- **Postgres** — a running instance for local development (local install, Docker, or Podman)
+- **Podman** for local Postgres bootstrap and production containers
 - A Linux host running Podman + Caddy for deployment (see [docs/deployment/README.md](deployment/README.md))
 
 ---
@@ -146,6 +146,59 @@ intentional because the share image is a manual brand asset.
 
 ## Step 4 — Review generated site config
 
+Before branding or form work, confirm the production runtime contract. This
+template has one production database strategy:
+
+- production runs on rootless Podman with the Bun runtime and the Bun SvelteKit adapter;
+- every site has a dedicated `<project>-postgres` service on its own Podman network;
+- `DATABASE_URL` is the internal web/worker URL to `<project>-postgres`;
+- `DATABASE_DIRECT_URL` is the host/operator URL for migrations, backups, restores, and Drizzle Studio;
+- the web, worker, and Postgres Quadlets are required production infrastructure;
+- n8n is optional, but when enabled it uses a separate database and role inside this client's Postgres cluster.
+
+The generated names are deterministic from `project.projectSlug`. Hyphens in
+the slug become underscores for Postgres identifiers:
+
+| Runtime object          | Name                           |
+| ----------------------- | ------------------------------ |
+| Podman network          | `<project>.network`            |
+| Web container           | `<project>-web`                |
+| Worker container        | `<project>-worker`             |
+| Postgres container      | `<project>-postgres`           |
+| Postgres volume         | `<project>-postgres-data`      |
+| App database            | `<project>_app`                |
+| App role                | `<project>_app_user`           |
+| Optional n8n database   | `<project>_n8n`                |
+| Optional n8n role       | `<project>_n8n_user`           |
+| PITR backup prefix      | `<project>/postgres`           |
+| Rendered production env | `~/secrets/<project>.prod.env` |
+
+Use this build order for production work:
+
+1. Create the repo.
+2. Run `bun run init:site`.
+3. Confirm generated runtime names.
+4. Bootstrap local Podman Postgres with `./bootstrap`.
+5. Run `bun run db:migrate`.
+6. Verify DB health with `bun run check:db` and `/readyz`.
+7. Edit brand, content, and pages.
+8. Scaffold and customize business forms.
+9. Generate and apply migrations with `bun run db:generate` and `bun run db:migrate`.
+10. Configure automation and the required worker path.
+11. Render production secrets.
+12. Run `bun run deploy:preflight`.
+13. Deploy Podman Quadlets.
+14. Smoke the deployed URL.
+15. Verify backup, PITR, and restore drills.
+
+`./bootstrap` creates or verifies the local Podman Postgres container,
+materializes `.env` with both database URLs, runs migrations, and verifies DB
+connectivity. It is the supported local setup path.
+
+---
+
+## Step 5 — Review generated site config
+
 Open [src/lib/config/site.ts](../src/lib/config/site.ts) and confirm generated
 values from `site.project.json` look right. Hand-edit only project-specific
 fields that are intentionally not manifest-owned, such as social profile URLs,
@@ -161,7 +214,7 @@ bun run check:launch   # fails loudly on launch-blocking placeholders
 
 ---
 
-## Step 5 — Edit tokens.css with brand colors, fonts, and shape
+## Step 6 — Edit tokens.css with brand colors, fonts, and shape
 
 Open [src/lib/styles/tokens.css](../src/lib/styles/tokens.css) and replace
 the brand primitives in section 1:
@@ -181,7 +234,7 @@ complete token reference and the swap checklist.
 
 ---
 
-## Step 6 — Review app.html
+## Step 7 — Review app.html
 
 `init:site -- --write` updates the `theme-color` meta value from
 `site.project.json`. In [src/app.html](../src/app.html), hand-edit only:
@@ -190,7 +243,7 @@ complete token reference and the swap checklist.
 
 ---
 
-## Step 7 — Register route policy and public routes
+## Step 8 — Register route policy and public routes
 
 Every SvelteKit route must be covered in
 [src/lib/seo/route-policy.ts](../src/lib/seo/route-policy.ts) as `indexable`,
@@ -207,7 +260,7 @@ bun run routes:check
 
 ---
 
-## Step 8 — Verify static/admin/config.yml
+## Step 9 — Verify static/admin/config.yml
 
 Sveltia CMS needs to know which GitHub repo to write to. `init:site` generates
 `backend.repo` from `site.project.json`. Open
@@ -241,20 +294,20 @@ If the editor fails to load or auth fails:
   Open `/admin/index.html` in a Chromium-based browser, click
   **Work with Local Repository**, and select this project root.
 
-Stop here and resolve any failure before moving on. Step 9 edits content the
+Stop here and resolve any failure before moving on. Step 10 edits content the
 CMS will manage; verifying CMS auth first prevents commits that the editor
 won't be able to round-trip.
 
 ---
 
-## Step 9 — Edit content/pages/home.yml
+## Step 10 — Edit content/pages/home.yml
 
 Replace the sample homepage content in [content/pages/home.yml](../content/pages/home.yml)
 with real copy. The home route loads this file at build time — no database needed.
 
 ---
 
-## Step 10 — Create custom pages and forms
+## Step 11 — Create custom pages and forms
 
 For a plain source-controlled page, use the page scaffold and then edit the
 generated Svelte:
@@ -284,98 +337,7 @@ business form.
 
 ---
 
-## Step 11 — Set up the database
-
-`DATABASE_URL` is required. The app will not start without it.
-
-1. **Make sure Postgres is running.** If you don't already have one running locally, the fastest options are:
-
-   ```bash
-   # Option A — Podman (matches the prod runtime; recommended)
-   podman run -d --name site-pg \
-     -e POSTGRES_PASSWORD=devpw -e POSTGRES_DB=site_db -e POSTGRES_USER=site_user \
-     -p 127.0.0.1:5432:5432 \
-     docker.io/library/postgres:18-alpine
-   # DATABASE_URL=postgres://site_user:devpw@127.0.0.1:5432/site_db
-
-   # Option B — Docker Desktop
-   docker run -d --name site-pg \
-     -e POSTGRES_PASSWORD=devpw -e POSTGRES_DB=site_db -e POSTGRES_USER=site_user \
-     -p 127.0.0.1:5432:5432 \
-     postgres:18-alpine
-
-   # Option C — Native install (macOS Homebrew, Debian/Ubuntu apt, Fedora dnf)
-   #   macOS:        brew install postgresql@18 && brew services start postgresql@18
-   #   Debian/Ubuntu: sudo apt install postgresql && sudo systemctl start postgresql
-   #   Fedora:       sudo dnf install postgresql-server && sudo postgresql-setup --initdb && sudo systemctl start postgresql
-   ```
-
-   With Options A and B, the database, user, and password are created by the
-   container at first start — skip step 2 below and jump to step 3.
-
-2. **Create the database and user (native install only):**
-
-   ```bash
-   # Easy path — your shell user already has a Postgres role with CREATEDB
-   createdb site_db
-   createuser site_user --pwprompt
-   psql site_db -c "GRANT ALL ON DATABASE site_db TO site_user;"
-   psql site_db -c "GRANT ALL ON SCHEMA public TO site_user;"
-   ```
-
-   **If `createdb` or `createuser` fails with "role does not exist" or
-   "permission denied":** your shell user is not a Postgres superuser. Run the
-   equivalents through the `postgres` superuser instead:
-
-   ```bash
-   # Linux (Debian/Ubuntu/Fedora) — postgres OS user owns the cluster
-   sudo -u postgres psql <<'SQL'
-   CREATE DATABASE site_db;
-   CREATE USER site_user WITH PASSWORD 'devpw';
-   GRANT ALL ON DATABASE site_db TO site_user;
-   \connect site_db
-   GRANT ALL ON SCHEMA public TO site_user;
-   SQL
-
-   # macOS Homebrew — your shell user is the cluster owner; if `createdb`
-   # still fails, the cluster did not finish initializing:
-   brew services restart postgresql@17
-   ```
-
-3. **Set `DATABASE_URL` in your environment:**
-   - SOPS workflow (recommended for shipping projects): add to `secrets.yaml`,
-     then `bun run secrets:render`. See
-     [docs/deployment/secrets.md](deployment/secrets.md).
-   - Direct `.env` workflow (fastest for local dev): copy `.env.example` to
-     `.env` and fill in `DATABASE_URL`. `.env` is gitignored.
-
-4. **Run migrations:**
-
-   ```bash
-   bun run db:migrate
-   ```
-
-   This applies the starter schema (`contact_submissions`, `automation_events`, `automation_dead_letters`).
-
-   Runtime tables have default privacy retention windows. Review [docs/privacy/data-retention.md](privacy/data-retention.md), then use `bun run privacy:prune` for a dry-run before enabling scheduled pruning.
-
-5. **Verify:**
-
-   ```bash
-   curl http://127.0.0.1:3000/readyz   # after starting the dev server
-   ```
-
-   Should return `{"ok": true, "checks": {"database": {"ok": true}}, ...}`.
-
-   If `/readyz` returns 503 with `database.ok: false`: your `DATABASE_URL` is
-   wrong, the database isn't running, or the user lacks privileges on the
-   `public` schema. The `error` field on the response identifies which.
-
-See [docs/database/README.md](database/README.md) for the full setup guide, scripts reference, and production checklist.
-
----
-
-## Step 12 — Configure optional modules
+## Step 12 — Configure automation, secrets, and production operations
 
 The full optional module registry is at **[docs/modules/README.md](modules/README.md)**. Every module is dormant by default — no runtime cost unless activated.
 
@@ -410,18 +372,18 @@ Rules of thumb:
 
 Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
 
-| Module                    | How to activate                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md) and [docs/forms/README.md](forms/README.md).                                                                                                                                                                                                        |
-| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                                                                                                                                                                                                                           |
-| **Automations**           | Set `AUTOMATION_PROVIDER` to `n8n`, `webhook`, `console`, or `noop`. n8n is the default and uses `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. Failed HTTP deliveries are dead-lettered. See [docs/automations/README.md](automations/README.md).                                                                                                                                                       |
-| **Privacy pruning**       | Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` from scheduled maintenance after reviewing the retention policy. See [docs/privacy/data-retention.md](privacy/data-retention.md).                                                                                                                                                                                  |
-| **Off-host backups**      | One-time per host: `curl https://rclone.org/install.sh \| sudo bash` + `rclone config`. Per-project: set `BACKUP_REMOTE` and `BACKUP_HEALTHCHECK_URL` in `secrets.yaml`, then `cp deploy/systemd/backup.{service,timer} ~/.config/systemd/user/<project>-backup.{service,timer}` + `systemctl --user enable --now <project>-backup.timer`. See [docs/operations/backups.md](operations/backups.md). |
-| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true` for the in-process bucket. Single-node only — for durable/multi-node, add a Cloudflare WAF rule or `mholt/caddy-ratelimit` (snippets in `deploy/Caddyfile.example`).                                                                                                                                                                                                  |
-| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                                                                                                                                                                                                                            |
-| **Cookie consent**        | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Required when using GTM/GA4/ad tags with EU or CCPA-jurisdiction users. See [docs/modules/cookie-consent.md](modules/cookie-consent.md).                                                                                                                                                                                    |
-| **Better Auth**           | Per-project only — not in base template. See [docs/modules/better-auth.md](modules/better-auth.md).                                                                                                                                                                                                                                                                                                 |
-| **Search (Pagefind)**     | Install `pagefind`, pre-render content routes, add `/search` route. See [docs/modules/pagefind.md](modules/pagefind.md).                                                                                                                                                                                                                                                                            |
+| Module                    | How to activate                                                                                                                                                                                                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md) and [docs/forms/README.md](forms/README.md).                                                                                         |
+| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                                                                                                            |
+| **Automations**           | Set `AUTOMATION_PROVIDER` to `n8n`, `webhook`, or `noop`. Form actions save source rows and durable outbox events first; the required worker delivers later with retries/dead letters. n8n is optional and per-client only. See [docs/automations/README.md](automations/README.md). |
+| **Privacy pruning**       | Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` from scheduled maintenance after reviewing the retention policy. See [docs/privacy/data-retention.md](privacy/data-retention.md).                                                                   |
+| **PITR backups**          | Set the required `R2_*`, `R2_PREFIX`, and `PITR_RETENTION_DAYS` values, install `backup-base` and `backup-check` timers, then run `bun run backup:pitr:check` and `bun run backup:restore:drill`. See [docs/operations/backups.md](operations/backups.md).                           |
+| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true` for the in-process bucket. Single-node only — for durable/multi-node, add a Cloudflare WAF rule or `mholt/caddy-ratelimit` (snippets in `deploy/Caddyfile.example`).                                                                                   |
+| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                                                                                                             |
+| **Cookie consent**        | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Required when using GTM/GA4/ad tags with EU or CCPA-jurisdiction users. See [docs/modules/cookie-consent.md](modules/cookie-consent.md).                                                                     |
+| **Better Auth**           | Per-project only — not in base template. See [docs/modules/better-auth.md](modules/better-auth.md).                                                                                                                                                                                  |
+| **Search (Pagefind)**     | Install `pagefind`, pre-render content routes, add `/search` route. See [docs/modules/pagefind.md](modules/pagefind.md).                                                                                                                                                             |
 
 ---
 
@@ -433,14 +395,16 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
    bun run validate:launch   # release-grade: validate:core + check:launch + check:content-diff
    bun run deploy:preflight  # after init:site/env rendering: Caddy, Quadlet, Postgres, worker structure
    ```
-2. Build the container image:
+2. Build the web container image for a local smoke. Use the local
+   `DATABASE_URL` from `./bootstrap` for this smoke only; production web and
+   worker containers use `@<project>-postgres` on the Podman network.
    ```bash
    podman build --format docker -t <your-project>:local .
    podman run --rm -p 127.0.0.1:3000:3000 \
      -e PORT=3000 -e HOST=0.0.0.0 \
      -e ORIGIN=http://127.0.0.1:3000 \
      -e PUBLIC_SITE_URL=http://127.0.0.1:3000 \
-     -e DATABASE_URL=postgres://site_user:yourpassword@host.containers.internal:5432/site_db \
+     -e DATABASE_URL=postgres://<project>_app_user:yourpassword@host.containers.internal:5432/<project>_app \
      <your-project>:local
    # visit http://127.0.0.1:3000/healthz — process check, should return 200
    # visit http://127.0.0.1:3000/readyz  — DB connectivity check, should return 200

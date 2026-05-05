@@ -68,8 +68,7 @@ mkdir -p ~/.config/systemd/user
 cp deploy/quadlets/web.network ~/.config/containers/systemd/<project>.network
 cp deploy/quadlets/web.container ~/.config/containers/systemd/<project>-web.container
 
-# Bundled Postgres path with WAL-G PITR (production default).
-# Skip these three files when using managed Postgres.
+# Required per-site Postgres path with WAL-G PITR.
 cp deploy/quadlets/postgres.volume    ~/.config/containers/systemd/<project>-postgres-data.volume
 cp deploy/quadlets/postgres.container ~/.config/containers/systemd/<project>-postgres.container
 cp deploy/systemd/backup-base.service  ~/.config/systemd/user/<project>-backup-base.service
@@ -91,15 +90,16 @@ $EDITOR ~/.config/containers/systemd/<project>-postgres.container
 $EDITOR ~/.config/containers/systemd/<project>-worker.container
 ```
 
-If using the bundled Postgres container, keep these env values aligned:
+Keep these env values aligned:
 
 - `DATABASE_URL=postgres://...@<project>-postgres:5432/...` for web/worker containers
 - `DATABASE_DIRECT_URL=postgres://...@127.0.0.1:5432/...` for host-side migrations, backups, and restores
 - `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` for the Postgres container
 
-Managed Postgres users should skip the Postgres Quadlet files and set
-`DATABASE_URL` to the managed service URL. `DATABASE_DIRECT_URL` is only needed
-when host-side tools need a different connection URL.
+`DATABASE_URL` must not point at host loopback or an external provider in
+production. It is the internal Podman-network URL for web and worker.
+`DATABASE_DIRECT_URL` is the host/operator URL and should not be used inside
+web or worker containers.
 
 ### 5. Pull the first image
 
@@ -109,8 +109,6 @@ podman pull ghcr.io/<owner>/<name>:<sha>
 ```
 
 ### 6. Start Postgres and run migrations
-
-If using bundled Postgres:
 
 ```bash
 systemctl --user daemon-reload
@@ -142,7 +140,7 @@ systemctl --user status <project>-web
 systemctl --user enable --now <project>-worker
 systemctl --user status <project>-worker
 
-# Backup timers (only for the bundled Postgres path).
+# Backup timers for the required bundled Postgres path.
 systemctl --user enable --now <project>-backup-base.timer
 systemctl --user enable --now <project>-backup-check.timer
 systemctl --user list-timers | grep <project>-backup

@@ -98,10 +98,10 @@ function writeReadyProject(): string {
 		[
 			'ORIGIN=https://ready.example',
 			'PUBLIC_SITE_URL=https://ready.example',
-			'DATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready',
-			'DATABASE_DIRECT_URL=postgres://ready:secret@127.0.0.1:5432/ready',
-			'POSTGRES_DB=ready',
-			'POSTGRES_USER=ready',
+			'DATABASE_URL=postgres://ready_site_app_user:secret@ready-site-postgres:5432/ready_site_app',
+			'DATABASE_DIRECT_URL=postgres://ready_site_app_user:secret@127.0.0.1:5432/ready_site_app',
+			'POSTGRES_DB=ready_site_app',
+			'POSTGRES_USER=ready_site_app_user',
 			'POSTGRES_PASSWORD=secret',
 			'BACKUP_REMOTE=r2:bucket/ready',
 			'POSTMARK_SERVER_TOKEN=token',
@@ -113,18 +113,19 @@ function writeReadyProject(): string {
 			'R2_ENDPOINT=https://accountid.r2.cloudflarestorage.com',
 			'R2_BUCKET=ready-site-backups',
 			'R2_PREFIX=ready-site/postgres',
+			'PITR_RETENTION_DAYS=14',
 			'',
 		].join('\n')
 	);
 	write(
 		rootDir,
 		'.env.example',
-		'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nDATABASE_URL=postgres://ready:secret@127.0.0.1:5432/ready\n'
+		'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nDATABASE_URL=postgres://ready_site_app_user:replace-me@ready-site-postgres:5432/ready_site_app\nDATABASE_DIRECT_URL=postgres://ready_site_app_user:replace-me@127.0.0.1:5432/ready_site_app\n'
 	);
 	write(
 		rootDir,
 		'deploy/env.example',
-		'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nDATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready\n'
+		'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nDATABASE_URL=postgres://ready_site_app_user:replace-me@ready-site-postgres:5432/ready_site_app\nDATABASE_DIRECT_URL=postgres://ready_site_app_user:replace-me@127.0.0.1:5432/ready_site_app\n'
 	);
 	write(
 		rootDir,
@@ -290,7 +291,7 @@ describe('deploy preflight', () => {
 				write(
 					rootDir,
 					'production.env',
-					'ORIGIN=http://ready.example\nPUBLIC_SITE_URL=https://wrong.example\nDATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready\nBACKUP_REMOTE=r2:bucket/ready\n'
+					'ORIGIN=http://ready.example\nPUBLIC_SITE_URL=https://wrong.example\nDATABASE_URL=postgres://ready_site_app_user:secret@ready-site-postgres:5432/ready_site_app\nBACKUP_REMOTE=r2:bucket/ready\n'
 				),
 			id: 'PREFLIGHT-ENV-002',
 		},
@@ -350,7 +351,7 @@ describe('deploy preflight', () => {
 				write(
 					rootDir,
 					'production.env',
-					'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nDATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready\nBACKUP_REMOTE=r2:bucket/ready\n'
+					'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nDATABASE_URL=postgres://ready_site_app_user:secret@ready-site-postgres:5432/ready_site_app\nBACKUP_REMOTE=r2:bucket/ready\n'
 				),
 			id: 'PREFLIGHT-POSTGRES-002',
 		},
@@ -386,10 +387,10 @@ describe('deploy preflight', () => {
 					[
 						'ORIGIN=https://ready.example',
 						'PUBLIC_SITE_URL=https://ready.example',
-						'DATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready',
-						'DATABASE_DIRECT_URL=postgres://ready:secret@127.0.0.1:5432/ready',
-						'POSTGRES_DB=ready',
-						'POSTGRES_USER=ready',
+						'DATABASE_URL=postgres://ready_site_app_user:secret@ready-site-postgres:5432/ready_site_app',
+						'DATABASE_DIRECT_URL=postgres://ready_site_app_user:secret@127.0.0.1:5432/ready_site_app',
+						'POSTGRES_DB=ready_site_app',
+						'POSTGRES_USER=ready_site_app_user',
 						'POSTGRES_PASSWORD=secret',
 						'BACKUP_REMOTE=r2:bucket/ready',
 						'AUTOMATION_PROVIDER=n8n',
@@ -408,10 +409,10 @@ describe('deploy preflight', () => {
 					[
 						'ORIGIN=https://ready.example',
 						'PUBLIC_SITE_URL=https://ready.example',
-						'DATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready',
-						'DATABASE_DIRECT_URL=postgres://ready:secret@127.0.0.1:5432/ready',
-						'POSTGRES_DB=ready',
-						'POSTGRES_USER=ready',
+						'DATABASE_URL=postgres://ready_site_app_user:secret@ready-site-postgres:5432/ready_site_app',
+						'DATABASE_DIRECT_URL=postgres://ready_site_app_user:secret@127.0.0.1:5432/ready_site_app',
+						'POSTGRES_DB=ready_site_app',
+						'POSTGRES_USER=ready_site_app_user',
 						'POSTGRES_PASSWORD=secret',
 						'BACKUP_REMOTE=r2:bucket/ready',
 						'AUTOMATION_PROVIDER=console',
@@ -441,10 +442,10 @@ describe('deploy preflight', () => {
 					[
 						'ORIGIN=https://ready.example',
 						'PUBLIC_SITE_URL=https://ready.example',
-						'DATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready',
-						'DATABASE_DIRECT_URL=postgres://ready:secret@127.0.0.1:5432/ready',
-						'POSTGRES_DB=ready',
-						'POSTGRES_USER=ready',
+						'DATABASE_URL=postgres://ready_site_app_user:secret@ready-site-postgres:5432/ready_site_app',
+						'DATABASE_DIRECT_URL=postgres://ready_site_app_user:secret@127.0.0.1:5432/ready_site_app',
+						'POSTGRES_DB=ready_site_app',
+						'POSTGRES_USER=ready_site_app_user',
 						'POSTGRES_PASSWORD=secret',
 						'BACKUP_REMOTE=r2:bucket/ready',
 						'AUTOMATION_PROVIDER=n8n',

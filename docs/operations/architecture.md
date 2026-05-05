@@ -148,11 +148,11 @@ HTTPS POST /contact ──▶ <project>-web container
               │                                    │
               │                                    ▼
               │                       AUTOMATION_PROVIDER (env-driven)
-              │            ┌────────────┬─────────────┬────────┐
-              │            ▼            ▼             ▼        ▼
-              │       <project>-n8n   shared n8n   webhook   noop
-              │       (per client)    (remote)     (escape   (explicit
-              │                                     hatch)    no-op)
+              │            ┌────────────┬────────┐
+              │            ▼            ▼        ▼
+              │       <project>-n8n   webhook   noop
+              │       (per client)    (client   (explicit
+              │                      endpoint)  no-op)
               │
               └─▶ form action returns success here regardless of
                   worker/automation outcome. Lead is captured.
