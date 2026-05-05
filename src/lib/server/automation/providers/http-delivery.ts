@@ -7,6 +7,13 @@ import { WEBHOOK_SIGNATURE_HEADER, signWebhookPayload } from '../signing';
 
 const WEBHOOK_TIMEOUT_MS = 5000;
 
+export const DEFAULT_AUTH_HEADER = 'X-Site-Auth';
+export const SITE_EVENT_ID_HEADER = 'X-Site-Event-Id';
+export const SITE_EVENT_TYPE_HEADER = 'X-Site-Event-Type';
+export const SITE_TIMESTAMP_HEADER = 'X-Site-Timestamp';
+
+export type WebhookAuthMode = 'header' | 'hmac';
+
 function isAbortError(err: unknown): boolean {
 	return (
 		(err instanceof Error && err.name === 'AbortError') ||
@@ -21,6 +28,10 @@ interface HttpAutomationProviderConfig {
 	provider: Extract<AutomationProviderName, 'n8n' | 'webhook'>;
 	url?: string;
 	secret?: string;
+	/** `header` (default) sends `<authHeader>: <secret>`; `hmac` sends `X-Webhook-Signature: <hmac-of-body>`. */
+	authMode?: WebhookAuthMode;
+	/** Header name used in `header` mode. Defaults to `X-Site-Auth`. */
+	authHeader?: string;
 }
 
 export async function sendHttpAutomationEvent(
@@ -49,9 +60,21 @@ export async function sendHttpAutomationEvent(
 	}
 
 	const body = JSON.stringify(event);
-	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+		[SITE_EVENT_ID_HEADER]: event.idempotency_key ?? '',
+		[SITE_EVENT_TYPE_HEADER]: event.event,
+		[SITE_TIMESTAMP_HEADER]: event.occurred_at,
+	};
+
 	if (config.secret) {
-		headers[WEBHOOK_SIGNATURE_HEADER] = signWebhookPayload(body, config.secret);
+		const mode: WebhookAuthMode = config.authMode ?? 'header';
+		if (mode === 'hmac') {
+			headers[WEBHOOK_SIGNATURE_HEADER] = signWebhookPayload(body, config.secret);
+		} else {
+			const headerName = config.authHeader?.trim() || DEFAULT_AUTH_HEADER;
+			headers[headerName] = config.secret;
+		}
 	}
 
 	const controller = new AbortController();

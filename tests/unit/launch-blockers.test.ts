@@ -186,6 +186,48 @@ describe('launch-blockers manifest', () => {
 		});
 	});
 
+	it('fails LAUNCH-AUTOMATION-001 when AUTOMATION_PROVIDER=n8n but webhook config is missing', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nAUTOMATION_PROVIDER=n8n\n'
+		);
+
+		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
+			status: 'fail',
+			detail: expect.stringContaining('N8N_WEBHOOK_URL'),
+		});
+	});
+
+	it('fails LAUNCH-AUTOMATION-001 for AUTOMATION_PROVIDER=console (dev-only)', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nAUTOMATION_PROVIDER=console\n'
+		);
+
+		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
+			status: 'fail',
+			detail: expect.stringContaining('development only'),
+		});
+	});
+
+	it('passes LAUNCH-AUTOMATION-001 for explicit AUTOMATION_PROVIDER=noop', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nAUTOMATION_PROVIDER=noop\n'
+		);
+
+		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
+			status: 'pass',
+			detail: expect.stringContaining('explicitly disabled'),
+		});
+	});
+
 	it('warns for missing backup and email production env', async () => {
 		const rootDir = copyReadyFixture();
 		writeFixtureFile(

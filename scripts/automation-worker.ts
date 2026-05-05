@@ -10,7 +10,11 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import postgres from 'postgres';
-import { resolveAutomationProvider } from '../src/lib/server/automation/providers';
+import {
+	readAutomationProviderConfig,
+	resolveAutomationProvider,
+	validateAutomationProviderConfig,
+} from '../src/lib/server/automation/providers';
 import {
 	getAutomationEventHandler,
 	type AutomationOutboxRow,
@@ -254,6 +258,37 @@ async function deliverEvent(
 	return await markFailedOrRetry(sql, row, result.error);
 }
 
+/**
+ * Surface a single, loud warning when the resolved provider cannot deliver.
+ * The worker keeps running so the outbox is not blocked, but the operator sees
+ * the misconfiguration in journald instead of silently skipped events.
+ */
+export function warnIfAutomationConfigIncomplete(
+	env: NodeJS.ProcessEnv = process.env,
+	logger: Pick<Console, 'warn' | 'info'> = console
+): void {
+	const config = readAutomationProviderConfig(env);
+	const problems = validateAutomationProviderConfig(config, { allowConsoleProvider: true });
+
+	if (problems.length > 0) {
+		logger.warn(
+			`[automation:worker] provider="${config.provider}" is misconfigured — events will be skipped or fail. ` +
+				`Fix: ${problems.map((p) => p.message).join(' ')}`
+		);
+		return;
+	}
+
+	if (config.provider === 'noop') {
+		logger.info(
+			'[automation:worker] provider="noop" — events are marked delivered without sending.'
+		);
+	} else if (config.provider === 'console') {
+		logger.info(
+			'[automation:worker] provider="console" — events are logged, not delivered. Use noop to silence in production.'
+		);
+	}
+}
+
 export async function runAutomationWorker(
 	sql: postgres.Sql,
 	options: AutomationWorkerOptions = DEFAULT_OPTIONS
@@ -287,6 +322,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
 	}
 
 	if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set.');
+	warnIfAutomationConfigIncomplete();
 	const sql = postgres(process.env.DATABASE_URL, { max: 2 });
 	try {
 		const result = await runAutomationWorker(sql, options);

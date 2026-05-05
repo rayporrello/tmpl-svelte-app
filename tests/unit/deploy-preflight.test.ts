@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+	checkAutomationProviderConfig,
 	checkBackupConfigured,
 	checkAutomationWorkerArtifact,
 	checkCaddyfileDomain,
@@ -103,6 +104,9 @@ function writeReadyProject(): string {
 			'POSTGRES_PASSWORD=secret',
 			'BACKUP_REMOTE=r2:bucket/ready',
 			'POSTMARK_SERVER_TOKEN=token',
+			'AUTOMATION_PROVIDER=n8n',
+			'N8N_WEBHOOK_URL=https://n8n.ready.example/webhook/ready',
+			'N8N_WEBHOOK_SECRET=ready-shared-secret',
 			'',
 		].join('\n')
 	);
@@ -331,6 +335,50 @@ describe('deploy preflight', () => {
 					'Image=ghcr.io/acme/wrong-site:abc123\nEnvironmentFile=%h/secrets/ready-site.prod.env\nNetwork=ready-site.network\nHostName=ready-site-web\n'
 				),
 			id: 'PREFLIGHT-GHCR-001',
+		},
+		{
+			name: 'automation provider config — missing n8n URL',
+			check: checkAutomationProviderConfig,
+			mutate: (rootDir: string) =>
+				write(
+					rootDir,
+					'production.env',
+					[
+						'ORIGIN=https://ready.example',
+						'PUBLIC_SITE_URL=https://ready.example',
+						'DATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready',
+						'DATABASE_DIRECT_URL=postgres://ready:secret@127.0.0.1:5432/ready',
+						'POSTGRES_DB=ready',
+						'POSTGRES_USER=ready',
+						'POSTGRES_PASSWORD=secret',
+						'BACKUP_REMOTE=r2:bucket/ready',
+						'AUTOMATION_PROVIDER=n8n',
+						'',
+					].join('\n')
+				),
+			id: 'PREFLIGHT-AUTOMATION-001',
+		},
+		{
+			name: 'automation provider config — console mode in prod',
+			check: checkAutomationProviderConfig,
+			mutate: (rootDir: string) =>
+				write(
+					rootDir,
+					'production.env',
+					[
+						'ORIGIN=https://ready.example',
+						'PUBLIC_SITE_URL=https://ready.example',
+						'DATABASE_URL=postgres://ready:secret@ready-site-postgres:5432/ready',
+						'DATABASE_DIRECT_URL=postgres://ready:secret@127.0.0.1:5432/ready',
+						'POSTGRES_DB=ready',
+						'POSTGRES_USER=ready',
+						'POSTGRES_PASSWORD=secret',
+						'BACKUP_REMOTE=r2:bucket/ready',
+						'AUTOMATION_PROVIDER=console',
+						'',
+					].join('\n')
+				),
+			id: 'PREFLIGHT-AUTOMATION-001',
 		},
 		{
 			name: 'backup configuration',

@@ -40,8 +40,16 @@ const privateSchema = v.object({
 	),
 	AUTOMATION_WEBHOOK_URL: v.optional(v.string()),
 	AUTOMATION_WEBHOOK_SECRET: v.optional(v.string()),
+	AUTOMATION_WEBHOOK_AUTH_MODE: v.optional(
+		v.union([v.literal(''), v.literal('header'), v.literal('hmac')])
+	),
+	AUTOMATION_WEBHOOK_AUTH_HEADER: v.optional(v.string()),
 	N8N_WEBHOOK_URL: v.optional(v.string()),
 	N8N_WEBHOOK_SECRET: v.optional(v.string()),
+	N8N_WEBHOOK_AUTH_MODE: v.optional(
+		v.union([v.literal(''), v.literal('header'), v.literal('hmac')])
+	),
+	N8N_WEBHOOK_AUTH_HEADER: v.optional(v.string()),
 	// Forms — set to "true" to enable in-process rate limiting on form endpoints.
 	// This is a single-node guard; buckets reset on restart. See rate-limit.ts.
 	RATE_LIMIT_ENABLED: v.optional(v.string()),
@@ -96,8 +104,12 @@ export function initEnv(): void {
 		AUTOMATION_PROVIDER: process.env.AUTOMATION_PROVIDER,
 		AUTOMATION_WEBHOOK_URL: process.env.AUTOMATION_WEBHOOK_URL,
 		AUTOMATION_WEBHOOK_SECRET: process.env.AUTOMATION_WEBHOOK_SECRET,
+		AUTOMATION_WEBHOOK_AUTH_MODE: process.env.AUTOMATION_WEBHOOK_AUTH_MODE,
+		AUTOMATION_WEBHOOK_AUTH_HEADER: process.env.AUTOMATION_WEBHOOK_AUTH_HEADER,
 		N8N_WEBHOOK_URL: process.env.N8N_WEBHOOK_URL,
 		N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET,
+		N8N_WEBHOOK_AUTH_MODE: process.env.N8N_WEBHOOK_AUTH_MODE,
+		N8N_WEBHOOK_AUTH_HEADER: process.env.N8N_WEBHOOK_AUTH_HEADER,
 		RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
 		ANALYTICS_SERVER_EVENTS_ENABLED: process.env.ANALYTICS_SERVER_EVENTS_ENABLED,
 		GA4_MEASUREMENT_ID: process.env.GA4_MEASUREMENT_ID,

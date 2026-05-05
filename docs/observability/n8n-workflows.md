@@ -121,16 +121,27 @@ automation:worker` deliver and retry.
 
 ## Security posture
 
-- **Do not expose the n8n editor publicly.** Bind to `127.0.0.1` and access through an SSH tunnel or VPN.
-- **Validate webhook payloads.** Verify the `X-Webhook-Signature` header in n8n's webhook node.
+- **Do not expose the n8n editor publicly.** Bind to `127.0.0.1` and access through an SSH tunnel, VPN, or Caddy basic auth.
+- **Authenticate every webhook.** The default `header` auth mode uses n8n's
+  built-in Header Auth credential and returns 401 on mismatch with no code.
+  HMAC mode is the stronger opt-in. See
+  [docs/automations/n8n-workflow-contract.md](../automations/n8n-workflow-contract.md)
+  for both flows.
 - **Keep n8n patched.** Subscribe to n8n release notes for security advisories.
 - **Avoid Code nodes unless necessary.** Use built-in nodes when possible; Code nodes bypass type safety.
 - **Never paste secrets into workflow notes or documentation.** Use n8n credentials or environment variables.
+- **Run a separate n8n instance per client.** n8n is not multi-tenant; one
+  shared instance leaks credentials, workflow definitions, and execution
+  history across clients.
 - **Treat n8n as production infrastructure** once it handles leads, customers, publishing, revenue, or important content.
-- **Back up n8n's internal database** as part of the regular backup plan once workflows are in production.
+- **Back up n8n's internal database** as part of the regular backup plan once workflows are in production. (n8n shares the per-client Postgres instance, so the standard PITR backup covers both site data and n8n state atomically.)
 
 ---
 
-## n8n is optional
+## When n8n is the right call
 
-Sites that do not use n8n can set `AUTOMATION_PROVIDER=webhook`, `console`, or `noop`. The default `n8n` provider skips cleanly when `N8N_WEBHOOK_URL` is unset.
+n8n is the default automation path for sites built from this template. Set
+`AUTOMATION_PROVIDER=noop` only when a site has no automation needs at all —
+this is an explicit operator choice that production preflight allows.
+`AUTOMATION_PROVIDER=webhook` remains as an escape hatch for Make, Zapier,
+or custom HTTP receivers; production preflight requires its URL+secret too.

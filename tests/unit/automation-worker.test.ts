@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { nextBackoffSeconds, parseWorkerArgs } from '../../scripts/automation-worker';
+import {
+	nextBackoffSeconds,
+	parseWorkerArgs,
+	warnIfAutomationConfigIncomplete,
+} from '../../scripts/automation-worker';
 
 describe('automation worker helpers', () => {
 	it('uses capped exponential backoff', () => {
@@ -30,5 +34,52 @@ describe('automation worker helpers', () => {
 	it('rejects invalid numeric options', () => {
 		expect(() => parseWorkerArgs(['--batch-size=0'])).toThrow(/positive integer/);
 		expect(() => parseWorkerArgs(['--stale-after-seconds=abc'])).toThrow(/positive integer/);
+	});
+});
+
+describe('warnIfAutomationConfigIncomplete', () => {
+	it('warns when n8n provider is missing webhook config', () => {
+		const logger = { warn: vi.fn(), info: vi.fn() };
+		warnIfAutomationConfigIncomplete({ AUTOMATION_PROVIDER: 'n8n' } as NodeJS.ProcessEnv, logger);
+
+		expect(logger.warn).toHaveBeenCalledTimes(1);
+		expect(logger.warn.mock.calls[0][0]).toMatch(/N8N_WEBHOOK_URL/u);
+		expect(logger.info).not.toHaveBeenCalled();
+	});
+
+	it('logs an info note for explicit noop and stays quiet otherwise', () => {
+		const logger = { warn: vi.fn(), info: vi.fn() };
+		warnIfAutomationConfigIncomplete({ AUTOMATION_PROVIDER: 'noop' } as NodeJS.ProcessEnv, logger);
+
+		expect(logger.warn).not.toHaveBeenCalled();
+		expect(logger.info).toHaveBeenCalledTimes(1);
+		expect(logger.info.mock.calls[0][0]).toMatch(/noop/u);
+	});
+
+	it('stays silent for fully configured n8n', () => {
+		const logger = { warn: vi.fn(), info: vi.fn() };
+		warnIfAutomationConfigIncomplete(
+			{
+				AUTOMATION_PROVIDER: 'n8n',
+				N8N_WEBHOOK_URL: 'https://n8n.example/webhook/lead',
+				N8N_WEBHOOK_SECRET: 'shared',
+			} as unknown as NodeJS.ProcessEnv,
+			logger
+		);
+
+		expect(logger.warn).not.toHaveBeenCalled();
+		expect(logger.info).not.toHaveBeenCalled();
+	});
+
+	it('does not warn for console provider (worker dev mode)', () => {
+		const logger = { warn: vi.fn(), info: vi.fn() };
+		warnIfAutomationConfigIncomplete(
+			{ AUTOMATION_PROVIDER: 'console' } as NodeJS.ProcessEnv,
+			logger
+		);
+
+		expect(logger.warn).not.toHaveBeenCalled();
+		expect(logger.info).toHaveBeenCalledTimes(1);
+		expect(logger.info.mock.calls[0][0]).toMatch(/console/u);
 	});
 });

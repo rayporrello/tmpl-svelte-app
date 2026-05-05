@@ -10,6 +10,10 @@ import type { LaunchErrorCode } from './errors';
 import { type EnvMap, readEnv } from './env-file';
 import { runCheckProject } from '../check-project';
 import { evaluateRoutePolicyCoverage } from './route-scanner';
+import {
+	readAutomationProviderConfig,
+	validateAutomationProviderConfig,
+} from '../../src/lib/server/automation/providers';
 
 export type LaunchBlockerStatus = 'pass' | 'warn' | 'fail';
 export type LaunchBlockerSeverity = 'required' | 'recommended';
@@ -448,6 +452,40 @@ async function checkPostmarkToken(
 	);
 }
 
+async function checkAutomationProvider(
+	context?: LaunchBlockerCheckContext
+): Promise<LaunchBlockerResult> {
+	const reference = readLaunchEnv(context);
+	if (!reference.ok) return fail(reference.detail);
+
+	const config = readAutomationProviderConfig(reference.env as NodeJS.ProcessEnv);
+	const problems = validateAutomationProviderConfig(config);
+
+	if (problems.length > 0) {
+		const head =
+			config.provider === 'console'
+				? 'AUTOMATION_PROVIDER=console is for development only.'
+				: `AUTOMATION_PROVIDER=${config.provider} is incomplete in ${reference.label}:`;
+		return fail(`${head} ${problems.map((p) => p.message).join(' ')}`);
+	}
+
+	if (config.provider === 'noop') {
+		return pass(`AUTOMATION_PROVIDER=noop in ${reference.label} — automation explicitly disabled.`);
+	}
+
+	if (config.provider === 'console') {
+		// validateAutomationProviderConfig already flagged this above; the early
+		// return narrows the union for TypeScript before the auth-mode access.
+		return pass(
+			`AUTOMATION_PROVIDER=console in ${reference.label} — dev-only mode (use noop in production).`
+		);
+	}
+
+	const auth =
+		config.authMode === 'hmac' ? 'HMAC body signing' : `Header auth (${config.authHeader})`;
+	return pass(`AUTOMATION_PROVIDER=${config.provider} configured in ${reference.label} (${auth}).`);
+}
+
 async function checkProjectManifestDrift(
 	context?: LaunchBlockerCheckContext
 ): Promise<LaunchBlockerResult> {
@@ -547,6 +585,15 @@ export const LAUNCH_BLOCKERS: LaunchBlocker[] = [
 		check: checkBackupRemote,
 		fixHint: 'NEXT: Configure BACKUP_REMOTE before launch or document the backup waiver.',
 		docsPath: 'docs/operations/backups.md',
+	},
+	{
+		id: 'LAUNCH-AUTOMATION-001',
+		label: 'Automation provider is configured for production',
+		severity: 'required',
+		check: checkAutomationProvider,
+		fixHint:
+			'NEXT: Set N8N_WEBHOOK_URL/SECRET (default), or AUTOMATION_PROVIDER=noop to explicitly disable automation.',
+		docsPath: 'docs/automations/n8n-workflow-contract.md',
 	},
 	{
 		id: 'LAUNCH-EMAIL-001',

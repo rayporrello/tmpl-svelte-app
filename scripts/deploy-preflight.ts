@@ -8,6 +8,10 @@ import { evaluateLaunchBlockers } from './lib/launch-blockers';
 import { sanitizeProjectSlug } from './lib/postgres-dev';
 import { run as defaultRunner, type RunResult } from './lib/run';
 import { REQUIRED_PRIVATE_ENV_VARS, REQUIRED_PUBLIC_ENV_VARS } from '../src/lib/server/env';
+import {
+	readAutomationProviderConfig,
+	validateAutomationProviderConfig,
+} from '../src/lib/server/automation/providers';
 
 export type DeployPreflightStatus = 'pass' | 'fail';
 
@@ -826,6 +830,65 @@ export async function checkGhcrImageShape(
 	);
 }
 
+export async function checkAutomationProviderConfig(
+	context: DeployPreflightContext
+): Promise<DeployPreflightResult> {
+	const label = 'Automation provider has the config it needs';
+	const envReference = readProdEnv(context);
+	if (!envReference.ok) {
+		return fail(
+			'PREFLIGHT-AUTOMATION-001',
+			label,
+			envReference.detail,
+			'NEXT: Add the production env file before checking automation config.'
+		);
+	}
+
+	const config = readAutomationProviderConfig(envReference.env as NodeJS.ProcessEnv);
+	const problems = validateAutomationProviderConfig(config);
+
+	if (problems.length > 0) {
+		const detail =
+			config.provider === 'n8n' || config.provider === 'webhook'
+				? `AUTOMATION_PROVIDER=${config.provider} but ${problems.map((p) => p.message).join(' ')}`
+				: problems.map((p) => p.message).join(' ');
+		const hint =
+			config.provider === 'console'
+				? 'NEXT: For production, use AUTOMATION_PROVIDER=n8n with N8N_WEBHOOK_URL/SECRET, or set AUTOMATION_PROVIDER=noop to explicitly disable automation.'
+				: `NEXT: Set the missing ${config.provider.toUpperCase()} env values, or set AUTOMATION_PROVIDER=noop if this site has no automation.`;
+		return fail('PREFLIGHT-AUTOMATION-001', label, detail, hint);
+	}
+
+	if (config.provider === 'noop') {
+		return pass(
+			'PREFLIGHT-AUTOMATION-001',
+			label,
+			'AUTOMATION_PROVIDER=noop — automation is explicitly disabled for this site.',
+			'NEXT: Switch to AUTOMATION_PROVIDER=n8n (with N8N_WEBHOOK_URL/SECRET) when this site adopts automation.'
+		);
+	}
+
+	if (config.provider === 'console') {
+		// validateAutomationProviderConfig already returned a problem above; the
+		// early return narrows the union for TypeScript before the auth-mode access.
+		return pass(
+			'PREFLIGHT-AUTOMATION-001',
+			label,
+			'AUTOMATION_PROVIDER=console — dev-only mode.',
+			'NEXT: Use AUTOMATION_PROVIDER=noop in production for explicit no-automation.'
+		);
+	}
+
+	const auth =
+		config.authMode === 'hmac' ? 'HMAC body signing' : `Header auth (${config.authHeader})`;
+	return pass(
+		'PREFLIGHT-AUTOMATION-001',
+		label,
+		`AUTOMATION_PROVIDER=${config.provider} is fully configured (${auth}).`,
+		'NEXT: Confirm the matching n8n / receiver workflow accepts this auth mode.'
+	);
+}
+
 export async function checkBackupConfigured(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
@@ -930,6 +993,11 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 		id: 'PREFLIGHT-WORKER-001',
 		label: 'Automation worker artifact aligns',
 		run: checkAutomationWorkerArtifact,
+	},
+	{
+		id: 'PREFLIGHT-AUTOMATION-001',
+		label: 'Automation provider config is complete',
+		run: checkAutomationProviderConfig,
 	},
 	{ id: 'PREFLIGHT-GHCR-001', label: 'GHCR image name aligns', run: checkGhcrImageShape },
 	{ id: 'PREFLIGHT-BACKUP-001', label: 'Backups configured or waived', run: checkBackupConfigured },

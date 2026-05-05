@@ -8,9 +8,19 @@ vi.mock('$lib/server/logger', () => ({
 import { consoleAutomationProvider } from '$lib/server/automation/providers/console';
 import { emitLeadCreated } from '$lib/server/automation/events';
 import { buildLeadCreatedEvent } from '$lib/server/automation/envelopes';
+import {
+	DEFAULT_AUTH_HEADER,
+	SITE_EVENT_ID_HEADER,
+	SITE_EVENT_TYPE_HEADER,
+	SITE_TIMESTAMP_HEADER,
+} from '$lib/server/automation/providers/http-delivery';
 import { makeN8nProvider } from '$lib/server/automation/providers/n8n';
 import { noopAutomationProvider } from '$lib/server/automation/providers/noop';
-import { resolveAutomationProvider } from '$lib/server/automation/providers';
+import {
+	readAutomationProviderConfig,
+	resolveAutomationProvider,
+	validateAutomationProviderConfig,
+} from '$lib/server/automation/providers';
 import { makeWebhookProvider } from '$lib/server/automation/providers/webhook';
 import { WEBHOOK_SIGNATURE_HEADER, signWebhookPayload } from '$lib/server/automation/signing';
 import type { AutomationEvent } from '$lib/server/automation/automation-provider';
@@ -20,8 +30,12 @@ const envKeys = [
 	'AUTOMATION_PROVIDER',
 	'AUTOMATION_WEBHOOK_URL',
 	'AUTOMATION_WEBHOOK_SECRET',
+	'AUTOMATION_WEBHOOK_AUTH_MODE',
+	'AUTOMATION_WEBHOOK_AUTH_HEADER',
 	'N8N_WEBHOOK_URL',
 	'N8N_WEBHOOK_SECRET',
+	'N8N_WEBHOOK_AUTH_MODE',
+	'N8N_WEBHOOK_AUTH_HEADER',
 ];
 
 const event: AutomationEvent<'lead.created'> = {
@@ -125,13 +139,60 @@ describe('automation providers', () => {
 		expect(n8nInit.body).toBe(originalEnvelope);
 		expect(webhookInit.body).toBe(originalEnvelope);
 		expect(webhookInit.body).toBe(n8nInit.body);
-		expect(n8nInit.headers[WEBHOOK_SIGNATURE_HEADER]).toBe(
-			signWebhookPayload(originalEnvelope, 'secret')
-		);
-		expect(webhookInit.headers[WEBHOOK_SIGNATURE_HEADER]).toBe(
-			n8nInit.headers[WEBHOOK_SIGNATURE_HEADER]
-		);
 		expect(JSON.stringify(event)).toBe(originalEnvelope);
+	});
+
+	it('defaults to header auth and sends the secret as X-Site-Auth, not HMAC', async () => {
+		vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 204 } as Response);
+
+		await makeN8nProvider('https://receiver.example.com/hook', 'shared-secret').send(event);
+		const init = readFetchInit(0);
+
+		expect(init.headers[DEFAULT_AUTH_HEADER]).toBe('shared-secret');
+		expect(init.headers[WEBHOOK_SIGNATURE_HEADER]).toBeUndefined();
+	});
+
+	it('uses a custom header name when authHeader is provided', async () => {
+		vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 204 } as Response);
+
+		await makeN8nProvider('https://receiver.example.com/hook', 'shared-secret', {
+			authMode: 'header',
+			authHeader: 'X-Custom-Auth',
+		}).send(event);
+		const init = readFetchInit(0);
+
+		expect(init.headers['X-Custom-Auth']).toBe('shared-secret');
+		expect(init.headers[DEFAULT_AUTH_HEADER]).toBeUndefined();
+	});
+
+	it('signs the body with HMAC when authMode is set to hmac', async () => {
+		const originalEnvelope = JSON.stringify(event);
+		vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 204 } as Response);
+
+		await makeN8nProvider('https://receiver.example.com/hook', 'shared-secret', {
+			authMode: 'hmac',
+		}).send(event);
+		const init = readFetchInit(0);
+
+		expect(init.headers[WEBHOOK_SIGNATURE_HEADER]).toBe(
+			signWebhookPayload(originalEnvelope, 'shared-secret')
+		);
+		expect(init.headers[DEFAULT_AUTH_HEADER]).toBeUndefined();
+	});
+
+	it('always sends observability headers (event id, type, timestamp)', async () => {
+		vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 204 } as Response);
+
+		const eventWithKey: AutomationEvent<'lead.created'> = {
+			...event,
+			idempotency_key: 'lead.created:sub-123',
+		};
+		await makeN8nProvider('https://receiver.example.com/hook', 'shared-secret').send(eventWithKey);
+		const init = readFetchInit(0);
+
+		expect(init.headers[SITE_EVENT_ID_HEADER]).toBe('lead.created:sub-123');
+		expect(init.headers[SITE_EVENT_TYPE_HEADER]).toBe('lead.created');
+		expect(init.headers[SITE_TIMESTAMP_HEADER]).toBe(eventWithKey.occurred_at);
 	});
 
 	it('maps missing HTTP provider config to not_configured', async () => {
@@ -185,6 +246,81 @@ describe('automation providers', () => {
 			provider: 'webhook',
 			failure: 'network',
 			error: 'Error: ECONNREFUSED',
+		});
+	});
+
+	describe('validateAutomationProviderConfig', () => {
+		it('flags missing URL and secret for n8n provider', () => {
+			const config = readAutomationProviderConfig({} as NodeJS.ProcessEnv);
+			const problems = validateAutomationProviderConfig(config);
+
+			expect(config.provider).toBe('n8n');
+			const fields = problems.map((p) => p.field);
+			expect(fields).toContain('N8N_WEBHOOK_URL');
+			expect(fields).toContain('N8N_WEBHOOK_SECRET');
+		});
+
+		it('flags non-HTTPS n8n URL', () => {
+			const config = readAutomationProviderConfig({
+				AUTOMATION_PROVIDER: 'n8n',
+				N8N_WEBHOOK_URL: 'http://insecure.example/webhook',
+				N8N_WEBHOOK_SECRET: 'secret',
+			} as unknown as NodeJS.ProcessEnv);
+			const problems = validateAutomationProviderConfig(config);
+
+			expect(problems).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						field: 'N8N_WEBHOOK_URL',
+						message: expect.stringMatching(/https:/u),
+					}),
+				])
+			);
+		});
+
+		it('rejects console provider in production by default', () => {
+			const config = readAutomationProviderConfig({
+				AUTOMATION_PROVIDER: 'console',
+			} as unknown as NodeJS.ProcessEnv);
+			const problems = validateAutomationProviderConfig(config);
+
+			expect(problems).toEqual(
+				expect.arrayContaining([expect.objectContaining({ field: 'AUTOMATION_PROVIDER' })])
+			);
+		});
+
+		it('allows console provider when explicitly opted in (worker dev mode)', () => {
+			const config = readAutomationProviderConfig({
+				AUTOMATION_PROVIDER: 'console',
+			} as unknown as NodeJS.ProcessEnv);
+			const problems = validateAutomationProviderConfig(config, { allowConsoleProvider: true });
+
+			expect(problems).toEqual([]);
+		});
+
+		it('passes for explicit noop with no other config', () => {
+			const config = readAutomationProviderConfig({
+				AUTOMATION_PROVIDER: 'noop',
+			} as unknown as NodeJS.ProcessEnv);
+			const problems = validateAutomationProviderConfig(config);
+
+			expect(problems).toEqual([]);
+		});
+
+		it('passes for fully configured n8n header auth', () => {
+			const config = readAutomationProviderConfig({
+				AUTOMATION_PROVIDER: 'n8n',
+				N8N_WEBHOOK_URL: 'https://n8n.example/webhook/lead',
+				N8N_WEBHOOK_SECRET: 'shared-secret',
+			} as unknown as NodeJS.ProcessEnv);
+			const problems = validateAutomationProviderConfig(config);
+
+			expect(config.provider).toBe('n8n');
+			if (config.provider === 'n8n') {
+				expect(config.authMode).toBe('header');
+				expect(config.authHeader).toBe(DEFAULT_AUTH_HEADER);
+			}
+			expect(problems).toEqual([]);
 		});
 	});
 

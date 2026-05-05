@@ -1,36 +1,57 @@
 # Automations
 
-This template is automation-ready without being tied to one automation product. n8n remains the default provider, but clones can switch runtime delivery to Make, Zapier, a custom HTTP receiver, console logging, or nothing by changing environment configuration instead of form/action code.
+n8n is the default automation path for sites built from this template. It is
+self-hosted, free, and matches the "lead-gen websites on a Linux box" model
+this template is built around. The website captures the lead in Postgres
+first; the worker delivers events to n8n from a durable outbox so a brief n8n
+outage cannot lose leads.
+
+For the wire-level contract — payload shape, headers, auth modes, retry and
+dead-letter behavior, the standard "lead → Slack → email" workflow shape, and
+what to do when n8n is down — see
+[n8n-workflow-contract.md](n8n-workflow-contract.md).
 
 ---
 
-## Design principle
+## Reliability principle
 
-The SvelteKit app owns one generic event contract. Providers only decide where that same event is delivered.
+> The website's job is to capture the lead reliably. n8n's job is to fan it
+> out to Slack, email, CRM, sheets. Those are independent failure domains.
 
-Runtime automation flow:
+The form action does NOT call n8n. It writes the source record and the
+outbox event in one Postgres transaction:
 
 1. A server action validates input and saves the primary record to Postgres.
-2. The same transaction inserts a minimized outbox event in `automation_events`.
-3. `bun run automation:worker` claims pending rows with Postgres locking.
-4. The worker joins back to source tables, sends the typed event, retries with backoff, and dead-letters exhausted failures.
+2. **In the same transaction** it inserts a minimized outbox row in `automation_events`.
+3. `bun run automation:worker` (a per-site systemd timer in production) claims
+   pending rows with Postgres `SKIP LOCKED`.
+4. The worker joins back to source tables, builds the typed event, sends it
+   to n8n with auth + observability headers, retries transient failures with
+   exponential backoff (60s → 1h cap), and dead-letters after `max_attempts`.
 
-The user-facing form stays successful after the DB transaction commits. Provider downtime affects the worker, not the request lifecycle.
+Result: a failed n8n deployment does not affect the user response. A
+restored n8n picks up the backlog from the outbox automatically. A lead that
+exhausts retries lands in `automation_dead_letters` with the error string,
+ready for manual replay.
 
 ---
 
 ## Providers
 
-`AUTOMATION_PROVIDER` defaults to `n8n` when unset.
+`AUTOMATION_PROVIDER` defaults to `n8n`. Production preflight (`bun run deploy:preflight`)
+and launch (`bun run check:launch`) **fail** if the resolved provider is missing
+required config — silent skips are not allowed in production.
 
-| Provider  | Use case                                        | Config                                                |
-| --------- | ----------------------------------------------- | ----------------------------------------------------- |
-| `n8n`     | Default self-hosted automation operator         | `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`               |
-| `webhook` | Make, Zapier, or any generic HTTP POST receiver | `AUTOMATION_WEBHOOK_URL`, `AUTOMATION_WEBHOOK_SECRET` |
-| `console` | Development visibility without outbound calls   | none                                                  |
-| `noop`    | Sites that intentionally disable automation     | none                                                  |
+| Provider  | Use                                                                     | Required env                                                  | Production gate                                                                                                                     |
+| --------- | ----------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `n8n`     | **Default.** Self-hosted n8n instance, per-client.                      | `N8N_WEBHOOK_URL` (HTTPS), `N8N_WEBHOOK_SECRET`               | Required: URL must be HTTPS, secret must be set.                                                                                    |
+| `webhook` | Escape hatch for Make, Zapier, or any generic HTTP POST receiver.       | `AUTOMATION_WEBHOOK_URL` (HTTPS), `AUTOMATION_WEBHOOK_SECRET` | Required: URL must be HTTPS, secret must be set.                                                                                    |
+| `console` | Local dev visibility without outbound calls. Worker logs the envelope.  | none                                                          | **Forbidden in production.** Preflight and launch both fail with a hint to use `n8n` or explicit `noop`.                            |
+| `noop`    | Sites that have no automations. Worker marks events delivered silently. | none                                                          | Allowed when set explicitly. Used as the explicit "this site has no automation" signal so leads aren't lost to a misconfigured n8n. |
 
-HTTP providers with no URL return a clean `not_configured` skip result. `console` logs metadata through the structured logger. `noop` returns a deliberate `disabled` skip result.
+If a site has no automation needs yet, set `AUTOMATION_PROVIDER=noop`
+deliberately rather than leaving n8n configured-but-empty. Preflight will
+pass; the operator's intent is recorded.
 
 ---
 
@@ -107,8 +128,9 @@ See [content-automation-contract.md](content-automation-contract.md) for the rul
 
 ## Further Reading
 
-- [runtime-event-contract.md](runtime-event-contract.md) — generic runtime event contract
-- [security-and-secrets.md](security-and-secrets.md) — secrets, provider env vars, and HMAC signing
+- [n8n-workflow-contract.md](n8n-workflow-contract.md) — wire-level contract: headers, auth modes, payload, replay, what to do when n8n is down
+- [runtime-event-contract.md](runtime-event-contract.md) — TypeScript event contract used by the worker and providers
+- [security-and-secrets.md](security-and-secrets.md) — secrets, provider env vars, auth modes
 - [content-automation-contract.md](content-automation-contract.md) — rules for writing content files from automation
-- [n8n-patterns.md](n8n-patterns.md) — examples for the default n8n provider
+- [n8n-patterns.md](n8n-patterns.md) — concrete workflow examples for n8n
 - [docs/cms/README.md](../cms/README.md) — how content files work

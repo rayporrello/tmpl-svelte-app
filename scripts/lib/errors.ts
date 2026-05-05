@@ -21,6 +21,7 @@ export const ERRORS = {
 	'LAUNCH-APPHTML-001': 'src/app.html title still template fallback',
 	'LAUNCH-BACKUP-001': 'production backup config missing',
 	'LAUNCH-EMAIL-001': 'contact form still console-only (POSTMARK_SERVER_TOKEN unset)',
+	'LAUNCH-AUTOMATION-001': 'automation provider config incomplete for production',
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
