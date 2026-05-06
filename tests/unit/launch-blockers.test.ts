@@ -49,10 +49,10 @@ describe('launch-blockers manifest', () => {
 		expect(LAUNCH_BLOCKERS.map((item) => item.id).sort()).toEqual(registryLaunchCodes.sort());
 	});
 
-	it('marks backup and email as recommended and required blockers as required', () => {
+	it('marks backup as recommended and email as required', () => {
 		const severities = Object.fromEntries(LAUNCH_BLOCKERS.map((item) => [item.id, item.severity]));
 		expect(severities['LAUNCH-BACKUP-001']).toBe('recommended');
-		expect(severities['LAUNCH-EMAIL-001']).toBe('recommended');
+		expect(severities['LAUNCH-EMAIL-001']).toBe('required');
 		expect(severities['LAUNCH-OG-001']).toBe('required');
 		expect(severities['LAUNCH-ENV-001']).toBe('required');
 	});
@@ -228,7 +228,35 @@ describe('launch-blockers manifest', () => {
 		});
 	});
 
-	it('warns for missing backup and email production env', async () => {
+	it('passes LAUNCH-AUTOMATION-001 when AUTOMATION_PROVIDER is unset', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nCONTACT_TO_EMAIL=hello@ready.example\nCONTACT_FROM_EMAIL=website@ready.example\n'
+		);
+
+		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
+			status: 'pass',
+			detail: expect.stringContaining('AUTOMATION_PROVIDER=noop'),
+		});
+	});
+
+	it('fails LAUNCH-AUTOMATION-001 when AUTOMATION_PROVIDER=webhook but webhook config is missing', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nCONTACT_TO_EMAIL=hello@ready.example\nCONTACT_FROM_EMAIL=website@ready.example\nAUTOMATION_PROVIDER=webhook\n'
+		);
+
+		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
+			status: 'fail',
+			detail: expect.stringContaining('AUTOMATION_WEBHOOK_URL'),
+		});
+	});
+
+	it('fails LAUNCH-EMAIL-001 when Postmark production env is missing', async () => {
 		const rootDir = copyReadyFixture();
 		writeFixtureFile(
 			rootDir,
@@ -241,8 +269,42 @@ describe('launch-blockers manifest', () => {
 			detail: expect.stringContaining('BACKUP_REMOTE'),
 		});
 		await expect(resultFor('LAUNCH-EMAIL-001', rootDir)).resolves.toMatchObject({
-			status: 'warn',
+			status: 'fail',
 			detail: expect.stringContaining('POSTMARK_SERVER_TOKEN'),
+		});
+	});
+
+	it('allows LAUNCH-EMAIL-001 with an explicit console-email waiver warning', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nLAUNCH_ALLOW_CONSOLE_EMAIL=1\n'
+		);
+
+		await expect(resultFor('LAUNCH-EMAIL-001', rootDir)).resolves.toMatchObject({
+			status: 'warn',
+			detail: expect.stringContaining('LAUNCH_ALLOW_CONSOLE_EMAIL=1'),
+		});
+	});
+
+	it('allows LAUNCH-EMAIL-001 when the console-email waiver is supplied by process env', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\n'
+		);
+
+		const result = await blocker('LAUNCH-EMAIL-001').check({
+			rootDir,
+			envSource: 'prod',
+			env: { LAUNCH_ALLOW_CONSOLE_EMAIL: '1' },
+		});
+
+		expect(result).toMatchObject({
+			status: 'warn',
+			detail: expect.stringContaining('process environment'),
 		});
 	});
 

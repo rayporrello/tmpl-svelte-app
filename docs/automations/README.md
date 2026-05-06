@@ -1,10 +1,15 @@
 # Automations
 
-n8n is the default automation path for sites built from this template. It is
-self-hosted, free, and matches the "lead-gen websites on a Linux box" model
-this template is built around. The website captures the lead in Postgres
-first; the worker delivers events to n8n from a durable outbox so a brief n8n
-outage cannot lose leads.
+The durable outbox and worker are part of the default production appliance.
+External workflow delivery is optional per ADR-024. `AUTOMATION_PROVIDER` unset
+or `noop` is valid in production: the required worker still processes outbox
+rows, but no external delivery is attempted.
+
+n8n is the preferred opt-in automation path for sites that need workflow
+orchestration. It is self-hosted, free, and matches the "lead-gen websites on a
+Linux box" model this template is built around. The website captures the lead in
+Postgres first; when n8n is enabled, the worker delivers events to n8n from a
+durable outbox so a brief n8n outage cannot lose leads.
 
 For the wire-level contract — payload shape, headers, auth modes, retry and
 dead-letter behavior, the standard "lead → Slack → email" workflow shape, and
@@ -38,20 +43,23 @@ ready for manual replay.
 
 ## Providers
 
-`AUTOMATION_PROVIDER` defaults to `n8n`. Production preflight (`bun run deploy:preflight`)
-and launch (`bun run check:launch`) **fail** if the resolved provider is missing
-required config — silent skips are not allowed in production.
+`AUTOMATION_PROVIDER` values are `noop`, `n8n`, `webhook`, and `console`.
+Unset resolves to `noop`. Production preflight (`bun run deploy:preflight`) and
+launch (`bun run check:launch`) **fail** only when the selected provider is not
+production-valid or is missing its provider-specific config.
 
-| Provider  | Use                                                                     | Required env                                                  | Production gate                                                                                                                     |
-| --------- | ----------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `n8n`     | Per-client n8n instance for sites that need workflow orchestration.     | `N8N_WEBHOOK_URL` (HTTPS), `N8N_WEBHOOK_SECRET`               | Required: URL must be HTTPS, secret must be set. Run `bun run n8n:enable` before installing the n8n Quadlet for this client.        |
-| `webhook` | Escape hatch for Make, Zapier, or any generic HTTP POST receiver.       | `AUTOMATION_WEBHOOK_URL` (HTTPS), `AUTOMATION_WEBHOOK_SECRET` | Required: URL must be HTTPS, secret must be set.                                                                                    |
-| `console` | Local dev visibility without outbound calls. Worker logs the envelope.  | none                                                          | **Forbidden in production.** Preflight and launch both fail with a hint to use `n8n` or explicit `noop`.                            |
-| `noop`    | Sites that have no automations. Worker marks events delivered silently. | none                                                          | Allowed when set explicitly. Used as the explicit "this site has no automation" signal so leads aren't lost to a misconfigured n8n. |
+| Provider  | Use                                                                     | Required env                                                  | Production gate                                                                                                              |
+| --------- | ----------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `n8n`     | Per-client n8n instance for sites that need workflow orchestration.     | `N8N_WEBHOOK_URL` (HTTPS), `N8N_WEBHOOK_SECRET`               | Required: URL must be HTTPS, secret must be set. Run `bun run n8n:enable` before installing the n8n Quadlet for this client. |
+| `webhook` | Escape hatch for Make, Zapier, or any generic HTTP POST receiver.       | `AUTOMATION_WEBHOOK_URL` (HTTPS), `AUTOMATION_WEBHOOK_SECRET` | Required: URL must be HTTPS, secret must be set.                                                                             |
+| `console` | Local dev visibility without outbound calls. Worker logs the envelope.  | none                                                          | **Forbidden in production.** Preflight and launch both fail with a hint to use `n8n` or explicit `noop`.                     |
+| `noop`    | Sites that have no automations. Worker marks events delivered silently. | none                                                          | Allowed when set explicitly or when `AUTOMATION_PROVIDER` is unset.                                                          |
 
-If a site has no automation needs yet, set `AUTOMATION_PROVIDER=noop`
-deliberately rather than leaving n8n configured-but-empty. Preflight will
-pass; the operator's intent is recorded.
+Provider-specific secrets are conditional. n8n secrets are required only when
+`AUTOMATION_PROVIDER=n8n`; generic webhook secrets are required only when
+`AUTOMATION_PROVIDER=webhook`. If a site has no automation needs yet, leave the
+provider unset or set `AUTOMATION_PROVIDER=noop` deliberately. Preflight will
+pass; the worker remains installed and durable outbox behavior is still present.
 
 ---
 

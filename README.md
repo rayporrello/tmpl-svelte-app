@@ -1,6 +1,6 @@
 # tmpl-svelte-app
 
-Database-backed SvelteKit website platform for fast hand-built personal projects — with Postgres + Drizzle, Superforms, transactional email, durable n8n/webhook automation, SEO, CMS, deployment, and reusable scaffolding primitives built in.
+Database-backed SvelteKit website platform for fast hand-built lead-gen sites — with Postgres + Drizzle, Superforms, required production email, durable optional automation, SEO, CMS, deployment, and reusable scaffolding primitives built in.
 
 ## What's included
 
@@ -41,7 +41,32 @@ This is a website-first SvelteKit template. The design system is native CSS, tok
 
 **Tailwind is not included.** Styling uses `tokens.css` + scoped Svelte `<style>` blocks.
 
-**Superforms + Valibot are pre-installed** as runtime dependencies because the live contact form uses them on the server. The contact form ships live at `src/routes/contact/`: it saves to Postgres, logs email through the console provider by default, and switches to Postmark when `POSTMARK_SERVER_TOKEN` is set. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md) for the behavior and provider details.
+**Superforms + Valibot are pre-installed** as runtime dependencies because the live contact form uses them on the server. The contact form ships live at `src/routes/contact/`: it saves to Postgres, logs email through the console provider in local/dev when Postmark is not configured, and switches to Postmark when `POSTMARK_SERVER_TOKEN` is set. Production launch requires `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL` unless `LAUNCH_ALLOW_CONSOLE_EMAIL=1` is set as an explicit waiver. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md) for the behavior and provider details.
+
+## Reliability surface
+
+ADR-024 defines the default product profile as a reliable lead-gen website
+appliance. This is what currently ships:
+
+| Capability                          | Status                                                             |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| Local bootstrap                     | Implemented                                                        |
+| Launch validation gates             | Implemented                                                        |
+| Deploy preflight gates              | Implemented                                                        |
+| Deploy smoke                        | Static surface only                                                |
+| Contact form persistence (Postgres) | Implemented                                                        |
+| Postmark lead notification          | Implemented; required in production by ADR-024                     |
+| Durable outbox + worker             | Implemented                                                        |
+| Optional n8n automation             | Implemented; opt-in per ADR-024                                    |
+| PITR backups (WAL-G)                | Implemented                                                        |
+| Restore drill                       | Script exists; scheduling and evidence persistence in pass 07      |
+| Rollback automation                 | Manual today; planned pass 04                                      |
+| Live health visibility              | `/healthz` + `/readyz` only; unified surface in pass 08            |
+| Uploads / content recovery          | Local backup; offsite chain to be verified before pass 07          |
+| Migration safety classification     | Not implemented; planned pass 03                                   |
+| Junior-hire recovery doc            | `docs/operations/restore.md` exists; rewrite for audience deferred |
+| Fleet-wide ops view                 | Not implemented; deferred until ≥2 client sites                    |
+| Client editing during GitHub outage | Not supported (Sveltia is git-backed per ADR-024)                  |
 
 A "Warm Coral" re-skin example lives at [src/lib/styles/brand.example.css](src/lib/styles/brand.example.css) — it shows exactly which token sections to swap when starting a new brand.
 
@@ -128,7 +153,10 @@ Full docs: [docs/database/README.md](docs/database/README.md) · [docs/privacy/d
 
 ## Automation readiness
 
-n8n is an optional per-client automation layer. When enabled, it uses a
+Automation is durable by default and external workflow delivery is optional.
+`AUTOMATION_PROVIDER` unset or `noop` is valid for production; the worker still
+runs and marks outbox events delivered without calling an external system. n8n
+is an optional per-client automation layer. When enabled, it uses a
 separate project-scoped n8n database and n8n role inside the same
 client Postgres cluster; it is never shared across unrelated clients.
 
@@ -351,14 +379,14 @@ The full optional module registry lives at **[docs/modules/README.md](docs/modul
 
 ### Active seams (configured but inert until env vars are set)
 
-| Module          | Activation                                                                                                                                                                              |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contact form    | Already live at `/contact`; saves to `contact_submissions` and logs email to stdout by default. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md).             |
-| Postmark email  | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL`; `resolveEmailProvider()` switches automatically.                                                             |
-| n8n webhooks    | Set `N8N_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET`. See [docs/automations/README.md](docs/automations/README.md).                                                                             |
-| Privacy pruning | Run `bun run privacy:prune` for dry-run counts and `bun run privacy:prune -- --apply` from scheduled maintenance. See [docs/privacy/data-retention.md](docs/privacy/data-retention.md). |
-| Analytics + GTM | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                             |
-| Cookie consent  | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md).           |
+| Module          | Activation                                                                                                                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contact form    | Already live at `/contact`; saves to `contact_submissions`. Local/dev may log email to stdout when Postmark is absent. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md). |
+| Postmark email  | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL`; required for production launch by ADR-024 unless explicitly waived.                                                     |
+| n8n webhooks    | Set `AUTOMATION_PROVIDER=n8n`, `N8N_WEBHOOK_URL`, and `N8N_WEBHOOK_SECRET`. See [docs/automations/README.md](docs/automations/README.md).                                                          |
+| Privacy pruning | Run `bun run privacy:prune` for dry-run counts and `bun run privacy:prune -- --apply` from scheduled maintenance. See [docs/privacy/data-retention.md](docs/privacy/data-retention.md).            |
+| Analytics + GTM | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                                        |
+| Cookie consent  | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md).                      |
 
 ### Not installed — add per project
 

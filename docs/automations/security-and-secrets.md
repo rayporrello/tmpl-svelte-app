@@ -14,24 +14,25 @@ secret management and the env contract.
 
 ## Environment Variables
 
-| Variable                         | Provider  | Purpose                                                         |
-| -------------------------------- | --------- | --------------------------------------------------------------- |
-| `AUTOMATION_PROVIDER`            | all       | `n8n`, `webhook`, `console`, or `noop`; defaults to `n8n`       |
-| `N8N_WEBHOOK_URL`                | `n8n`     | n8n HTTP Trigger URL (must be HTTPS in production)              |
-| `N8N_WEBHOOK_SECRET`             | `n8n`     | Shared secret used by Header auth or HMAC                       |
-| `N8N_WEBHOOK_AUTH_MODE`          | `n8n`     | `header` (default) or `hmac`                                    |
-| `N8N_WEBHOOK_AUTH_HEADER`        | `n8n`     | Header name in `header` mode (default `X-Site-Auth`)            |
-| `AUTOMATION_WEBHOOK_URL`         | `webhook` | Generic HTTP POST receiver URL for Make, Zapier, or custom APIs |
-| `AUTOMATION_WEBHOOK_SECRET`      | `webhook` | Shared secret used by Header auth or HMAC                       |
-| `AUTOMATION_WEBHOOK_AUTH_MODE`   | `webhook` | `header` (default) or `hmac`                                    |
-| `AUTOMATION_WEBHOOK_AUTH_HEADER` | `webhook` | Header name in `header` mode (default `X-Site-Auth`)            |
+| Variable                         | Provider  | Purpose                                                          |
+| -------------------------------- | --------- | ---------------------------------------------------------------- |
+| `AUTOMATION_PROVIDER`            | all       | `n8n`, `webhook`, `console`, or `noop`; unset defaults to `noop` |
+| `N8N_WEBHOOK_URL`                | `n8n`     | n8n HTTP Trigger URL (must be HTTPS in production)               |
+| `N8N_WEBHOOK_SECRET`             | `n8n`     | Shared secret used by Header auth or HMAC                        |
+| `N8N_WEBHOOK_AUTH_MODE`          | `n8n`     | `header` (default) or `hmac`                                     |
+| `N8N_WEBHOOK_AUTH_HEADER`        | `n8n`     | Header name in `header` mode (default `X-Site-Auth`)             |
+| `AUTOMATION_WEBHOOK_URL`         | `webhook` | Generic HTTP POST receiver URL for Make, Zapier, or custom APIs  |
+| `AUTOMATION_WEBHOOK_SECRET`      | `webhook` | Shared secret used by Header auth or HMAC                        |
+| `AUTOMATION_WEBHOOK_AUTH_MODE`   | `webhook` | `header` (default) or `hmac`                                     |
+| `AUTOMATION_WEBHOOK_AUTH_HEADER` | `webhook` | Header name in `header` mode (default `X-Site-Auth`)             |
 
 `console` and `noop` require no provider-specific URL or secret.
 
 **Production preflight is strict.** `bun run deploy:preflight` and
 `bun run check:launch` both **fail** if `AUTOMATION_PROVIDER` is `n8n`/`webhook`
-without a URL+secret, or if it is `console` (which is dev-only). Set
-`AUTOMATION_PROVIDER=noop` explicitly when a site has no automation needs.
+without a URL+secret, or if it is `console` (which is dev-only). Leave
+`AUTOMATION_PROVIDER` unset or set it to `noop` when a site has no automation
+needs.
 
 ---
 

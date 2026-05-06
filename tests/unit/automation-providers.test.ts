@@ -88,16 +88,20 @@ describe('automation providers', () => {
 		vi.useRealTimers();
 	});
 
-	it('defaults to the n8n provider when AUTOMATION_PROVIDER is unset', async () => {
+	it('defaults to the noop provider when AUTOMATION_PROVIDER is unset', async () => {
 		process.env.N8N_WEBHOOK_URL = 'https://n8n.example.com/webhook/lead';
 		vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 204 } as Response);
 
-		await resolveAutomationProvider().send(event);
+		const result = await resolveAutomationProvider().send(event);
 
-		expect(global.fetch).toHaveBeenCalledWith(
-			'https://n8n.example.com/webhook/lead',
-			expect.objectContaining({ method: 'POST' })
-		);
+		expect(result).toEqual({
+			ok: true,
+			provider: 'noop',
+			delivered: false,
+			skipped: true,
+			reason: 'disabled',
+		});
+		expect(global.fetch).not.toHaveBeenCalled();
 	});
 
 	it('throws a clear error for an unknown AUTOMATION_PROVIDER value', () => {
@@ -250,8 +254,18 @@ describe('automation providers', () => {
 	});
 
 	describe('validateAutomationProviderConfig', () => {
-		it('flags missing URL and secret for n8n provider', () => {
+		it('passes for the noop provider when AUTOMATION_PROVIDER is unset', () => {
 			const config = readAutomationProviderConfig({} as NodeJS.ProcessEnv);
+			const problems = validateAutomationProviderConfig(config);
+
+			expect(config.provider).toBe('noop');
+			expect(problems).toEqual([]);
+		});
+
+		it('flags missing URL and secret for n8n provider', () => {
+			const config = readAutomationProviderConfig({
+				AUTOMATION_PROVIDER: 'n8n',
+			} as NodeJS.ProcessEnv);
 			const problems = validateAutomationProviderConfig(config);
 
 			expect(config.provider).toBe('n8n');

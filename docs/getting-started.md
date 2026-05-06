@@ -13,6 +13,12 @@ That gets you a working local site with Postgres, migrations applied, `.env`
 populated, and the contact form live. Edit `src/lib/styles/tokens.css` for brand
 colors and `content/pages/home.yml` for homepage content; both changes hot-reload.
 
+The default production profile is the ADR-024 reliable lead-gen website
+appliance: SvelteKit web service, dedicated Postgres, the long-lived outbox
+worker, Postmark lead notification, PITR backup primitives, privacy retention,
+and launch/deploy gates. n8n/webhook automation is optional per client;
+`AUTOMATION_PROVIDER` unset or `noop` is production-valid.
+
 Before launch:
 
 ```bash
@@ -375,7 +381,7 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
 | Module                    | How to activate                                                                                                                                                                                                                                                                      |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md) and [docs/forms/README.md](forms/README.md).                                                                                         |
-| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed.                                                                                                                            |
+| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed. Required for production launch unless `LAUNCH_ALLOW_CONSOLE_EMAIL=1` is an explicit waiver.                                |
 | **Automations**           | Set `AUTOMATION_PROVIDER` to `n8n`, `webhook`, or `noop`. Form actions save source rows and durable outbox events first; the required worker delivers later with retries/dead letters. n8n is optional and per-client only. See [docs/automations/README.md](automations/README.md). |
 | **Privacy pruning**       | Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` from scheduled maintenance after reviewing the retention policy. See [docs/privacy/data-retention.md](privacy/data-retention.md).                                                                   |
 | **PITR backups**          | Set the required `R2_*`, `R2_PREFIX`, and `PITR_RETENTION_DAYS` values, install `backup-base` and `backup-check` timers, then run `bun run backup:pitr:check` and `bun run backup:restore:drill`. See [docs/operations/backups.md](operations/backups.md).                           |
@@ -432,7 +438,9 @@ bun run deploy:preflight
 ```
 
 This includes `check:launch` which verifies the production URL is a real
-HTTPS domain (not `localhost`, not a placeholder string).
+HTTPS domain (not `localhost`, not a placeholder string), Postmark lead
+notification is configured or explicitly waived, and selected automation
+providers have their required secrets.
 
 After the site is reachable, run `bun run deploy:smoke -- --url https://your-domain.example`
 to verify `/healthz`, `/readyz`, discovery files, `/contact`, and key security

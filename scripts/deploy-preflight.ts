@@ -1125,7 +1125,7 @@ export async function checkRequiredLaunchBlockers(
 		envSource: 'prod',
 		prodEnvPath: context.prodEnvPath,
 	});
-	const failures = results.filter((item) => item.severity === 'required' && item.status !== 'pass');
+	const failures = results.filter((item) => item.severity === 'required' && item.status === 'fail');
 	if (failures.length) {
 		return fail(
 			'PREFLIGHT-LAUNCH-001',

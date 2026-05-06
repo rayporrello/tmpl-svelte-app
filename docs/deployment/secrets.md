@@ -40,6 +40,29 @@ SOPS supports multiple backends (PGP, AWS KMS, GCP KMS, Azure Key Vault, age). T
 
 ---
 
+## Required by environment
+
+ADR-024 makes the template's default production profile a reliable lead-gen
+website appliance. These are the env/secrets expectations for that profile:
+
+| Values                                                                              | Local / dev                                                                | Test                                                        | Production                                                       |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------- |
+| `ORIGIN`, `PUBLIC_SITE_URL`                                                         | Required for realistic local runtime; bootstrap renders localhost defaults | Required when exercising URL helpers                        | Required; HTTPS production URLs                                  |
+| `DATABASE_URL`                                                                      | Required for DB-backed routes; bootstrap renders local Postgres            | Required for DB integration tests; unit tests can use stubs | Required; internal Podman-network Postgres URL                   |
+| `DATABASE_DIRECT_URL`                                                               | Required for migrations and operator tools                                 | Optional unless running migrations                          | Required for migrations, backups, restores, and Drizzle Studio   |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`                                 | Required when using bundled local Postgres                                 | Optional unless provisioning Postgres                       | Required for bundled production Postgres                         |
+| `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL`                                            | Optional unless testing real email                                         | Optional                                                    | Required with Postmark                                           |
+| `POSTMARK_SERVER_TOKEN`                                                             | Optional; console provider may be used                                     | Optional                                                    | Required unless `LAUNCH_ALLOW_CONSOLE_EMAIL=1` is explicitly set |
+| `LAUNCH_ALLOW_CONSOLE_EMAIL`                                                        | Usually unset / `0`                                                        | Usually unset / `0`                                         | Optional waiver only; not the normal launch path                 |
+| `AUTOMATION_PROVIDER`                                                               | Optional; unset resolves to `noop`                                         | Optional                                                    | Optional; unset or `noop` is valid                               |
+| `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`                                             | Required only when `AUTOMATION_PROVIDER=n8n`                               | Required only when testing n8n delivery                     | Required only when `AUTOMATION_PROVIDER=n8n`                     |
+| `AUTOMATION_WEBHOOK_URL`, `AUTOMATION_WEBHOOK_SECRET`                               | Required only when `AUTOMATION_PROVIDER=webhook`                           | Required only when testing webhook delivery                 | Required only when `AUTOMATION_PROVIDER=webhook`                 |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_PREFIX` | Optional                                                                   | Optional                                                    | Required for the PITR backup path                                |
+| `SESSION_SECRET`                                                                    | Required for runtime features that sign sessions                           | Required for auth/session tests                             | Required                                                         |
+| Optional add-on secrets                                                             | Only when the add-on is activated                                          | Only when exercised                                         | Only when the add-on is activated                                |
+
+---
+
 ## Initial machine setup
 
 ### macOS

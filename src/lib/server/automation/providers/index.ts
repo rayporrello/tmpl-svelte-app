@@ -17,7 +17,7 @@ const AUTH_MODES: ReadonlyArray<WebhookAuthMode> = ['header', 'hmac'];
 export function readAutomationProviderName(
 	env: NodeJS.ProcessEnv = process.env
 ): AutomationProviderName {
-	const provider = (env.AUTOMATION_PROVIDER || 'n8n').trim() || 'n8n';
+	const provider = (env.AUTOMATION_PROVIDER || 'noop').trim() || 'noop';
 
 	if (AUTOMATION_PROVIDERS.includes(provider as AutomationProviderName)) {
 		return provider as AutomationProviderName;
@@ -105,7 +105,7 @@ export type AutomationConfigProblem = {
  * - n8n / webhook: URL and secret must be set; URL must be HTTPS.
  * - console: returns a single problem under the field "AUTOMATION_PROVIDER"
  *   so production gates can flag it. Console mode is intended for dev only.
- * - noop: never has problems — operator has explicitly opted out.
+ * - noop: never has problems — operator has opted out or left automation unset.
  */
 export function validateAutomationProviderConfig(
 	config: AutomationProviderConfig,

@@ -75,6 +75,18 @@ const PROCESS_ENV_FALLBACK_KEYS = [
 	'ORIGIN',
 	'PUBLIC_SITE_URL',
 	'BACKUP_REMOTE',
+	'CONTACT_FROM_EMAIL',
+	'CONTACT_TO_EMAIL',
+	'LAUNCH_ALLOW_CONSOLE_EMAIL',
+	'AUTOMATION_PROVIDER',
+	'N8N_WEBHOOK_URL',
+	'N8N_WEBHOOK_SECRET',
+	'N8N_WEBHOOK_AUTH_MODE',
+	'N8N_WEBHOOK_AUTH_HEADER',
+	'AUTOMATION_WEBHOOK_URL',
+	'AUTOMATION_WEBHOOK_SECRET',
+	'AUTOMATION_WEBHOOK_AUTH_MODE',
+	'AUTOMATION_WEBHOOK_AUTH_HEADER',
 	'POSTMARK_SERVER_TOKEN',
 ] as const;
 const SITE_TITLE_PLACEHOLDERS = new Set([
@@ -420,7 +432,7 @@ async function checkAppHtmlTitle(
 }
 
 function checkOptionalProdEnvVar(
-	name: 'BACKUP_REMOTE' | 'POSTMARK_SERVER_TOKEN',
+	name: 'BACKUP_REMOTE',
 	missingDetail: string,
 	context?: LaunchBlockerCheckContext
 ): LaunchBlockerResult {
@@ -445,10 +457,35 @@ async function checkBackupRemote(
 async function checkPostmarkToken(
 	context?: LaunchBlockerCheckContext
 ): Promise<LaunchBlockerResult> {
-	return checkOptionalProdEnvVar(
-		'POSTMARK_SERVER_TOKEN',
-		'Production email is not configured:',
-		context
+	const reference = readLaunchEnv(context);
+	if (!reference.ok) {
+		return fail(`Production email could not be checked: ${reference.detail}.`);
+	}
+
+	const missing = ['POSTMARK_SERVER_TOKEN', 'CONTACT_TO_EMAIL', 'CONTACT_FROM_EMAIL'].filter(
+		(name) => !reference.env[name]?.trim()
+	);
+	if (missing.length === 0) {
+		return pass(
+			`Postmark lead notification is configured in ${reference.label} with token, sender, and recipient.`
+		);
+	}
+
+	const waiverSource =
+		reference.env.LAUNCH_ALLOW_CONSOLE_EMAIL?.trim() === '1'
+			? reference.label
+			: (context?.env ?? process.env).LAUNCH_ALLOW_CONSOLE_EMAIL?.trim() === '1'
+				? 'process environment'
+				: null;
+
+	if (waiverSource) {
+		return warn(
+			`Postmark launch requirement waived by LAUNCH_ALLOW_CONSOLE_EMAIL=1 in ${waiverSource}; missing ${missing.join(', ')}.`
+		);
+	}
+
+	return fail(
+		`Production email is not configured in ${reference.label}: missing ${missing.join(', ')}.`
 	);
 }
 
@@ -593,15 +630,16 @@ export const LAUNCH_BLOCKERS: LaunchBlocker[] = [
 		severity: 'required',
 		check: checkAutomationProvider,
 		fixHint:
-			'NEXT: Set N8N_WEBHOOK_URL/SECRET (default), or AUTOMATION_PROVIDER=noop to explicitly disable automation.',
+			'NEXT: For n8n/webhook, set the provider URL and secret; otherwise leave AUTOMATION_PROVIDER unset or set it to noop.',
 		docsPath: 'docs/automations/n8n-workflow-contract.md',
 	},
 	{
 		id: 'LAUNCH-EMAIL-001',
 		label: 'Contact form is still console-only',
-		severity: 'recommended',
+		severity: 'required',
 		check: checkPostmarkToken,
-		fixHint: 'NEXT: Set POSTMARK_SERVER_TOKEN and contact email env vars for production email.',
+		fixHint:
+			'NEXT: Set POSTMARK_SERVER_TOKEN, CONTACT_TO_EMAIL, and CONTACT_FROM_EMAIL, or set LAUNCH_ALLOW_CONSOLE_EMAIL=1 only for an explicit waiver.',
 		docsPath: 'docs/design-system/forms-guide.md',
 	},
 ];

@@ -78,6 +78,28 @@ bun run deploy:smoke -- --url https://your-domain.example
 
 ---
 
+## Lead-gen production contract
+
+ADR-024 defines the default production profile as a reliable lead-gen website
+appliance. A normal production launch includes the SvelteKit web container, the
+dedicated Postgres container, the long-lived outbox worker, PITR backup config,
+privacy retention, and Postmark lead notification.
+
+Postmark is required for production launch: set `POSTMARK_SERVER_TOKEN`,
+`CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL` in the rendered production env.
+The console email provider is allowed for local/dev and test, but it is not a
+launch-ready production notification path unless `LAUNCH_ALLOW_CONSOLE_EMAIL=1`
+is set as an explicit waiver.
+
+n8n is optional per client. `AUTOMATION_PROVIDER` unset or `noop` is a valid
+production configuration; the worker still runs and performs durable outbox
+processing without external delivery. When `AUTOMATION_PROVIDER=n8n`, set
+`N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET`. When
+`AUTOMATION_PROVIDER=webhook`, set `AUTOMATION_WEBHOOK_URL` and
+`AUTOMATION_WEBHOOK_SECRET`.
+
+---
+
 ## Secrets workflow
 
 The SOPS + age secrets workflow is fully documented and implemented. See [secrets.md](secrets.md) for:

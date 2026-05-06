@@ -105,6 +105,8 @@ function writeReadyProject(): string {
 			'POSTGRES_PASSWORD=secret',
 			'BACKUP_REMOTE=r2:bucket/ready',
 			'POSTMARK_SERVER_TOKEN=token',
+			'CONTACT_TO_EMAIL=hello@ready.example',
+			'CONTACT_FROM_EMAIL=website@ready.example',
 			'AUTOMATION_PROVIDER=n8n',
 			'N8N_WEBHOOK_URL=https://n8n.ready.example/webhook/ready',
 			'N8N_WEBHOOK_SECRET=ready-shared-secret',
@@ -482,6 +484,56 @@ describe('deploy preflight', () => {
 		);
 
 		await expect(checkBackupConfigured({ rootDir, env: {} })).resolves.toMatchObject({
+			status: 'pass',
+		});
+	});
+
+	it('fails required launch blockers when Postmark production env is missing', async () => {
+		const rootDir = writeReadyProject();
+		write(
+			rootDir,
+			'production.env',
+			[
+				'ORIGIN=https://ready.example',
+				'PUBLIC_SITE_URL=https://ready.example',
+				'DATABASE_URL=postgres://ready_site_app_user:secret@ready-site-postgres:5432/ready_site_app',
+				'DATABASE_DIRECT_URL=postgres://ready_site_app_user:secret@127.0.0.1:5432/ready_site_app',
+				'POSTGRES_DB=ready_site_app',
+				'POSTGRES_USER=ready_site_app_user',
+				'POSTGRES_PASSWORD=secret',
+				'BACKUP_REMOTE=r2:bucket/ready',
+				'AUTOMATION_PROVIDER=noop',
+				'',
+			].join('\n')
+		);
+
+		await expect(checkRequiredLaunchBlockers({ rootDir, env: {} })).resolves.toMatchObject({
+			status: 'fail',
+			detail: expect.stringContaining('LAUNCH-EMAIL-001'),
+		});
+	});
+
+	it('allows required launch blockers with an explicit console-email waiver', async () => {
+		const rootDir = writeReadyProject();
+		write(
+			rootDir,
+			'production.env',
+			[
+				'ORIGIN=https://ready.example',
+				'PUBLIC_SITE_URL=https://ready.example',
+				'DATABASE_URL=postgres://ready_site_app_user:secret@ready-site-postgres:5432/ready_site_app',
+				'DATABASE_DIRECT_URL=postgres://ready_site_app_user:secret@127.0.0.1:5432/ready_site_app',
+				'POSTGRES_DB=ready_site_app',
+				'POSTGRES_USER=ready_site_app_user',
+				'POSTGRES_PASSWORD=secret',
+				'BACKUP_REMOTE=r2:bucket/ready',
+				'AUTOMATION_PROVIDER=noop',
+				'LAUNCH_ALLOW_CONSOLE_EMAIL=1',
+				'',
+			].join('\n')
+		);
+
+		await expect(checkRequiredLaunchBlockers({ rootDir, env: {} })).resolves.toMatchObject({
 			status: 'pass',
 		});
 	});

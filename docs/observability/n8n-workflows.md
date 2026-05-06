@@ -140,8 +140,8 @@ automation:worker` deliver and retry.
 
 ## When n8n is the right call
 
-n8n is the default automation path for sites built from this template. Set
-`AUTOMATION_PROVIDER=noop` only when a site has no automation needs at all —
-this is an explicit operator choice that production preflight allows.
+n8n is the preferred opt-in automation path for sites built from this template.
+Leave `AUTOMATION_PROVIDER` unset or set `AUTOMATION_PROVIDER=noop` when a site
+has no automation needs at all; production preflight allows that ADR-024 path.
 `AUTOMATION_PROVIDER=webhook` remains as an escape hatch for Make, Zapier,
 or custom HTTP receivers; production preflight requires its URL+secret too.
