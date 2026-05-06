@@ -17,13 +17,8 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BootstrapScriptError } from '../../scripts/lib/errors';
-import {
-	main,
-	parseArgs,
-	runDoctor,
-	type DoctorCheck,
-	type RunDoctorOptions,
-} from '../../scripts/doctor';
+import type { OpsResult } from '../../scripts/lib/ops-result';
+import { main, parseArgs, runDoctor, type RunDoctorOptions } from '../../scripts/doctor';
 
 const FIXTURE_ROOT = fileURLToPath(new URL('../fixtures/doctor', import.meta.url));
 
@@ -88,7 +83,7 @@ function hashTree(root: string): string {
 	return hash.digest('hex');
 }
 
-function passingRuntimeProbe(): Promise<DoctorCheck[]> {
+const passingRuntimeProbe: Exclude<RunDoctorOptions['runtimeProbe'], undefined> = () => {
 	return Promise.resolve([
 		{
 			id: 'doctor-migrations-applied',
@@ -107,7 +102,7 @@ function passingRuntimeProbe(): Promise<DoctorCheck[]> {
 			hint: null,
 		},
 	]);
-}
+};
 
 function makeRunner(
 	options: {
@@ -172,10 +167,10 @@ function makeRunner(
 }
 
 function findCheck(
-	report: Awaited<ReturnType<typeof runDoctor>>['report'],
+	results: Awaited<ReturnType<typeof runDoctor>>['results'],
 	id: string
-): DoctorCheck {
-	const check = report.sections.flatMap((section) => section.checks).find((item) => item.id === id);
+): OpsResult {
+	const check = results.find((item) => item.id === id);
 	if (!check) throw new Error(`Missing doctor check ${id}`);
 	return check;
 }
@@ -188,16 +183,14 @@ describe('doctor script', () => {
 			rootDir,
 			runner,
 			runtimeProbe: passingRuntimeProbe,
-			now: () => new Date('2026-05-01T18:00:00Z'),
 		});
 
-		expect(result.exitCode, JSON.stringify(result.report, null, 2)).toBe(0);
-		expect(result.report.status).toBe('warn');
-		expect(findCheck(result.report, 'LAUNCH-OG-001').status).toBe('warn');
-		expect(findCheck(result.report, 'LAUNCH-ENV-001').status).toBe('warn');
-		expect(findCheck(result.report, 'LAUNCH-ENV-002').status).toBe('warn');
-		expect(findCheck(result.report, 'LAUNCH-CMS-001').status).toBe('warn');
-		expect(result.report.sections.some((section) => section.id === 'launch-blockers')).toBe(true);
+		expect(result.exitCode, JSON.stringify(result.results, null, 2)).toBe(0);
+		expect(findCheck(result.results, 'LAUNCH-OG-001').severity).toBe('warn');
+		expect(findCheck(result.results, 'LAUNCH-ENV-001').severity).toBe('warn');
+		expect(findCheck(result.results, 'LAUNCH-ENV-002').severity).toBe('warn');
+		expect(findCheck(result.results, 'LAUNCH-CMS-001').severity).toBe('warn');
+		expect(findCheck(result.results, 'LAUNCH-CMS-001').summary).toContain('Launch Blockers:');
 		expect(runner).toHaveBeenCalledWith(
 			'bun',
 			['run', 'check:db'],
@@ -210,14 +203,10 @@ describe('doctor script', () => {
 			rootDir: copyFixture('ready-to-launch'),
 			runner: makeRunner(),
 			runtimeProbe: passingRuntimeProbe,
-			now: () => new Date('2026-05-01T18:00:00Z'),
 		});
 
-		expect(result.exitCode, JSON.stringify(result.report, null, 2)).toBe(0);
-		expect(result.report.status).toBe('pass');
-		expect(result.report.sections.flatMap((section) => section.checks)).not.toContainEqual(
-			expect.objectContaining({ status: 'fail' })
-		);
+		expect(result.exitCode, JSON.stringify(result.results, null, 2)).toBe(0);
+		expect(result.results).not.toContainEqual(expect.objectContaining({ severity: 'fail' }));
 	});
 
 	it('identifies a broken .env as a specific failed check and exits nonzero', async () => {
@@ -225,25 +214,22 @@ describe('doctor script', () => {
 			rootDir: copyFixture('broken-env'),
 			runner: makeRunner(),
 			runtimeProbe: passingRuntimeProbe,
-			now: () => new Date('2026-05-01T18:00:00Z'),
 		});
 
-		expect(result.exitCode, JSON.stringify(result.report, null, 2)).toBe(2);
-		expect(result.report.status).toBe('fail');
-		const envCheck = findCheck(result.report, 'BOOT-ENV-001');
-		expect(envCheck.status).toBe('fail');
+		expect(result.exitCode, JSON.stringify(result.results, null, 2)).toBe(1);
+		const envCheck = findCheck(result.results, 'BOOT-ENV-001');
+		expect(envCheck.severity).toBe('fail');
 		expect(envCheck.detail).toContain('missing "="');
-		expect(envCheck.hint).toContain('NEXT:');
+		expect(envCheck.remediation?.[0]).toContain('NEXT:');
 	});
 
-	it('prints only the versioned JSON schema when --json is set', async () => {
+	it('prints only OpsResult JSON when --json is set', async () => {
 		const stdout = memoryStream();
 		const stderr = memoryStream();
 		const code = await main(['--json'], {
 			rootDir: copyFixture('ready-to-launch'),
 			runner: makeRunner(),
 			runtimeProbe: passingRuntimeProbe,
-			now: () => new Date('2026-05-01T18:00:00Z'),
 			stdout: stdout.stream,
 			stderr: stderr.stream,
 		});
@@ -251,13 +237,13 @@ describe('doctor script', () => {
 		expect(code, stdout.output).toBe(0);
 		expect(stderr.output).toBe('');
 		expect(stdout.output).not.toContain('Doctor status');
-		const parsed = JSON.parse(stdout.output) as Record<string, unknown>;
-		expect(parsed).toMatchObject({
-			schemaVersion: 1,
-			status: 'pass',
-			generatedAt: '2026-05-01T18:00:00.000Z',
+		const parsed = JSON.parse(stdout.output) as OpsResult[];
+		expect(Array.isArray(parsed)).toBe(true);
+		expect(parsed[0]).toMatchObject({
+			id: 'BOOT-BUN-001',
+			severity: 'pass',
+			summary: 'Environment: Bun is installed',
 		});
-		expect(Array.isArray(parsed.sections)).toBe(true);
 	});
 
 	it('does not mutate fixture files in human or JSON mode', async () => {
@@ -268,13 +254,11 @@ describe('doctor script', () => {
 			rootDir,
 			runner: makeRunner(),
 			runtimeProbe: passingRuntimeProbe,
-			now: () => new Date('2026-05-01T18:00:00Z'),
 		});
 		await main(['--json'], {
 			rootDir,
 			runner: makeRunner(),
 			runtimeProbe: passingRuntimeProbe,
-			now: () => new Date('2026-05-01T18:00:00Z'),
 			stdout: memoryStream().stream,
 			stderr: memoryStream().stream,
 		});
@@ -284,5 +268,9 @@ describe('doctor script', () => {
 
 	it('has no --fix flag', () => {
 		expect(() => parseArgs(['--fix'])).toThrow(BootstrapScriptError);
+	});
+
+	it('accepts --no-color for the OpsResult printer', () => {
+		expect(parseArgs(['--json', '--no-color'])).toEqual({ json: true, noColor: true });
 	});
 });

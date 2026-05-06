@@ -8,16 +8,23 @@ import postgres from 'postgres';
 import { BootstrapScriptError } from './lib/errors';
 import { readEnv, type EnvMap } from './lib/env-file';
 import { evaluateLaunchBlockers, type LaunchEnvSource } from './lib/launch-blockers';
+import {
+	printOpsResults,
+	severityToExitCode,
+	worstSeverity,
+	type OpsResult,
+	type OpsSeverity,
+} from './lib/ops-result';
 import { checkBun, detectContainerRuntime, gitWorkingTreeDirty } from './lib/preflight';
 import { sanitizeProjectSlug } from './lib/postgres-dev';
 import type { PrintStream } from './lib/print';
 import { redactSecrets, run as runCommand, type RunOptions, type RunResult } from './lib/run';
 import { REQUIRED_PRIVATE_ENV_VARS, REQUIRED_PUBLIC_ENV_VARS } from '../src/lib/server/env';
 
-type DoctorStatus = 'pass' | 'warn' | 'fail';
+type DoctorStatus = 'pass' | 'warn' | 'fail' | 'skip';
 type DoctorSeverity = 'required' | 'recommended';
 
-export type DoctorCheck = {
+type DoctorCheck = {
 	id: string;
 	status: DoctorStatus;
 	label: string;
@@ -26,21 +33,15 @@ export type DoctorCheck = {
 	hint: string | null;
 };
 
-export type DoctorSection = {
+type DoctorSection = {
 	id: string;
 	label: string;
 	checks: DoctorCheck[];
 };
 
-export type DoctorReport = {
-	schemaVersion: 1;
-	status: DoctorStatus;
-	generatedAt: string;
-	sections: DoctorSection[];
-};
-
 export type DoctorCliOptions = {
 	json: boolean;
+	noColor: boolean;
 	envSource?: LaunchEnvSource;
 };
 
@@ -61,7 +62,6 @@ export type RunDoctorOptions = {
 	envSource?: LaunchEnvSource;
 	runner?: CommandRunner;
 	runtimeProbe?: RuntimeProbe;
-	now?: () => Date;
 };
 
 export type MainOptions = RunDoctorOptions & {
@@ -70,7 +70,7 @@ export type MainOptions = RunDoctorOptions & {
 };
 
 type DoctorResult = {
-	report: DoctorReport;
+	results: OpsResult[];
 	exitCode: number;
 };
 
@@ -147,12 +147,14 @@ function normalizeHint(hint: string): string {
 }
 
 export function parseArgs(argv: readonly string[]): DoctorCliOptions {
-	const options: DoctorCliOptions = { json: false };
+	const options: DoctorCliOptions = { json: false, noColor: false };
 
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
 		if (arg === '--json') {
 			options.json = true;
+		} else if (arg === '--no-color') {
+			options.noColor = true;
 		} else if (arg === '--env') {
 			const value = argv[index + 1];
 			if (value !== 'dev' && value !== 'prod') {
@@ -178,7 +180,7 @@ export function parseArgs(argv: readonly string[]): DoctorCliOptions {
 			throw new BootstrapScriptError(
 				'BOOT-INIT-001',
 				`Unknown doctor option: ${arg}`,
-				'NEXT: Use bun run doctor [--json] [--env dev|prod].'
+				'NEXT: Use bun run doctor [--json] [--no-color] [--env dev|prod].'
 			);
 		}
 	}
@@ -196,20 +198,30 @@ function doctorEnvSourceFrom(value: string | undefined): LaunchEnvSource | null 
 	);
 }
 
-function aggregateStatus(checks: readonly DoctorCheck[]): DoctorStatus {
-	if (checks.some((check) => check.severity === 'required' && check.status === 'fail')) {
-		return 'fail';
-	}
-	if (checks.some((check) => check.status !== 'pass')) return 'warn';
-	return 'pass';
+function splitRemediation(hint: string | null): string[] | undefined {
+	if (!hint) return undefined;
+	const steps = hint
+		.split(/\r?\n/u)
+		.map((line) => line.trim())
+		.filter(Boolean);
+	return steps.length > 0 ? steps : undefined;
 }
 
-function isFatal(check: DoctorCheck): boolean {
-	return (
-		check.id === 'BOOT-ENV-001' &&
-		check.status === 'fail' &&
-		/malformed|parse|missing "="|invalid|not closed/iu.test(check.detail)
-	);
+function opsSeverityFor(check: DoctorCheck): OpsSeverity {
+	if (check.status === 'pass') return 'pass';
+	if (check.status === 'skip') return 'info';
+	if (check.status === 'warn') return 'warn';
+	return check.severity === 'required' ? 'fail' : 'warn';
+}
+
+function toOpsResult(section: DoctorSection, check: DoctorCheck): OpsResult {
+	return {
+		id: check.id,
+		severity: opsSeverityFor(check),
+		summary: `${section.label}: ${check.label}`,
+		detail: check.detail,
+		remediation: splitRemediation(check.hint),
+	};
 }
 
 function readPackageName(rootDir: string): string | null {
@@ -1100,7 +1112,6 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 	const envSource = options.envSource ?? doctorEnvSourceFrom(env.DOCTOR_ENV) ?? 'dev';
 	const runner = options.runner ?? runCommand;
 	const runtimeProbe = options.runtimeProbe ?? defaultRuntimeProbe;
-	const now = options.now ?? (() => new Date());
 
 	const environment = await environmentSection(rootDir, env, runner);
 	const configuration = configurationSection(rootDir, env);
@@ -1127,34 +1138,15 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 		deployment,
 		nextCommands,
 	];
-	const checks = sections.flatMap((section) => section.checks);
-	const status = aggregateStatus(checks);
+	const results = sections.flatMap((section) =>
+		section.checks.map((check) => toOpsResult(section, check))
+	);
+	const worst = worstSeverity(results);
 
 	return {
-		report: {
-			schemaVersion: 1,
-			status,
-			generatedAt: now().toISOString(),
-			sections,
-		},
-		exitCode: checks.some(isFatal) ? 2 : status === 'fail' ? 1 : 0,
+		results,
+		exitCode: severityToExitCode(worst),
 	};
-}
-
-function renderHuman(report: DoctorReport): string {
-	const lines = [`Doctor status: ${report.status}`, `Generated: ${report.generatedAt}`, ''];
-
-	for (const section of report.sections) {
-		lines.push(section.label);
-		for (const check of section.checks) {
-			lines.push(`  ${check.status.toUpperCase().padEnd(4)} ${check.id} ${check.label}`);
-			lines.push(`       ${check.detail}`);
-			if (check.hint) lines.push(`       ${check.hint}`);
-		}
-		lines.push('');
-	}
-
-	return lines.join('\n');
 }
 
 export async function main(
@@ -1168,9 +1160,10 @@ export async function main(
 		const cli = parseArgs(argv);
 		const result = await runDoctor({ ...options, envSource: cli.envSource ?? options.envSource });
 		if (cli.json) {
-			stdout.write(`${JSON.stringify(result.report, null, '\t')}\n`);
+			stdout.write(`${JSON.stringify(result.results, null, '\t')}\n`);
 		} else {
-			stdout.write(renderHuman(result.report));
+			const stream = ['fail', 'warn'].includes(worstSeverity(result.results)) ? stderr : stdout;
+			printOpsResults(result.results, { stream, noColor: cli.noColor });
 		}
 		return result.exitCode;
 	} catch (error) {

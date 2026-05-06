@@ -31,16 +31,16 @@ it without context overflow. If it grows, split.
 
 ## Status
 
-| #   | Title                                             | Status                | ADR     |
-| --- | ------------------------------------------------- | --------------------- | ------- |
-| 01  | Lead-gen website appliance contract               | drafted, ready to run | ADR-024 |
-| 02  | OpsResult convergence with `doctor.ts` canary     | not yet drafted       | TBD     |
-| 03  | Quadlet image helpers + release-state writer      | not yet drafted       | TBD     |
-| 04  | Rollback CLI                                      | not yet drafted       | TBD     |
-| 05  | `deploy:apply` orchestrator                       | not yet drafted       | TBD     |
-| 06  | E2E smoke through Postmark sandbox                | not yet drafted       | TBD     |
-| 07  | Restore-drill scheduling and evidence persistence | not yet drafted       | TBD     |
-| 08  | `health:live` ledger view                         | not yet drafted       | TBD     |
+| #   | Title                                               | Status                | ADR     |
+| --- | --------------------------------------------------- | --------------------- | ------- |
+| 01  | Lead-gen website appliance contract                 | complete              | ADR-024 |
+| 02  | OpsResult convergence with `doctor.ts` canary       | complete              | n/a     |
+| 03  | Ops-status ledger + release state + Quadlet helpers | drafted, ready to run | ADR-025 |
+| 04  | Rollback CLI                                        | not yet drafted       | TBD     |
+| 05  | `deploy:apply` orchestrator                         | not yet drafted       | TBD     |
+| 06  | E2E smoke through Postmark sandbox                  | not yet drafted       | TBD     |
+| 07  | Restore-drill scheduling and evidence persistence   | not yet drafted       | TBD     |
+| 08  | `health:live` ledger view                           | not yet drafted       | TBD     |
 
 Subsequent passes are drafted only after the prior one has merged, so
 each prompt is informed by current repo reality, not a stale plan.
