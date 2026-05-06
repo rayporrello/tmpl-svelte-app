@@ -1,6 +1,8 @@
 # n8n Provider Patterns
 
-Concrete workflow patterns for using n8n, the default automation provider, with this template. These are examples for n8n operators; the runtime event contract itself is provider-neutral and lives in [runtime-event-contract.md](runtime-event-contract.md).
+Concrete workflow patterns for using external n8n with this template. These
+are examples for n8n operators; the runtime event contract itself is
+provider-neutral and lives in [runtime-event-contract.md](runtime-event-contract.md).
 
 ---
 

@@ -602,9 +602,6 @@ function runtimeContractSection(
 		postgresVolume: `${slug}-postgres-data`,
 		appDatabase: `${safeSlug}_app`,
 		appRole: `${safeSlug}_app_user`,
-		n8n: `${slug}-n8n`,
-		n8nDatabase: `${safeSlug}_n8n`,
-		n8nRole: `${safeSlug}_n8n_user`,
 		backupPrefix: `${slug}/postgres`,
 		secretsPath: `~/secrets/${slug}.prod.env`,
 	};
@@ -695,18 +692,6 @@ function runtimeContractSection(
 			)
 		);
 	}
-
-	const n8nEnabled = (envFile?.N8N_ENABLED ?? env.N8N_ENABLED ?? '').toLowerCase() === 'true';
-	checks.push(
-		pass(
-			'doctor-n8n-state',
-			'n8n bundle state is explicit',
-			n8nEnabled
-				? `enabled; expected database/role ${expected.n8nDatabase}/${expected.n8nRole}`
-				: `absent; optional container would be ${expected.n8n}`,
-			'recommended'
-		)
-	);
 
 	return { id: 'runtime-contract', label: 'Runtime Contract', checks };
 }

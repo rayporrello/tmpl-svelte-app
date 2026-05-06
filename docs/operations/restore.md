@@ -4,7 +4,7 @@ How to restore a Postgres database or uploads archive from a backup. Read this *
 
 Two restore paths:
 
-- **PITR via WAL-G** (production default) — restore the cluster to any moment in the last 14 days. Atomic across both `<project>_app` and `<project>_n8n` because they live in the same client cluster.
+- **PITR via WAL-G** (production default) — restore the website Postgres cluster to any moment in the last 14 days.
 - **pg_dump restore** (convenience / cross-host export) — restore a logical snapshot. Use when handing a copy to a client, rebuilding from a portable export, or inspecting data in a scratch database.
 
 If you are choosing under pressure: PITR is almost always the right answer.
@@ -34,11 +34,10 @@ Faster, more recent, atomic across all databases.
 
 ## Restore the database (PITR — preferred for bundled Postgres)
 
-PITR restores the entire Postgres cluster (app + n8n if active) to a chosen
-point in time. The procedure restores into a fresh container with a new
-volume; the operator promotes by swapping volumes on the existing
-`<project>-postgres` Quadlet. The original data stays available as a
-rollback for at least 24 hours.
+PITR restores the website Postgres cluster to a chosen point in time. The
+procedure restores into a fresh container with a new volume; the operator
+promotes by swapping volumes on the existing `<project>-postgres` Quadlet. The
+original data stays available as a rollback for at least 24 hours.
 
 ### 1. Decide on a target
 
@@ -71,8 +70,6 @@ fix WAL-G config first.**
 ```bash
 systemctl --user stop <project>-web <project>-worker
 # Leave <project>-postgres running for now — we'll swap its volume.
-# If n8n is active for this client, also stop <project>-n8n.
-systemctl --user stop <project>-n8n 2>/dev/null || true
 ```
 
 The worker must be stopped so it does not continue draining the outbox
@@ -116,10 +113,6 @@ for confirmation.
 ```bash
 podman exec -u postgres <project>-postgres-restore \
   psql -d <project>_app -c 'SELECT count(*) FROM contact_submissions;'
-
-# If n8n was active:
-podman exec -u postgres <project>-postgres-restore \
-  psql -d <project>_n8n -c 'SELECT count(*) FROM workflow_entity;'
 ```
 
 If the counts and a few sample rows look right, promote.
@@ -137,7 +130,6 @@ podman stop <project>-postgres-restore
 
 systemctl --user start <project>-postgres
 systemctl --user start <project>-web <project>-worker
-systemctl --user start <project>-n8n 2>/dev/null || true
 ```
 
 If something is wrong, the original data is in

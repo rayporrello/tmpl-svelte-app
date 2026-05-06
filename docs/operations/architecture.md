@@ -31,7 +31,6 @@ deployment to an outside auditor.
 │  │  │  <project>-web        SvelteKit app (svelte-adapter-bun)   │  │  │
 │  │  │  <project>-postgres   Postgres 18 + WAL-G baked in         │  │  │
 │  │  │  <project>-worker     bun automation:worker:daemon         │  │  │
-│  │  │  <project>-n8n        n8n editor + webhook  (only if used) │  │  │
 │  │  └────────────────────────────────────────────────────────────┘  │  │
 │  │                                                                  │  │
 │  │  Per-client systemd timers (host)                                │  │
@@ -45,7 +44,6 @@ deployment to an outside auditor.
 │  │  ┌────────────────────────────────────────────────────────────┐  │  │
 │  │  │  <project>.network                Podman network (Quadlet) │  │  │
 │  │  │  <project>-postgres-data          named volume (Quadlet)   │  │  │
-│  │  │  <project>-n8n-data               named volume (only n8n)  │  │  │
 │  │  │  ~/secrets/<project>.prod.env     rendered runtime env     │  │  │
 │  │  └────────────────────────────────────────────────────────────┘  │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
@@ -62,58 +60,49 @@ deployment to an outside auditor.
   └─────────────────────┘                       └─────────────────────┘
 ```
 
-A typical 5-client host with three of those clients running automations:
+A typical 5-client host:
 
-| Component              | Count                   |
-| ---------------------- | ----------------------- |
-| Host Caddy             | 1                       |
-| `<project>-web`        | 5                       |
-| `<project>-postgres`   | 5                       |
-| `<project>-worker`     | 5                       |
-| `<project>-n8n`        | 3 (only when activated) |
-| Backup timers per site | 2                       |
-| **Total containers**   | **18**                  |
+| Component              | Count  |
+| ---------------------- | ------ |
+| Host Caddy             | 1      |
+| `<project>-web`        | 5      |
+| `<project>-postgres`   | 5      |
+| `<project>-worker`     | 5      |
+| Backup timers per site | 2      |
+| **Total containers**   | **15** |
 
 ---
 
 ## Why per-client bundles
 
-| Goal                         | How the bundle delivers                                                                                                            |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Secret isolation             | Each site has its own `<project>.prod.env` and its own database role. n8n is per-client so credentials cannot leak across clients. |
-| Lift-and-shift portability   | "Hand the client their site": copy the named volume snapshot + the secrets file + the repo. Reinstall the Quadlets on a new host.  |
-| Single off-switch            | `systemctl --user stop <project>-*.service` halts the entire client cleanly, including the worker.                                 |
-| Predictable resource ceiling | Quadlet `MemoryHigh=` and `CPUQuota=` per container; one client cannot consume another's headroom.                                 |
-| Atomic backups               | One PITR backup per client covers app data AND n8n state. A restore puts both back to the same moment in time.                     |
+| Goal                         | How the bundle delivers                                                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Secret isolation             | Each site has its own `<project>.prod.env` and its own database role. External automation credentials live in the receiver.       |
+| Lift-and-shift portability   | "Hand the client their site": copy the named volume snapshot + the secrets file + the repo. Reinstall the Quadlets on a new host. |
+| Single off-switch            | `systemctl --user stop <project>-*.service` halts the entire client cleanly, including the worker.                                |
+| Predictable resource ceiling | Quadlet `MemoryHigh=` and `CPUQuota=` per container; one client cannot consume another's headroom.                                |
+| Atomic backups               | One PITR backup per client covers app data and the durable outbox. External providers own their own backups.                      |
 
-n8n is the only multi-tenant trap in the stack. Its editor + credentials +
-execution history all live in one namespace per instance. Running one
-shared n8n across unrelated clients leaks all three. Run **one n8n per
-client when activated**, never shared.
+n8n is external per ADR-027. If a client uses n8n, provision it separately
+(n8n.cloud, a shared self-hosted n8n, or a dedicated host) and store that
+provider's credentials in the receiver's own security boundary.
 
 ---
 
 ## Database boundaries inside `<project>-postgres`
 
-When a client activates n8n, the existing `<project>-postgres` container
-hosts both schemas, but with separate databases and roles:
+The website owns one app database and role:
 
 ```
 <project>-postgres (one container)
 ├── database <project>_app
 │   ├── role <project>_app_user                  ← SvelteKit + worker
 │   └── tables: contact_submissions, automation_events, ...
-└── database <project>_n8n   (only when n8n is enabled)
-    ├── role <project>_n8n_user                  ← n8n container only
-    └── tables: workflow_entity, credentials_entity, execution_entity, ...
 ```
 
-The `bun run n8n:enable` helper provisions the second database, role, and
-grants. Roles are scoped to their own database — n8n cannot read app
-tables, the app cannot read n8n credentials.
-
-A WAL-G base backup captures the entire cluster atomically, so PITR
-restores both databases to the same moment.
+External automation providers never receive database access. They receive
+signed HTTPS deliveries from the worker and own their own state outside the
+site bundle.
 
 ---
 
@@ -150,9 +139,9 @@ HTTPS POST /contact ──▶ <project>-web container
               │                       AUTOMATION_PROVIDER (env-driven)
               │            ┌────────────┬────────┐
               │            ▼            ▼        ▼
-              │       <project>-n8n   webhook   noop
-              │       (per client)    (client   (explicit
-              │                      endpoint)  no-op)
+              │       external n8n   webhook   noop
+              │        endpoint      endpoint  (explicit
+              │                                no-op)
               │
               └─▶ form action returns success here regardless of
                   worker/automation outcome. Lead is captured.

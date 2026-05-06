@@ -10,7 +10,7 @@ exports.
 
 | Asset                      | Method                   | Notes                                                  |
 | -------------------------- | ------------------------ | ------------------------------------------------------ |
-| Postgres cluster           | WAL-G base backups + WAL | App database and optional per-client n8n database      |
+| Postgres cluster           | WAL-G base backups + WAL | App database, outbox, and dead-letter tables           |
 | App database export        | `pg_dump` custom format  | Convenience copy of submissions, outbox, dead letters  |
 | `static/uploads/`          | `tar -czf` with SHA256   | User-uploaded images and any CMS-managed files         |
 | `content/` (Markdown/YAML) | Git                      | Already versioned — no separate backup needed          |

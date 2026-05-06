@@ -16,7 +16,7 @@ colors and `content/pages/home.yml` for homepage content; both changes hot-reloa
 The default production profile is the ADR-024 reliable lead-gen website
 appliance: SvelteKit web service, dedicated Postgres, the long-lived outbox
 worker, Postmark lead notification, PITR backup primitives, privacy retention,
-and launch/deploy gates. n8n/webhook automation is optional per client;
+and launch/deploy gates. External n8n/webhook automation is optional per client;
 `AUTOMATION_PROVIDER` unset or `noop` is production-valid.
 
 Before launch:
@@ -160,7 +160,9 @@ template has one production database strategy:
 - `DATABASE_URL` is the internal web/worker URL to `<project>-postgres`;
 - `DATABASE_DIRECT_URL` is the host/operator URL for migrations, backups, restores, and Drizzle Studio;
 - the web, worker, and Postgres Quadlets are required production infrastructure;
-- n8n is optional, but when enabled it uses a separate database and role inside this client's Postgres cluster.
+- automation is external. If a client uses n8n, Zapier, Make, or any other
+  automation platform, set the relevant `AUTOMATION_PROVIDER` env var and
+  webhook URL/secret.
 
 The generated names are deterministic from `project.projectSlug`. Hyphens in
 the slug become underscores for Postgres identifiers:
@@ -174,8 +176,6 @@ the slug become underscores for Postgres identifiers:
 | Postgres volume         | `<project>-postgres-data`      |
 | App database            | `<project>_app`                |
 | App role                | `<project>_app_user`           |
-| Optional n8n database   | `<project>_n8n`                |
-| Optional n8n role       | `<project>_n8n_user`           |
 | PITR backup prefix      | `<project>/postgres`           |
 | Rendered production env | `~/secrets/<project>.prod.env` |
 
@@ -378,18 +378,18 @@ Rules of thumb:
 
 Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
 
-| Module                    | How to activate                                                                                                                                                                                                                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md) and [docs/forms/README.md](forms/README.md).                                                                                         |
-| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed. Required for production launch unless `LAUNCH_ALLOW_CONSOLE_EMAIL=1` is an explicit waiver.                                |
-| **Automations**           | Set `AUTOMATION_PROVIDER` to `n8n`, `webhook`, or `noop`. Form actions save source rows and durable outbox events first; the required worker delivers later with retries/dead letters. n8n is optional and per-client only. See [docs/automations/README.md](automations/README.md). |
-| **Privacy pruning**       | Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` from scheduled maintenance after reviewing the retention policy. See [docs/privacy/data-retention.md](privacy/data-retention.md).                                                                   |
-| **PITR backups**          | Set the required `R2_*`, `R2_PREFIX`, and `PITR_RETENTION_DAYS` values, install `backup-base` and `backup-check` timers, then run `bun run backup:pitr:check` and `bun run backup:restore:drill`. See [docs/operations/backups.md](operations/backups.md).                           |
-| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true` for the in-process bucket. Single-node only — for durable/multi-node, add a Cloudflare WAF rule or `mholt/caddy-ratelimit` (snippets in `deploy/Caddyfile.example`).                                                                                   |
-| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                                                                                                             |
-| **Cookie consent**        | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Required when using GTM/GA4/ad tags with EU or CCPA-jurisdiction users. See [docs/modules/cookie-consent.md](modules/cookie-consent.md).                                                                     |
-| **Better Auth**           | Per-project only — not in base template. See [docs/modules/better-auth.md](modules/better-auth.md).                                                                                                                                                                                  |
-| **Search (Pagefind)**     | Install `pagefind`, pre-render content routes, add `/search` route. See [docs/modules/pagefind.md](modules/pagefind.md).                                                                                                                                                             |
+| Module                    | How to activate                                                                                                                                                                                                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contact form**          | Already live at `/contact`. Saves to `contact_submissions` automatically. See [docs/design-system/forms-guide.md](design-system/forms-guide.md) and [docs/forms/README.md](forms/README.md).                                                                                 |
+| **Real email (Postmark)** | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` in env. `resolveEmailProvider()` picks it up automatically — no code change needed. Required for production launch unless `LAUNCH_ALLOW_CONSOLE_EMAIL=1` is an explicit waiver.                        |
+| **Automations**           | Set `AUTOMATION_PROVIDER` to `n8n`, `webhook`, or `noop`. Form actions save source rows and durable outbox events first; the required worker delivers later with retries/dead letters. n8n is external per ADR-027. See [docs/automations/README.md](automations/README.md). |
+| **Privacy pruning**       | Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` from scheduled maintenance after reviewing the retention policy. See [docs/privacy/data-retention.md](privacy/data-retention.md).                                                           |
+| **PITR backups**          | Set the required `R2_*`, `R2_PREFIX`, and `PITR_RETENTION_DAYS` values, install `backup-base` and `backup-check` timers, then run `bun run backup:pitr:check` and `bun run backup:restore:drill`. See [docs/operations/backups.md](operations/backups.md).                   |
+| **Rate limiting**         | Set `RATE_LIMIT_ENABLED=true` for the in-process bucket. Single-node only — for durable/multi-node, add a Cloudflare WAF rule or `mholt/caddy-ratelimit` (snippets in `deploy/Caddyfile.example`).                                                                           |
+| **Analytics**             | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX` in production env. See [docs/analytics/README.md](analytics/README.md).                                                                                                                                     |
+| **Cookie consent**        | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Required when using GTM/GA4/ad tags with EU or CCPA-jurisdiction users. See [docs/modules/cookie-consent.md](modules/cookie-consent.md).                                                             |
+| **Better Auth**           | Per-project only — not in base template. See [docs/modules/better-auth.md](modules/better-auth.md).                                                                                                                                                                          |
+| **Search (Pagefind)**     | Install `pagefind`, pre-render content routes, add `/search` route. See [docs/modules/pagefind.md](modules/pagefind.md).                                                                                                                                                     |
 
 ---
 
@@ -417,8 +417,8 @@ Full secrets workflow: [docs/deployment/secrets.md](deployment/secrets.md).
    ```
 3. Follow the full deployment runbook for host Caddy, loopback-published web,
    bundled Postgres + WAL-G, explicit migrations, the per-site worker
-   container, the daily/6-hour backup timers, and the optional per-client
-   n8n bundle:
+   container, the daily/6-hour backup timers, and external automation
+   provider configuration:
    [docs/deployment/runbook.md](deployment/runbook.md)
 4. After deploying, smoke the live URL:
    ```bash

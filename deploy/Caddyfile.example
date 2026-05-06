@@ -108,37 +108,3 @@ example.com {
 www.example.com {
     redir https://example.com{uri} permanent
 }
-
-# ── n8n editor + webhook (optional — only when this client runs n8n) ────────
-# Uncomment and replace n8n.example.com when this client activates n8n.
-# Run `bun run n8n:enable` first to provision the Postgres schema/role; then
-# install deploy/quadlets/n8n.container.
-#
-# Two routes coexist on this hostname:
-#   /webhook/*  — public, authenticated by the Header Auth credential set
-#                 in the n8n Webhook node. Site delivers leads here.
-#   everything else — the editor UI. Lock it down with basic auth so
-#                 stored credentials and execution history are not
-#                 exposed to the public internet.
-#
-# Generate the basic_auth password hash on the host:
-#   caddy hash-password
-#
-# n8n.example.com {
-#     tls {
-#         protocols tls1.2 tls1.3
-#     }
-#     header Strict-Transport-Security "max-age=31536000"
-#     encode zstd gzip
-#
-#     # Public webhook surface — no basic auth, just the header secret.
-#     @webhook path /webhook/* /webhook-test/*
-#     reverse_proxy @webhook 127.0.0.1:5678
-#
-#     # Everything else (the editor) is locked behind basic auth. Pair this
-#     # with a VPN if the editor must never be exposed to the public internet.
-#     basic_auth {
-#         operator <hash from `caddy hash-password`>
-#     }
-#     reverse_proxy 127.0.0.1:5678
-# }

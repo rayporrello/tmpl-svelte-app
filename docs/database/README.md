@@ -78,10 +78,10 @@ Production always runs a dedicated bundled Postgres container for each site:
 
 Hyphens in the project slug become underscores for Postgres identifiers.
 
-When n8n is enabled, `bun run n8n:enable` provisions `<project>_n8n` and
-`<project>_n8n_user` inside the same client cluster. App and n8n roles are
-isolated from each other's databases, and WAL-G/PITR captures the whole client
-cluster atomically.
+Automation platforms are external to this database. If a site uses n8n,
+Zapier, Make, or a custom receiver, the worker reaches it over HTTPS using the
+configured automation provider; the website Postgres cluster remains dedicated
+to app data and the outbox.
 
 ## Local setup
 

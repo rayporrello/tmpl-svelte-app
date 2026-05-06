@@ -44,15 +44,16 @@ const privateSchema = v.object({
 		v.union([v.literal(''), v.literal('header'), v.literal('hmac')])
 	),
 	AUTOMATION_WEBHOOK_AUTH_HEADER: v.optional(v.string()),
+	// External n8n endpoint config for AUTOMATION_PROVIDER=n8n (n8n.cloud or a
+	// separately hosted n8n instance, not a bundled site container).
 	N8N_WEBHOOK_URL: v.optional(v.string()),
 	N8N_WEBHOOK_SECRET: v.optional(v.string()),
 	N8N_WEBHOOK_AUTH_MODE: v.optional(
 		v.union([v.literal(''), v.literal('header'), v.literal('hmac')])
 	),
 	N8N_WEBHOOK_AUTH_HEADER: v.optional(v.string()),
-	// Per-client n8n bundle (optional, off by default). Only consumed by the
-	// n8n.container Quadlet and the enable-n8n helper, not by the SvelteKit
-	// app — but validated here so secrets:check / preflight have visibility.
+	// Legacy self-hosted n8n bundle names remain parseable for older clones and
+	// rendered env files. The current template does not consume them.
 	N8N_ENABLED: v.optional(v.string()),
 	N8N_ENCRYPTION_KEY: v.optional(v.string()),
 	N8N_HOST: v.optional(v.string()),

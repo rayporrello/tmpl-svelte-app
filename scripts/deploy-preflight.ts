@@ -1007,70 +1007,6 @@ export async function checkAutomationProviderConfig(
 	);
 }
 
-export async function checkN8nBundleConfig(
-	context: DeployPreflightContext
-): Promise<DeployPreflightResult> {
-	const label = 'Per-client n8n bundle is isolated when enabled';
-	const envReference = readProdEnv(context);
-	if (!envReference.ok) {
-		return fail(
-			'PREFLIGHT-N8N-001',
-			label,
-			envReference.detail,
-			'NEXT: Add the production env file before checking n8n bundle config.'
-		);
-	}
-
-	const enabled = envReference.env.N8N_ENABLED?.trim().toLowerCase() === 'true';
-	if (!enabled) {
-		return pass(
-			'PREFLIGHT-N8N-001',
-			label,
-			'N8N_ENABLED is not true; no per-client n8n container is expected.',
-			'NEXT: Run bun run n8n:enable before enabling the n8n Quadlet for this client.'
-		);
-	}
-
-	const slug = projectSlug(context.rootDir);
-	const safeSlug = slug.replace(/-/g, '_');
-	const requiredKeys = ['N8N_ENCRYPTION_KEY', 'N8N_HOST', 'N8N_PROTOCOL', 'DB_POSTGRESDB_PASSWORD'];
-	const missing = requiredKeys.filter((key) => !envReference.env[key]?.trim());
-	const artifactProblems = [
-		...missingFileOrLines(context.rootDir, 'deploy/quadlets/n8n.container', [
-			`Requires=${slug}-postgres.service`,
-			`DB_POSTGRESDB_HOST=${slug}-postgres`,
-			`DB_POSTGRESDB_DATABASE=${safeSlug}_n8n`,
-			`DB_POSTGRESDB_USER=${safeSlug}_n8n_user`,
-			`EnvironmentFile=%h/secrets/${slug}.prod.env`,
-			`Network=${slug}.network`,
-		]),
-		...missingFileOrLines(context.rootDir, 'deploy/quadlets/n8n.volume', [
-			`VolumeName=${slug}-n8n-data`,
-		]),
-	];
-
-	if (missing.length || artifactProblems.length) {
-		return fail(
-			'PREFLIGHT-N8N-001',
-			label,
-			[
-				missing.length ? `Missing env: ${missing.join(', ')}.` : null,
-				artifactProblems.length ? artifactProblems.join(' ') : null,
-			]
-				.filter(Boolean)
-				.join(' '),
-			"NEXT: Run bun run n8n:enable, add the printed values to secrets.yaml, render env, then install only this client's n8n Quadlet."
-		);
-	}
-
-	return pass(
-		'PREFLIGHT-N8N-001',
-		label,
-		`n8n is enabled with database ${safeSlug}_n8n and role ${safeSlug}_n8n_user inside ${slug}-postgres.`,
-		'NEXT: Keep n8n per-client; never point unrelated sites at this n8n database or editor.'
-	);
-}
-
 export async function checkBackupConfigured(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
@@ -1187,12 +1123,6 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 		id: 'PREFLIGHT-AUTOMATION-001',
 		label: 'Automation provider config is complete',
 		run: checkAutomationProviderConfig,
-		dependsOnEnv: true,
-	},
-	{
-		id: 'PREFLIGHT-N8N-001',
-		label: 'Per-client n8n bundle is isolated',
-		run: checkN8nBundleConfig,
 		dependsOnEnv: true,
 	},
 	{ id: 'PREFLIGHT-GHCR-001', label: 'GHCR image name aligns', run: checkGhcrImageShape },

@@ -31,8 +31,6 @@ Documentation for deploying sites built from this template. The deployment model
 | `deploy/quadlets/postgres.container`  | `deploy/quadlets/` | Bundled Postgres+WAL-G container wired to the project network with archive_command + loopback host tools |
 | `deploy/quadlets/postgres.volume`     | `deploy/quadlets/` | Persistent Postgres data volume                                                                          |
 | `deploy/quadlets/worker.container`    | `deploy/quadlets/` | Long-lived per-site automation outbox worker (`automation:worker:daemon`); replaces the systemd timer    |
-| `deploy/quadlets/n8n.container`       | `deploy/quadlets/` | Optional per-client n8n editor + webhook (activate with `bun run n8n:enable`)                            |
-| `deploy/quadlets/n8n.volume`          | `deploy/quadlets/` | Persistent n8n state volume (most state lives in the per-client Postgres)                                |
 | `deploy/systemd/backup-base.service`  | `deploy/systemd/`  | One-shot WAL-G base backup; pushes to R2                                                                 |
 | `deploy/systemd/backup-base.timer`    | `deploy/systemd/`  | Daily 03:15 UTC base backup timer (with random jitter)                                                   |
 | `deploy/systemd/backup-check.service` | `deploy/systemd/`  | Verifies the latest base backup + WAL chain are fresh                                                    |
@@ -94,7 +92,7 @@ is set as an explicit waiver.
 n8n is optional per client. `AUTOMATION_PROVIDER` unset or `noop` is a valid
 production configuration; the worker still runs and performs durable outbox
 processing without external delivery. When `AUTOMATION_PROVIDER=n8n`, set
-`N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET`. When
+`N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` to an external n8n endpoint. When
 `AUTOMATION_PROVIDER=webhook`, set `AUTOMATION_WEBHOOK_URL` and
 `AUTOMATION_WEBHOOK_SECRET`.
 
@@ -119,8 +117,8 @@ Sites built from this template are self-hosted on a Linux server:
 
 - **App container**: Podman running the SvelteKit + Bun image
 - **Reverse proxy**: host-installed Caddy (handles TLS, HSTS, compression, access logging) proxying to `127.0.0.1:<app_port>`
-- **Automation layer**: the required per-site outbox worker container; optional per-client n8n container when this client needs n8n
-- **Database**: required bundled `<project>-postgres` container/cluster with app and optional n8n databases isolated by role
+- **Automation layer**: the required per-site outbox worker container; optional external providers reached by HTTPS webhook
+- **Database**: required bundled `<project>-postgres` container/cluster for the website app
 - **Process management**: systemd user units via Podman Quadlet
 
 The default reachability model is deliberate: `deploy/quadlets/web.container`

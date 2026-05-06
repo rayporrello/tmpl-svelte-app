@@ -206,7 +206,6 @@ These values belong in `secrets.yaml`:
 - `DATABASE_DIRECT_URL` — host/operator URL for migrations, backups, restores, and Drizzle Studio against the same bundled Postgres
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — required bundled Postgres initialization values
 - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_PREFIX` — WAL-G/PITR backup target for the dedicated client cluster
-- `DB_POSTGRESDB_PASSWORD` — n8n database role password when this client enables the optional n8n bundle
 - `POSTMARK_SERVER_TOKEN` — transactional email API key
 - `SESSION_SECRET` — must be a long random string; never a placeholder
 - OAuth client secrets and callback tokens

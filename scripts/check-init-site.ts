@@ -51,8 +51,6 @@ const TARGET_FILES = [
 	'deploy/quadlets/postgres.container',
 	'deploy/quadlets/postgres.volume',
 	'deploy/quadlets/worker.container',
-	'deploy/quadlets/n8n.container',
-	'deploy/quadlets/n8n.volume',
 	'deploy/systemd/backup.service',
 	'deploy/systemd/backup.timer',
 	'deploy/systemd/backup-base.service',
@@ -122,13 +120,6 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 		'Description=Automation outbox worker — my-cool-site',
 		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
 	],
-	'deploy/quadlets/n8n.container': [
-		'Description=n8n — my-cool-site',
-		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
-		'Environment=DB_POSTGRESDB_DATABASE=my_cool_site_n8n',
-		'Environment=DB_POSTGRESDB_USER=my_cool_site_n8n_user',
-	],
-	'deploy/quadlets/n8n.volume': ['VolumeName=my-cool-site-n8n-data'],
 	'deploy/systemd/backup.service': [
 		'Description=Nightly backup (database + uploads) — my-cool-site',
 		'WorkingDirectory=%h/my-cool-site',
@@ -169,6 +160,10 @@ const LAUNCH_ENV = {
 	ORIGIN: 'https://acme-studio.dev',
 	PUBLIC_SITE_URL: 'https://acme-studio.dev',
 	DATABASE_URL: 'postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub',
+	POSTMARK_SERVER_TOKEN: 'postmark-token',
+	CONTACT_TO_EMAIL: 'hello@acme-studio.dev',
+	CONTACT_FROM_EMAIL: 'website@acme-studio.dev',
+	BACKUP_REMOTE: 'r2:bucket/acme-studio',
 };
 
 interface CommandResult {
@@ -209,7 +204,10 @@ function gitTrackedPaths(root: string): string[] {
 	if (result.status !== 0) {
 		fail(`git ls-files failed:\n${String(result.stderr)}`);
 	}
-	return result.stdout.toString('utf8').split('\0').filter(Boolean);
+	return result.stdout
+		.toString('utf8')
+		.split('\0')
+		.filter((relPath) => relPath && existsSync(join(root, relPath)));
 }
 
 function hashTrackedFiles(root: string, paths: string[]): string {
@@ -245,10 +243,17 @@ function copyTrackedFiles(): void {
 	if (fileList.status !== 0) {
 		fail(`git ls-files failed while preparing temp copy:\n${String(fileList.stderr)}`);
 	}
+	const archiveInput = Buffer.from(
+		fileList.stdout
+			.toString('utf8')
+			.split('\0')
+			.filter((relPath) => relPath && existsSync(join(ROOT, relPath)))
+			.join('\0') + '\0'
+	);
 
 	const archive = spawnSync('tar', ['--null', '-T', '-', '-cf', '-'], {
 		cwd: ROOT,
-		input: fileList.stdout,
+		input: archiveInput,
 		encoding: 'buffer',
 		maxBuffer: ARCHIVE_MAX_BYTES,
 	});
@@ -351,6 +356,7 @@ async function setupDependencies(): Promise<void> {
 
 	if (existsSync(rootNodeModules)) {
 		symlinkSync(rootNodeModules, tempNodeModules, 'dir');
+		await runCommand(['bun', 'run', 'svelte-kit', 'sync'], { cwd: TEMP_REPO });
 		dependencyMode = 'node_modules symlink';
 		return;
 	}

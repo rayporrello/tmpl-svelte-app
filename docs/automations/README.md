@@ -5,11 +5,11 @@ External workflow delivery is optional per ADR-024. `AUTOMATION_PROVIDER` unset
 or `noop` is valid in production: the required worker still processes outbox
 rows, but no external delivery is attempted.
 
-n8n is the preferred opt-in automation path for sites that need workflow
-orchestration. It is self-hosted, free, and matches the "lead-gen websites on a
-Linux box" model this template is built around. The website captures the lead in
-Postgres first; when n8n is enabled, the worker delivers events to n8n from a
-durable outbox so a brief n8n outage cannot lose leads.
+n8n is an opt-in external automation path for sites that need workflow
+orchestration. Per ADR-027 it is not bundled with the website appliance; use
+n8n.cloud or a separately hosted n8n instance. The website captures the lead in
+Postgres first, then the worker delivers events from a durable outbox so a
+brief receiver outage cannot lose leads.
 
 For the wire-level contract — payload shape, headers, auth modes, retry and
 dead-letter behavior, the standard "lead → Slack → email" workflow shape, and
@@ -48,18 +48,28 @@ Unset resolves to `noop`. Production preflight (`bun run deploy:preflight`) and
 launch (`bun run check:launch`) **fail** only when the selected provider is not
 production-valid or is missing its provider-specific config.
 
-| Provider  | Use                                                                     | Required env                                                  | Production gate                                                                                                              |
-| --------- | ----------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `n8n`     | Per-client n8n instance for sites that need workflow orchestration.     | `N8N_WEBHOOK_URL` (HTTPS), `N8N_WEBHOOK_SECRET`               | Required: URL must be HTTPS, secret must be set. Run `bun run n8n:enable` before installing the n8n Quadlet for this client. |
-| `webhook` | Escape hatch for Make, Zapier, or any generic HTTP POST receiver.       | `AUTOMATION_WEBHOOK_URL` (HTTPS), `AUTOMATION_WEBHOOK_SECRET` | Required: URL must be HTTPS, secret must be set.                                                                             |
-| `console` | Local dev visibility without outbound calls. Worker logs the envelope.  | none                                                          | **Forbidden in production.** Preflight and launch both fail with a hint to use `n8n` or explicit `noop`.                     |
-| `noop`    | Sites that have no automations. Worker marks events delivered silently. | none                                                          | Allowed when set explicitly or when `AUTOMATION_PROVIDER` is unset.                                                          |
+| Provider  | Use                                                                                         | Required env                                                  | Production gate                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `n8n`     | External n8n instance (shared self-hosted or n8n.cloud) using the n8n-specific body shape.  | `N8N_WEBHOOK_URL` (HTTPS), `N8N_WEBHOOK_SECRET`               | Required: URL must be HTTPS, secret must be set. n8n is external per ADR-027.                            |
+| `webhook` | External non-n8n platform: Make, Zapier, custom backend, or any generic HTTP POST receiver. | `AUTOMATION_WEBHOOK_URL` (HTTPS), `AUTOMATION_WEBHOOK_SECRET` | Required: URL must be HTTPS, secret must be set.                                                         |
+| `console` | Local dev visibility without outbound calls. Worker logs the envelope.                      | none                                                          | **Forbidden in production.** Preflight and launch both fail with a hint to use `n8n` or explicit `noop`. |
+| `noop`    | Sites that have no automations. Worker marks events delivered silently.                     | none                                                          | Allowed when set explicitly or when `AUTOMATION_PROVIDER` is unset.                                      |
 
 Provider-specific secrets are conditional. n8n secrets are required only when
 `AUTOMATION_PROVIDER=n8n`; generic webhook secrets are required only when
 `AUTOMATION_PROVIDER=webhook`. If a site has no automation needs yet, leave the
 provider unset or set `AUTOMATION_PROVIDER=noop` deliberately. Preflight will
 pass; the worker remains installed and durable outbox behavior is still present.
+
+The three real production cases are:
+
+- **No automation:** `AUTOMATION_PROVIDER=noop`. The outbox worker logs and
+  completes rows without external delivery.
+- **External non-n8n platform:** `AUTOMATION_PROVIDER=webhook` with URL and
+  secret. Use this for Zapier, Make, or custom HTTPS receivers.
+- **External n8n:** `AUTOMATION_PROVIDER=n8n` with `N8N_WEBHOOK_URL` and
+  `N8N_WEBHOOK_SECRET`, pointing at n8n.cloud or a separately hosted n8n
+  instance.
 
 ---
 
@@ -142,3 +152,5 @@ See [content-automation-contract.md](content-automation-contract.md) for the rul
 - [content-automation-contract.md](content-automation-contract.md) — rules for writing content files from automation
 - [n8n-patterns.md](n8n-patterns.md) — concrete workflow examples for n8n
 - [docs/cms/README.md](../cms/README.md) — how content files work
+- [ADR-024](../planning/adrs/ADR-024-lead-gen-website-appliance.md) — default lead-gen appliance contract
+- [ADR-027](../planning/adrs/ADR-027-lead-gen-bundle-excludes-n8n.md) — n8n is external, not bundled

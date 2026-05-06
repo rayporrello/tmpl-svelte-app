@@ -79,16 +79,15 @@ cp deploy/systemd/backup-check.timer   ~/.config/systemd/user/<project>-backup-c
 # Automation outbox worker (long-lived per-site container).
 cp deploy/quadlets/worker.container ~/.config/containers/systemd/<project>-worker.container
 
-# Optional per-client n8n bundle (only for clients running their own n8n).
-# Run bun run n8n:enable first to provision the n8n schema and role.
-# cp deploy/quadlets/n8n.volume    ~/.config/containers/systemd/<project>-n8n-data.volume
-# cp deploy/quadlets/n8n.container ~/.config/containers/systemd/<project>-n8n.container
-
 # Edit Image=, EnvironmentFile=, Network=, HostName=, and any loopback ports if needed
 $EDITOR ~/.config/containers/systemd/<project>-web.container
 $EDITOR ~/.config/containers/systemd/<project>-postgres.container
 $EDITOR ~/.config/containers/systemd/<project>-worker.container
 ```
+
+If a client uses n8n, provision n8n separately (n8n.cloud subscription, or its
+own Quadlet bundle on a separate host) and set `AUTOMATION_PROVIDER=n8n` with
+`N8N_WEBHOOK_URL` / `N8N_WEBHOOK_SECRET` pointing at that endpoint.
 
 Keep these env values aligned:
 

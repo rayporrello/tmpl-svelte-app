@@ -12,17 +12,15 @@ The companion docs:
 
 ---
 
-## Per-client n8n bundle
+## External n8n endpoint
 
-n8n is optional, but it is never shared across unrelated clients. When a site
-uses n8n, run `bun run n8n:enable` first. The helper creates a separate
-`<project>_n8n` database and `<project>_n8n_user` role inside the client's
-existing `<project>-postgres` cluster. The app role cannot read n8n data, and
-the n8n role cannot read app tables. WAL-G/PITR backs up the whole client
-cluster atomically.
+n8n is optional and external to the website appliance. When a site uses n8n,
+provision it separately (n8n.cloud, a shared self-hosted n8n, or a dedicated
+n8n host) and set `AUTOMATION_PROVIDER=n8n` with `N8N_WEBHOOK_URL` and
+`N8N_WEBHOOK_SECRET` pointing at that endpoint.
 
-Do not create a second Postgres container for n8n and do not point multiple
-client sites at one global n8n editor.
+The site bundle still owns only web, Postgres, and worker. n8n owns its own
+runtime, data, upgrades, and backups outside this repo.
 
 ## What the site sends
 
@@ -229,9 +227,9 @@ data). Lock it down:
 - Bind n8n behind Caddy basic auth (or your VPN), not the public internet.
 - Rotate `N8N_WEBHOOK_SECRET` if you suspect leakage; update both the site's
   env and the n8n Header Auth credential in lockstep.
-- Run a separate n8n instance per client (see the per-client n8n bundle).
-  One client's n8n editor must not be able to see another client's
-  credentials, workflows, or executions.
+- Use n8n's own access controls and credential boundaries. If one n8n instance
+  serves multiple clients, isolate workflows and credentials deliberately and
+  document that boundary outside this template.
 
 The webhook endpoint can be public (it's just an HTTP endpoint with auth);
 the editor UI must not be.

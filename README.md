@@ -48,25 +48,25 @@ This is a website-first SvelteKit template. The design system is native CSS, tok
 ADR-024 defines the default product profile as a reliable lead-gen website
 appliance. This is what currently ships:
 
-| Capability                          | Status                                                             |
-| ----------------------------------- | ------------------------------------------------------------------ |
-| Local bootstrap                     | Implemented                                                        |
-| Launch validation gates             | Implemented                                                        |
-| Deploy preflight gates              | Implemented                                                        |
-| Deploy smoke                        | Static surface only                                                |
-| Contact form persistence (Postgres) | Implemented                                                        |
-| Postmark lead notification          | Implemented; required in production by ADR-024                     |
-| Durable outbox + worker             | Implemented                                                        |
-| Optional n8n automation             | Implemented; opt-in per ADR-024                                    |
-| PITR backups (WAL-G)                | Implemented                                                        |
-| Restore drill                       | Script exists; scheduling and evidence persistence in pass 07      |
-| Rollback automation                 | Manual today; planned pass 04                                      |
-| Live health visibility              | `/healthz` + `/readyz` only; unified surface in pass 08            |
-| Uploads / content recovery          | Local backup; offsite chain to be verified before pass 07          |
-| Migration safety classification     | Not implemented; planned pass 03                                   |
-| Junior-hire recovery doc            | `docs/operations/restore.md` exists; rewrite for audience deferred |
-| Fleet-wide ops view                 | Not implemented; deferred until ≥2 client sites                    |
-| Client editing during GitHub outage | Not supported (Sveltia is git-backed per ADR-024)                  |
+| Capability                          | Status                                                                                        |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| Local bootstrap                     | Implemented                                                                                   |
+| Launch validation gates             | Implemented                                                                                   |
+| Deploy preflight gates              | Implemented                                                                                   |
+| Deploy smoke                        | Static surface only                                                                           |
+| Contact form persistence (Postgres) | Implemented                                                                                   |
+| Postmark lead notification          | Implemented; required in production by ADR-024                                                |
+| Durable outbox + worker             | Implemented                                                                                   |
+| External automation provider        | Implemented; `AUTOMATION_PROVIDER=n8n` or `webhook`; n8n is external per ADR-027, not bundled |
+| PITR backups (WAL-G)                | Implemented                                                                                   |
+| Restore drill                       | Script exists; scheduling and evidence persistence in pass 07                                 |
+| Rollback automation                 | Manual today; planned pass 05                                                                 |
+| Live health visibility              | `/healthz` + `/readyz` only; unified surface in pass 08                                       |
+| Uploads / content recovery          | Local backup; offsite chain to be verified before pass 07                                     |
+| Migration safety classification     | Not implemented; planned pass 03                                                              |
+| Junior-hire recovery doc            | `docs/operations/restore.md` exists; rewrite for audience deferred                            |
+| Fleet-wide ops view                 | Not implemented; deferred until ≥2 client sites                                               |
+| Client editing during GitHub outage | Not supported (Sveltia is git-backed per ADR-024)                                             |
 
 A "Warm Coral" re-skin example lives at [src/lib/styles/brand.example.css](src/lib/styles/brand.example.css) — it shows exactly which token sections to swap when starting a new brand.
 
@@ -156,9 +156,9 @@ Full docs: [docs/database/README.md](docs/database/README.md) · [docs/privacy/d
 Automation is durable by default and external workflow delivery is optional.
 `AUTOMATION_PROVIDER` unset or `noop` is valid for production; the worker still
 runs and marks outbox events delivered without calling an external system. n8n
-is an optional per-client automation layer. When enabled, it uses a
-separate project-scoped n8n database and n8n role inside the same
-client Postgres cluster; it is never shared across unrelated clients.
+is an optional external provider per ADR-027: point `N8N_WEBHOOK_URL` at
+n8n.cloud or a separately hosted n8n endpoint. Use `AUTOMATION_PROVIDER=webhook`
+for Zapier, Make, or custom HTTPS receivers.
 
 - **Content automations:** n8n writes files to `content/` via the GitHub API, following the same schema as Sveltia CMS
 - **Runtime automations:** SvelteKit server actions insert outbox rows in `automation_events`; `bun run automation:worker` delivers, retries with backoff, and dead-letters exhausted failures
@@ -277,7 +277,6 @@ bun run backup:base          # WAL-G base backup (also fired by backup-base.time
 bun run backup:wal:check     # verify latest archived WAL is fresh in R2
 bun run backup:pitr:check    # verify base + WAL chain are intact for PITR
 bun run backup:restore:drill # non-destructive PITR restore drill (run quarterly)
-bun run n8n:enable           # provision the per-site n8n database + role inside the client's Postgres
 bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)
@@ -363,7 +362,6 @@ The template ships a complete container + reverse-proxy deployment path:
 | `deploy/quadlets/web.network`      | Project-local Podman network                                                |
 | `deploy/quadlets/postgres.*`       | Bundled Postgres+WAL-G container and persistent volume                      |
 | `deploy/quadlets/worker.container` | Long-lived per-site automation outbox worker (replaces the systemd timer)   |
-| `deploy/quadlets/n8n.*`            | Optional per-client n8n bundle (activate with `bun run n8n:enable`)         |
 | `deploy/systemd/backup-base.*`     | Daily WAL-G base backup timer/service                                       |
 | `deploy/systemd/backup-check.*`    | 6-hour PITR freshness check timer/service                                   |
 | `deploy/systemd/backup.*`          | Legacy nightly pg_dump timer (convenience export, not the reliability path) |
@@ -379,14 +377,14 @@ The full optional module registry lives at **[docs/modules/README.md](docs/modul
 
 ### Active seams (configured but inert until env vars are set)
 
-| Module          | Activation                                                                                                                                                                                         |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contact form    | Already live at `/contact`; saves to `contact_submissions`. Local/dev may log email to stdout when Postmark is absent. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md). |
-| Postmark email  | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL`; required for production launch by ADR-024 unless explicitly waived.                                                     |
-| n8n webhooks    | Set `AUTOMATION_PROVIDER=n8n`, `N8N_WEBHOOK_URL`, and `N8N_WEBHOOK_SECRET`. See [docs/automations/README.md](docs/automations/README.md).                                                          |
-| Privacy pruning | Run `bun run privacy:prune` for dry-run counts and `bun run privacy:prune -- --apply` from scheduled maintenance. See [docs/privacy/data-retention.md](docs/privacy/data-retention.md).            |
-| Analytics + GTM | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                                        |
-| Cookie consent  | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md).                      |
+| Module                       | Activation                                                                                                                                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contact form                 | Already live at `/contact`; saves to `contact_submissions`. Local/dev may log email to stdout when Postmark is absent. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md). |
+| Postmark email               | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL`; required for production launch by ADR-024 unless explicitly waived.                                                     |
+| External automation provider | Set `AUTOMATION_PROVIDER=n8n` or `webhook` with the matching webhook URL and secret. n8n is external per ADR-027, not bundled. See [docs/automations/README.md](docs/automations/README.md).       |
+| Privacy pruning              | Run `bun run privacy:prune` for dry-run counts and `bun run privacy:prune -- --apply` from scheduled maintenance. See [docs/privacy/data-retention.md](docs/privacy/data-retention.md).            |
+| Analytics + GTM              | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                                        |
+| Cookie consent               | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md).                      |
 
 ### Not installed — add per project
 

@@ -80,7 +80,6 @@
 		"backup:wal:check": "bash scripts/backup-wal-check.sh",
 		"backup:pitr:check": "bash scripts/backup-pitr-check.sh",
 		"backup:restore:drill": "bun scripts/backup-restore-drill.ts",
-		"n8n:enable": "bash scripts/enable-n8n.sh",
 		"reset:dev": "bun scripts/reset-dev.ts",
 		"seed:dev": "bun scripts/seed-dev.ts",
 		"restore:db": "bash scripts/restore-db.sh",

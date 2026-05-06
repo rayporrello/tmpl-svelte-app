@@ -81,8 +81,6 @@ const BASE_COPY_PATHS = [
 	'deploy/quadlets/postgres.container',
 	'deploy/quadlets/postgres.volume',
 	'deploy/quadlets/worker.container',
-	'deploy/quadlets/n8n.container',
-	'deploy/quadlets/n8n.volume',
 	'deploy/systemd/backup.service',
 	'deploy/systemd/backup.timer',
 	'deploy/systemd/backup-base.service',

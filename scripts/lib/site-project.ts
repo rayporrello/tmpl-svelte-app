@@ -96,8 +96,6 @@ export const PROJECT_GENERATED_FILES = [
 	'deploy/quadlets/postgres.container',
 	'deploy/quadlets/postgres.volume',
 	'deploy/quadlets/worker.container',
-	'deploy/quadlets/n8n.container',
-	'deploy/quadlets/n8n.volume',
 	'deploy/systemd/backup.service',
 	'deploy/systemd/backup.timer',
 	'deploy/systemd/backup-base.service',
@@ -407,11 +405,6 @@ function rewriteCaddyfile(content: string, manifest: SiteProjectManifest): strin
 		/(redir https:\/\/)[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(\{uri\} permanent)/u,
 		`$1${apex}$2`
 	);
-	// Sweep any remaining example.com mentions (e.g. inside the commented n8n
-	// snippet) so placeholder detection passes after init:site. The commented
-	// block stays commented; we just project-substitute the hostname tokens
-	// inside it.
-	out = out.replace(/n8n\.example\.com/gu, `n8n.${apex}`);
 	out = out.replace(/\bexample\.com\b/gu, apex);
 	return out;
 }
@@ -594,38 +587,6 @@ function rewriteBackupCheckSystemd(content: string, manifest: SiteProjectManifes
 	return out;
 }
 
-function rewriteN8nQuadlet(content: string, manifest: SiteProjectManifest): string {
-	const dbSlug = manifest.project.projectSlug.replace(/-/g, '_');
-	let out = content
-		.replace(/<owner>/gu, manifest.project.githubOwner)
-		.replace(/<name>/gu, manifest.project.githubRepo)
-		.replace(/<project>/gu, manifest.project.projectSlug);
-	out = out.replace(
-		/^(Description=n8n — )(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	out = out.replace(
-		/^(Environment=DB_POSTGRESDB_DATABASE=)(.+)$/mu,
-		(_, prefix) => `${prefix}${dbSlug}_n8n`
-	);
-	out = out.replace(
-		/^(Environment=DB_POSTGRESDB_USER=)(.+)$/mu,
-		(_, prefix) => `${prefix}${dbSlug}_n8n_user`
-	);
-	return out;
-}
-
-function rewriteN8nVolume(content: string, manifest: SiteProjectManifest): string {
-	return content
-		.replace(/<owner>/gu, manifest.project.githubOwner)
-		.replace(/<name>/gu, manifest.project.githubRepo)
-		.replace(/<project>/gu, manifest.project.projectSlug);
-}
-
 const REWRITERS: Record<string, (content: string, manifest: SiteProjectManifest) => string> = {
 	'package.json': rewritePackageJson,
 	'src/lib/config/site.ts': rewriteSiteTs,
@@ -640,8 +601,6 @@ const REWRITERS: Record<string, (content: string, manifest: SiteProjectManifest)
 	'deploy/quadlets/postgres.container': rewritePostgresQuadlet,
 	'deploy/quadlets/postgres.volume': rewritePostgresVolume,
 	'deploy/quadlets/worker.container': rewriteWorkerQuadlet,
-	'deploy/quadlets/n8n.container': rewriteN8nQuadlet,
-	'deploy/quadlets/n8n.volume': rewriteN8nVolume,
 	'deploy/systemd/backup.service': rewriteBackupSystemd,
 	'deploy/systemd/backup.timer': rewriteBackupSystemd,
 	'deploy/systemd/backup-base.service': rewriteBackupBaseSystemd,
