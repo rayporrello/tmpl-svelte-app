@@ -37,8 +37,8 @@ it without context overflow. If it grows, split.
 | 02  | OpsResult convergence with `doctor.ts` canary       | complete              | n/a     |
 | 03  | Ops-status ledger + release state + Quadlet helpers | complete              | ADR-025 |
 | 04  | Lock site bundle: remove bundled n8n                | complete              | ADR-027 |
-| 05  | Rollback CLI                                        | drafted, ready to run | n/a     |
-| 06  | `deploy:apply` orchestrator                         | not yet drafted       | TBD     |
+| 05  | Rollback CLI                                        | complete              | n/a     |
+| 06  | `deploy:apply` orchestrator                         | drafted, ready to run | ADR-028 |
 | 07  | E2E smoke through Postmark sandbox                  | not yet drafted       | TBD     |
 | 08  | Restore-drill scheduling and evidence persistence   | not yet drafted       | TBD     |
 | 09  | `health:live` ledger view                           | not yet drafted       | TBD     |

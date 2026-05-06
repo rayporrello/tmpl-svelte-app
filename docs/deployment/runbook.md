@@ -211,26 +211,45 @@ startup because failed or destructive migrations should be operator-visible.
 
 ---
 
-## Rollback by SHA
+## Rollback
 
 ```bash
-# 1. Choose the SHA to roll back to (from git log or GHCR tags)
-PREV_SHA=<previous-full-sha>
+bun run rollback --status
+bun run rollback --to previous --dry-run
+bun run rollback --to previous
+```
+
+Rollback reads the ops-status ledger, selects the previous rollback-safe
+release, edits the web and worker Quadlet `Image=` lines, and prints the
+`systemctl` commands for the operator to run. It never reverses migrations.
+See [docs/operations/rollback.md](../operations/rollback.md) for the full
+operator runbook.
+
+Total downtime: typically <5 seconds once the image is already local.
+
+### Manual fallback
+
+Use this only when the ledger or CLI is unavailable and you have independently
+confirmed the target image is compatible with the current database schema.
+
+```bash
+# 1. Choose the image ref to restore
+PREV_IMAGE=ghcr.io/<owner>/<name>:<previous-full-sha>
 
 # 2. The previous image should still be in the local store.
 #    If it was pruned, pull it first:
-# podman pull ghcr.io/<owner>/<name>:$PREV_SHA
+# podman pull "$PREV_IMAGE"
 
-# 3. Update the Quadlet
-sed -i "s|Image=ghcr.io/<owner>/<name>:.*|Image=ghcr.io/<owner>/<name>:$PREV_SHA|" \
+# 3. Update the web and worker Quadlets
+sed -i "s|^Image=.*|Image=$PREV_IMAGE|" \
   ~/.config/containers/systemd/<project>-web.container
+sed -i "s|^Image=.*|Image=$PREV_IMAGE|" \
+  ~/.config/containers/systemd/<project>-worker.container
 
 # 4. Reload and restart
 systemctl --user daemon-reload
-systemctl --user restart <project>-web
+systemctl --user restart <project>-web.service <project>-worker.service
 ```
-
-Total downtime: typically <5 seconds (restart without pull).
 
 ---
 
