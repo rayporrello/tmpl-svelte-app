@@ -18,6 +18,8 @@ import { basename, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import sharp from 'sharp';
 
+import { LAUNCH_TEST_ENV } from './lib/launch-blockers';
+
 const ROOT = resolve(import.meta.dir, '..');
 const TEMP_ROOT = mkdtempSync(join(tmpdir(), 'tmpl-svelte-app-'));
 const TEMP_REPO = join(TEMP_ROOT, 'repo');
@@ -166,16 +168,6 @@ const FORBIDDEN_AFTER_INIT = [
 	'<project>',
 	'<unit-name>',
 ];
-
-const LAUNCH_ENV = {
-	ORIGIN: 'https://acme-studio.dev',
-	PUBLIC_SITE_URL: 'https://acme-studio.dev',
-	DATABASE_URL: 'postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub',
-	POSTMARK_SERVER_TOKEN: 'postmark-token',
-	CONTACT_TO_EMAIL: 'hello@acme-studio.dev',
-	CONTACT_FROM_EMAIL: 'website@acme-studio.dev',
-	BACKUP_REMOTE: 'r2:bucket/acme-studio',
-};
 
 interface CommandResult {
 	command: string;
@@ -508,7 +500,7 @@ async function main(): Promise<void> {
 
 	const launchBeforeOg = await runCommand(['bun', 'run', 'check:launch'], {
 		cwd: TEMP_REPO,
-		env: LAUNCH_ENV,
+		env: LAUNCH_TEST_ENV,
 		allowFailure: true,
 	});
 	assertOnlyOgLaunchFailure(launchBeforeOg);
@@ -517,7 +509,7 @@ async function main(): Promise<void> {
 	await runCommand(['bun', 'run', 'check:assets'], { cwd: TEMP_REPO });
 	await runCommand(['bun', 'run', 'check:launch'], {
 		cwd: TEMP_REPO,
-		env: LAUNCH_ENV,
+		env: LAUNCH_TEST_ENV,
 	});
 
 	const hostHashAfter = hashTrackedFiles(ROOT, hostTrackedPaths);

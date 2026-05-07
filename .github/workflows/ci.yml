@@ -478,11 +478,18 @@ jobs:
         if: steps.state.outputs.skip != 'true'
         run: bun install --frozen-lockfile
 
+      - name: Set production overrides (if configured by project)
+        if: steps.state.outputs.skip != 'true'
+        run: |
+          if [ -n "${{ vars.PRODUCTION_ORIGIN }}" ]; then
+            echo "ORIGIN=${{ vars.PRODUCTION_ORIGIN }}" >> "$GITHUB_ENV"
+            echo "PUBLIC_SITE_URL=${{ vars.PRODUCTION_ORIGIN }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Fill remaining launch env from canonical stubs
+        if: steps.state.outputs.skip != 'true'
+        run: bun run scripts/print-launch-test-env.ts >> "$GITHUB_ENV"
+
       - name: Run validate:launch
         if: steps.state.outputs.skip != 'true'
         run: bun run validate:launch
-        env:
-          # Stubs so env validation passes; check:launch reports structural errors.
-          ORIGIN: ${{ vars.PRODUCTION_ORIGIN || 'https://example.com' }}
-          PUBLIC_SITE_URL: ${{ vars.PRODUCTION_ORIGIN || 'https://example.com' }}
-          DATABASE_URL: postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub
