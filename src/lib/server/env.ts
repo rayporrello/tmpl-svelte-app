@@ -13,6 +13,13 @@ import * as v from 'valibot';
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
+const positiveIntegerEnv = (name: string) =>
+	v.pipe(
+		v.string(),
+		v.regex(/^\d+$/u, `${name} must be a positive integer.`),
+		v.check((value) => Number(value) >= 1, `${name} must be at least 1.`)
+	);
+
 const publicSchema = v.object({
 	ORIGIN: v.pipe(v.string(), v.minLength(1, 'ORIGIN must not be empty')),
 	PUBLIC_SITE_URL: v.pipe(v.string(), v.minLength(1, 'PUBLIC_SITE_URL must not be empty')),
@@ -27,6 +34,10 @@ const privateSchema = v.object({
 	SESSION_SECRET: v.optional(v.string()),
 	SHUTDOWN_TIMEOUT_MS: v.optional(v.string()),
 	POSTMARK_SERVER_TOKEN: v.optional(v.string()),
+	POSTMARK_API_TEST: v.optional(v.string()),
+	SMOKE_TEST_SECRET: v.optional(v.string()),
+	SMOKE_TEST_RATE_LIMIT_PER_HOUR: v.optional(positiveIntegerEnv('SMOKE_TEST_RATE_LIMIT_PER_HOUR')),
+	SMOKE_TEST_BACKLOG_THRESHOLD: v.optional(positiveIntegerEnv('SMOKE_TEST_BACKLOG_THRESHOLD')),
 	CONTACT_TO_EMAIL: v.optional(v.string()),
 	CONTACT_FROM_EMAIL: v.optional(v.string()),
 	AUTOMATION_PROVIDER: v.optional(
@@ -115,6 +126,10 @@ export function initEnv(): void {
 		SESSION_SECRET: process.env.SESSION_SECRET,
 		SHUTDOWN_TIMEOUT_MS: process.env.SHUTDOWN_TIMEOUT_MS,
 		POSTMARK_SERVER_TOKEN: process.env.POSTMARK_SERVER_TOKEN,
+		POSTMARK_API_TEST: process.env.POSTMARK_API_TEST,
+		SMOKE_TEST_SECRET: process.env.SMOKE_TEST_SECRET,
+		SMOKE_TEST_RATE_LIMIT_PER_HOUR: process.env.SMOKE_TEST_RATE_LIMIT_PER_HOUR,
+		SMOKE_TEST_BACKLOG_THRESHOLD: process.env.SMOKE_TEST_BACKLOG_THRESHOLD,
 		CONTACT_TO_EMAIL: process.env.CONTACT_TO_EMAIL,
 		CONTACT_FROM_EMAIL: process.env.CONTACT_FROM_EMAIL,
 		AUTOMATION_PROVIDER: process.env.AUTOMATION_PROVIDER,
@@ -156,6 +171,20 @@ export function initEnv(): void {
 		for (const issue of privateResult.issues) {
 			const key = issue.path?.map((p) => String((p as { key: string }).key)).join('.') ?? 'unknown';
 			errors.push(`${key}: ${issue.message}`);
+		}
+	}
+
+	if (privateResult.success) {
+		const smokeSecret = privateResult.output.SMOKE_TEST_SECRET?.trim();
+		if (smokeSecret) {
+			if (!/^[a-f0-9]{32,}$/iu.test(smokeSecret)) {
+				errors.push(
+					'SMOKE_TEST_SECRET: must be at least 32 hex characters. Generate with `openssl rand -hex 32`.'
+				);
+			}
+			if (!privateResult.output.POSTMARK_API_TEST?.trim()) {
+				errors.push('POSTMARK_API_TEST: required when SMOKE_TEST_SECRET is set.');
+			}
 		}
 	}
 

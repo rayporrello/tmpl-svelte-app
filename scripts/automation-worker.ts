@@ -52,6 +52,14 @@ interface ClaimedEventRow extends AutomationOutboxRow {
 	idempotency_key: string;
 }
 
+function leadCreatedSubmissionId(payload: unknown): string | null {
+	if (!payload || typeof payload !== 'object') return null;
+	const record = payload as Record<string, unknown>;
+	return typeof record.submission_id === 'string' && record.submission_id.length > 0
+		? record.submission_id
+		: null;
+}
+
 const DEFAULT_OPTIONS: AutomationWorkerOptions = {
 	batchSize: 10,
 	staleAfterSeconds: 15 * 60,
@@ -225,6 +233,43 @@ async function markCompleted(
 	`;
 }
 
+async function markSmokeSkipped(
+	sql: postgres.Sql,
+	eventId: string,
+	attemptCount: number
+): Promise<void> {
+	const metadata = {
+		automation_skipped: true,
+		automation_skip_reason: 'smoke_test',
+		automation_skipped_at: new Date().toISOString(),
+	};
+	await sql`
+		update automation_events
+		set
+			status = 'completed',
+			attempt_count = ${attemptCount + 1},
+			payload = payload || ${JSON.stringify(metadata)}::jsonb,
+			last_error = null,
+			locked_at = null,
+			locked_by = null,
+			updated_at = now()
+		where id = ${eventId}
+	`;
+}
+
+async function isSmokeLeadCreated(sql: postgres.Sql, row: ClaimedEventRow): Promise<boolean> {
+	if (row.event_type !== 'lead.created') return false;
+	const submissionId = leadCreatedSubmissionId(row.payload);
+	if (!submissionId) return false;
+	const rows = await sql`
+		select is_smoke_test
+		from contact_submissions
+		where id = ${submissionId}
+		limit 1
+	`;
+	return rows[0]?.is_smoke_test === true;
+}
+
 async function markFailedOrRetry(
 	sql: postgres.Sql,
 	row: ClaimedEventRow,
@@ -274,6 +319,11 @@ async function deliverEvent(
 	sql: postgres.Sql,
 	row: ClaimedEventRow
 ): Promise<'delivered' | 'retry' | 'dead-letter' | 'skipped'> {
+	if (await isSmokeLeadCreated(sql, row)) {
+		await markSmokeSkipped(sql, row.id, row.attempt_count);
+		return 'skipped';
+	}
+
 	const handler = getAutomationEventHandler(row.event_type);
 	if (!handler) {
 		return await markFailedOrRetry(

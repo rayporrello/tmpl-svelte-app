@@ -7,6 +7,7 @@ import {
 	jsonb,
 	index,
 	uniqueIndex,
+	boolean,
 } from 'drizzle-orm/pg-core';
 
 export const contactSubmissions = pgTable(
@@ -20,8 +21,12 @@ export const contactSubmissions = pgTable(
 		sourcePath: text('source_path'),
 		userAgent: text('user_agent'),
 		requestId: text('request_id'),
+		isSmokeTest: boolean('is_smoke_test').default(false).notNull(),
 	},
-	(table) => [index('contact_submissions_created_at_idx').on(table.createdAt)]
+	(table) => [
+		index('contact_submissions_created_at_idx').on(table.createdAt),
+		index('contact_submissions_is_smoke_test_idx').on(table.isSmokeTest),
+	]
 );
 
 // FORM SCAFFOLD: source tables go above this line.

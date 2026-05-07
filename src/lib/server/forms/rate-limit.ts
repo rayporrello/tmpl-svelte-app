@@ -32,12 +32,22 @@ interface Bucket {
 }
 
 const buckets = new Map<string, Bucket>();
+const smokeBuckets = new Map<string, Bucket>();
 
 function getBucket(key: string): Bucket {
 	let bucket = buckets.get(key);
 	if (!bucket) {
 		bucket = { tokens: CAPACITY, lastRefill: Date.now() };
 		buckets.set(key, bucket);
+	}
+	return bucket;
+}
+
+function getSmokeBucket(key: string, capacity: number): Bucket {
+	let bucket = smokeBuckets.get(key);
+	if (!bucket) {
+		bucket = { tokens: capacity, lastRefill: Date.now() };
+		smokeBuckets.set(key, bucket);
 	}
 	return bucket;
 }
@@ -66,4 +76,25 @@ export function checkRateLimit(key: string): boolean {
 		return true;
 	}
 	return false;
+}
+
+export function checkSmokeRateLimit(key: string, capacity: number): boolean {
+	if (!Number.isSafeInteger(capacity) || capacity < 1) return false;
+
+	const bucket = getSmokeBucket(key, capacity);
+	const now = Date.now();
+	const elapsed = (now - bucket.lastRefill) / 1000;
+	const refillRatePerSecond = capacity / (60 * 60);
+	bucket.tokens = Math.min(capacity, bucket.tokens + elapsed * refillRatePerSecond);
+	bucket.lastRefill = now;
+
+	if (bucket.tokens >= 1) {
+		bucket.tokens -= 1;
+		return true;
+	}
+	return false;
+}
+
+export function resetSmokeRateLimitForTests(): void {
+	smokeBuckets.clear();
 }

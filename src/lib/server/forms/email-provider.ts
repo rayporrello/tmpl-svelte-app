@@ -23,6 +23,16 @@ export interface EmailPayload {
 	replyTo?: string;
 }
 
+export interface EmailSendOptions {
+	useTestToken?: boolean;
+}
+
+export interface EmailSendResult {
+	provider?: string;
+	testTokenUsed?: boolean;
+	metadata?: Record<string, unknown>;
+}
+
 export interface EmailProvider {
-	send(payload: EmailPayload): Promise<void>;
+	send(payload: EmailPayload, opts?: EmailSendOptions): Promise<void | EmailSendResult>;
 }

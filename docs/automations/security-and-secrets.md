@@ -25,8 +25,14 @@ secret management and the env contract.
 | `AUTOMATION_WEBHOOK_SECRET`      | `webhook` | Shared secret used by Header auth or HMAC                        |
 | `AUTOMATION_WEBHOOK_AUTH_MODE`   | `webhook` | `header` (default) or `hmac`                                     |
 | `AUTOMATION_WEBHOOK_AUTH_HEADER` | `webhook` | Header name in `header` mode (default `X-Site-Auth`)             |
+| `SMOKE_TEST_SECRET`              | smoke     | Authenticates deploy-smoke POSTs to `/contact`; backdoor secret  |
+| `POSTMARK_API_TEST`              | smoke     | Postmark test API token used for smoke email only                |
 
 `console` and `noop` require no provider-specific URL or secret.
+
+When `SMOKE_TEST_SECRET` is set, `POSTMARK_API_TEST` is required. Smoke rows
+skip automation provider delivery; the worker marks their outbox rows completed
+with `automation_skipped=true`.
 
 **Production preflight is strict.** `bun run deploy:preflight` and
 `bun run check:launch` both **fail** if `AUTOMATION_PROVIDER` is `n8n`/`webhook`

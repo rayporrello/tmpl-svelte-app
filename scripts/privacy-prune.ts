@@ -34,6 +34,8 @@ interface PruneResult {
 	deleted: number;
 }
 
+export const SMOKE_TEST_RETENTION_DAYS = 1;
+
 const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/u;
 
 function usage(): string {
@@ -143,6 +145,29 @@ async function countContactSubmissions(sql: postgres.Sql, cutoff: Date): Promise
 
 async function deleteContactSubmissions(sql: postgres.Sql, cutoff: Date): Promise<number> {
 	return await deleteSourceTableRows(sql, 'contact_submissions', cutoff);
+}
+
+async function countSmokeContactSubmissions(sql: postgres.Sql, cutoff: Date): Promise<number> {
+	const rows = await sql`
+		select count(*)::int as count
+		from contact_submissions
+		where is_smoke_test = true
+			and created_at < ${cutoff}
+	`;
+	return asCount(rows);
+}
+
+async function deleteSmokeContactSubmissions(sql: postgres.Sql, cutoff: Date): Promise<number> {
+	const rows = await sql`
+		with deleted as (
+			delete from contact_submissions
+			where is_smoke_test = true
+				and created_at < ${cutoff}
+			returning 1
+		)
+		select count(*)::int as count from deleted
+	`;
+	return asCount(rows);
 }
 
 function assertSafeIdentifier(identifier: string): void {
@@ -280,6 +305,16 @@ export async function runPrune(config: PruneConfig): Promise<PruneResult[]> {
 	const sql = postgres(databaseUrl, { max: 1 });
 	try {
 		const results: PruneResult[] = [];
+
+		results.push(
+			await collectResult(
+				'contact_submissions smoke tests',
+				SMOKE_TEST_RETENTION_DAYS,
+				config.apply,
+				(cutoff) => countSmokeContactSubmissions(sql, cutoff),
+				(cutoff) => deleteSmokeContactSubmissions(sql, cutoff)
+			)
+		);
 
 		for (const form of businessFormRegistry) {
 			const days = form.id === 'contact' ? config.contactDays : form.retentionDays;

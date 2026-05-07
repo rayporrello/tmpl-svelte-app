@@ -22,6 +22,9 @@ export const ERRORS = {
 	'LAUNCH-BACKUP-001': 'production backup config missing',
 	'LAUNCH-EMAIL-001': 'contact form still console-only (POSTMARK_SERVER_TOKEN unset)',
 	'LAUNCH-AUTOMATION-001': 'automation provider config incomplete for production',
+	'LAUNCH-SMOKE-001': 'E2E smoke secret missing or malformed',
+	'LAUNCH-SMOKE-002': 'Postmark test token missing for E2E smoke',
+	'LAUNCH-SMOKE-003': 'E2E smoke database migration missing',
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;

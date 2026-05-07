@@ -88,6 +88,8 @@ const PROCESS_ENV_FALLBACK_KEYS = [
 	'AUTOMATION_WEBHOOK_AUTH_MODE',
 	'AUTOMATION_WEBHOOK_AUTH_HEADER',
 	'POSTMARK_SERVER_TOKEN',
+	'POSTMARK_API_TEST',
+	'SMOKE_TEST_SECRET',
 ] as const;
 const SITE_TITLE_PLACEHOLDERS = new Set([
 	'',
@@ -523,6 +525,61 @@ async function checkAutomationProvider(
 	return pass(`AUTOMATION_PROVIDER=${config.provider} configured in ${reference.label} (${auth}).`);
 }
 
+function smokeEnv(context?: LaunchBlockerCheckContext): EnvReference {
+	return readLaunchEnv(context);
+}
+
+async function checkSmokeSecret(context?: LaunchBlockerCheckContext): Promise<LaunchBlockerResult> {
+	const reference = smokeEnv(context);
+	if (!reference.ok) return warn(`E2E smoke could not be checked: ${reference.detail}.`);
+
+	const secret = reference.env.SMOKE_TEST_SECRET?.trim();
+	if (!secret) {
+		return warn(
+			`SMOKE_TEST_SECRET is not set in ${reference.label}; deploy:smoke will skip E2E coverage.`
+		);
+	}
+	if (!/^[a-f0-9]{32,}$/iu.test(secret)) {
+		return fail(
+			`SMOKE_TEST_SECRET in ${reference.label} must be at least 32 hex characters; generate with openssl rand -hex 32.`
+		);
+	}
+	return pass(`SMOKE_TEST_SECRET is production-shaped in ${reference.label}.`);
+}
+
+async function checkSmokePostmarkTestToken(
+	context?: LaunchBlockerCheckContext
+): Promise<LaunchBlockerResult> {
+	const reference = smokeEnv(context);
+	if (!reference.ok) return warn(`E2E smoke could not be checked: ${reference.detail}.`);
+
+	if (!reference.env.SMOKE_TEST_SECRET?.trim()) {
+		return pass('E2E smoke is disabled; POSTMARK_API_TEST is not required.');
+	}
+	if (!reference.env.POSTMARK_API_TEST?.trim()) {
+		return fail(`POSTMARK_API_TEST is missing from ${reference.label} while E2E smoke is enabled.`);
+	}
+	return pass(`POSTMARK_API_TEST is set in ${reference.label}.`);
+}
+
+async function checkSmokeMigration(
+	context?: LaunchBlockerCheckContext
+): Promise<LaunchBlockerResult> {
+	const reference = smokeEnv(context);
+	if (!reference.ok) return warn(`E2E smoke migration could not be checked: ${reference.detail}.`);
+	if (!reference.env.SMOKE_TEST_SECRET?.trim()) {
+		return pass('E2E smoke is disabled; smoke migration is not launch-blocking.');
+	}
+
+	const rootDir = rootDirFrom(context);
+	const schema = readText(rootDir, 'src/lib/server/db/schema.ts') ?? '';
+	const migrations = readText(rootDir, 'drizzle/0003_smoke_test_contact_rows.sql') ?? '';
+	if (!schema.includes('isSmokeTest') || !migrations.includes('is_smoke_test')) {
+		return fail('is_smoke_test is missing from schema.ts or the Drizzle smoke migration.');
+	}
+	return pass('is_smoke_test exists in schema.ts and the Drizzle smoke migration.');
+}
+
 async function checkProjectManifestDrift(
 	context?: LaunchBlockerCheckContext
 ): Promise<LaunchBlockerResult> {
@@ -641,6 +698,31 @@ export const LAUNCH_BLOCKERS: LaunchBlocker[] = [
 		fixHint:
 			'NEXT: Set POSTMARK_SERVER_TOKEN, CONTACT_TO_EMAIL, and CONTACT_FROM_EMAIL, or set LAUNCH_ALLOW_CONSOLE_EMAIL=1 only for an explicit waiver.',
 		docsPath: 'docs/design-system/forms-guide.md',
+	},
+	{
+		id: 'LAUNCH-SMOKE-001',
+		label: 'E2E smoke secret is configured',
+		severity: 'recommended',
+		check: checkSmokeSecret,
+		fixHint:
+			'NEXT: Set SMOKE_TEST_SECRET from `openssl rand -hex 32`, or accept deploy:smoke E2E skip.',
+		docsPath: 'docs/operations/smoke.md',
+	},
+	{
+		id: 'LAUNCH-SMOKE-002',
+		label: 'Postmark test token is configured when E2E smoke is enabled',
+		severity: 'required',
+		check: checkSmokePostmarkTestToken,
+		fixHint: 'NEXT: Set POSTMARK_API_TEST when SMOKE_TEST_SECRET is set.',
+		docsPath: 'docs/operations/smoke.md',
+	},
+	{
+		id: 'LAUNCH-SMOKE-003',
+		label: 'Smoke-test contact column is present',
+		severity: 'required',
+		check: checkSmokeMigration,
+		fixHint: 'NEXT: Apply the Drizzle migration that adds contact_submissions.is_smoke_test.',
+		docsPath: 'docs/database/README.md',
 	},
 ];
 

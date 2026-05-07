@@ -39,8 +39,8 @@ it without context overflow. If it grows, split.
 | 04  | Lock site bundle: remove bundled n8n                | complete              | ADR-027 |
 | 05  | Rollback CLI                                        | complete              | n/a     |
 | 06  | `deploy:apply` orchestrator                         | complete              | ADR-028 |
-| 07  | E2E smoke through Postmark (authenticated backdoor) | drafted, ready to run | ADR-029 |
-| 08  | Restore-drill scheduling and evidence persistence   | not yet drafted       | TBD     |
+| 07  | E2E smoke through Postmark (authenticated backdoor) | complete              | ADR-029 |
+| 08  | Restore-drill scheduling and evidence persistence   | drafted, ready to run | n/a     |
 | 09  | `health:live` ledger view                           | not yet drafted       | TBD     |
 
 Subsequent passes are drafted only after the prior one has merged, so

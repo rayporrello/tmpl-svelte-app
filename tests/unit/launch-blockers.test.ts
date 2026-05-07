@@ -68,14 +68,16 @@ describe('launch-blockers manifest', () => {
 				LAUNCH_BLOCKERS.map((item) => expect.objectContaining({ id: item.id }))
 			)
 		);
-		expect(results.every((item) => item.status === 'pass')).toBe(true);
+		expect(results.filter((item) => item.status !== 'pass')).toEqual([
+			expect.objectContaining({ id: 'LAUNCH-SMOKE-001', status: 'warn' }),
+		]);
 	});
 
 	it('lets check:launch exit 0 against the ready-to-launch fixture', async () => {
 		const result = await runCheckLaunch({ rootDir: copyReadyFixture(), env: {} });
 
 		expect(result.exitCode).toBe(0);
-		expect(result.results.every((item) => item.status === 'pass')).toBe(true);
+		expect(result.results.some((item) => item.status === 'fail')).toBe(false);
 	});
 
 	it('fails LAUNCH-OG-001 for the template OG asset and passes after replacement', async () => {
@@ -325,6 +327,67 @@ describe('launch-blockers manifest', () => {
 		});
 		expect(result.results.find((item) => item.id === 'LAUNCH-BACKUP-001')).toMatchObject({
 			status: 'warn',
+		});
+	});
+
+	it('fails smoke launch gates when secret is short or test token is missing', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			[
+				'ORIGIN=https://ready.example',
+				'PUBLIC_SITE_URL=https://ready.example',
+				'BACKUP_REMOTE=r2:bucket',
+				'POSTMARK_SERVER_TOKEN=token',
+				'CONTACT_TO_EMAIL=hello@ready.example',
+				'CONTACT_FROM_EMAIL=website@ready.example',
+				'AUTOMATION_PROVIDER=noop',
+				'SMOKE_TEST_SECRET=short',
+			].join('\n')
+		);
+
+		await expect(resultFor('LAUNCH-SMOKE-001', rootDir)).resolves.toMatchObject({
+			status: 'fail',
+		});
+		await expect(resultFor('LAUNCH-SMOKE-002', rootDir)).resolves.toMatchObject({
+			status: 'fail',
+			detail: expect.stringContaining('POSTMARK_API_TEST'),
+		});
+	});
+
+	it('passes smoke launch gates when secret, token, and migration are present', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(rootDir, 'src/lib/server/db/schema.ts', 'export const isSmokeTest = true;\n');
+		writeFixtureFile(
+			rootDir,
+			'drizzle/0003_smoke_test_contact_rows.sql',
+			'ALTER TABLE contact_submissions ADD COLUMN is_smoke_test boolean;\n'
+		);
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			[
+				'ORIGIN=https://ready.example',
+				'PUBLIC_SITE_URL=https://ready.example',
+				'BACKUP_REMOTE=r2:bucket',
+				'POSTMARK_SERVER_TOKEN=token',
+				'POSTMARK_API_TEST=POSTMARK_API_TEST',
+				'CONTACT_TO_EMAIL=hello@ready.example',
+				'CONTACT_FROM_EMAIL=website@ready.example',
+				'AUTOMATION_PROVIDER=noop',
+				'SMOKE_TEST_SECRET=0123456789abcdef0123456789abcdef',
+			].join('\n')
+		);
+
+		await expect(resultFor('LAUNCH-SMOKE-001', rootDir)).resolves.toMatchObject({
+			status: 'pass',
+		});
+		await expect(resultFor('LAUNCH-SMOKE-002', rootDir)).resolves.toMatchObject({
+			status: 'pass',
+		});
+		await expect(resultFor('LAUNCH-SMOKE-003', rootDir)).resolves.toMatchObject({
+			status: 'pass',
 		});
 	});
 });

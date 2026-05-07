@@ -5,13 +5,15 @@ import { logger } from '$lib/server/logger';
 import { toSafeError } from '$lib/server/safe-error';
 import { initEnv } from '$lib/server/env';
 import { applySecurityHeaders } from '$lib/server/security-headers';
+import { handleSmokeContactRequest } from '$lib/server/forms/contact-action';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Validate env vars on first runtime request; no-op on subsequent calls.
 	// During SvelteKit prerender/build there is no runtime environment yet.
 	if (!building) initEnv();
 	event.locals.requestId = getOrCreateRequestId(event.request);
-	const response = await resolve(event);
+	const smokeResponse = await handleSmokeContactRequest(event);
+	const response = smokeResponse ?? (await resolve(event));
 	applySecurityHeaders(response.headers, event.url, { method: event.request.method });
 	return response;
 };

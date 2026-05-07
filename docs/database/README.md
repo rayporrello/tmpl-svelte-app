@@ -56,12 +56,18 @@ The scaffold edits `schema.ts`; it intentionally does not fake a migration file.
 The runtime tables include pruning indexes for privacy retention:
 
 - `contact_submissions(created_at)`
+- `contact_submissions(is_smoke_test)`
 - `automation_events(status, created_at)`
 - `automation_events(status, next_attempt_at, created_at)`
 - `automation_events(idempotency_key)`
 - `automation_dead_letters(created_at)`
 
 Default retention windows live in `src/lib/server/privacy/retention.ts` and are documented in [docs/privacy/data-retention.md](../privacy/data-retention.md). Run `bun run privacy:prune` for a dry-run and `bun run privacy:prune -- --apply` to delete expired rows.
+
+`contact_submissions.is_smoke_test` identifies authenticated deploy-smoke rows.
+Reports, CRM exports, analytics queries, and operator-facing lead lists must
+filter `is_smoke_test = false` unless they are explicitly inspecting smoke
+evidence.
 
 ---
 

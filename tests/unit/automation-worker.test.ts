@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	nextBackoffSeconds,
 	parseWorkerArgs,
+	runAutomationWorker,
 	warnIfAutomationConfigIncomplete,
 } from '../../scripts/automation-worker';
 
@@ -48,6 +49,42 @@ describe('automation worker helpers', () => {
 
 		expect(options.daemon).toBe(false);
 		expect(options.pollIntervalSeconds).toBe(30);
+	});
+
+	it('marks smoke outbox rows skipped without provider delivery', async () => {
+		const queries: string[] = [];
+		const sql = ((strings: TemplateStringsArray) => {
+			const query = strings.join('?');
+			queries.push(query);
+			if (query.includes('with recovered as')) return Promise.resolve([{ count: 0 }]);
+			if (query.includes('with candidates as')) {
+				return Promise.resolve([
+					{
+						id: 'event-1',
+						created_at: new Date(),
+						event_type: 'lead.created',
+						payload: { submission_id: 'contact-1' },
+						attempt_count: 0,
+						max_attempts: 5,
+						idempotency_key: 'lead.created:contact-1',
+					},
+				]);
+			}
+			if (query.includes('select is_smoke_test')) {
+				return Promise.resolve([{ is_smoke_test: true }]);
+			}
+			if (query.includes('payload = payload ||')) return Promise.resolve([]);
+			throw new Error(`Unexpected query: ${query}`);
+		}) as never;
+
+		const result = await runAutomationWorker(sql, {
+			batchSize: 1,
+			staleAfterSeconds: 900,
+			workerId: 'worker-test',
+		});
+
+		expect(result).toMatchObject({ claimed: 1, skipped: 1, delivered: 0 });
+		expect(queries.some((query) => query.includes('payload = payload ||'))).toBe(true);
 	});
 });
 

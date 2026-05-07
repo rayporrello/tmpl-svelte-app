@@ -5,6 +5,11 @@ runs the same sequence operators used to do by hand: preflight, migrations,
 Quadlet image rewrite, `systemctl` reload/restart, readiness polling, release
 recording, and smoke checks.
 
+When `SMOKE_TEST_SECRET` and `POSTMARK_API_TEST` are configured, the smoke step
+includes the authenticated E2E contact-form chain described in
+[`smoke.md`](smoke.md). Failures follow the same remediation below: inspect the
+failed `OpsResult`, then roll back or roll forward deliberately.
+
 ## When To Run
 
 Run it on the production host from the checked-out project directory after CI

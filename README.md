@@ -48,25 +48,25 @@ This is a website-first SvelteKit template. The design system is native CSS, tok
 ADR-024 defines the default product profile as a reliable lead-gen website
 appliance. This is what currently ships:
 
-| Capability                          | Status                                                                                        |
-| ----------------------------------- | --------------------------------------------------------------------------------------------- |
-| Local bootstrap                     | Implemented                                                                                   |
-| Launch validation gates             | Implemented                                                                                   |
-| Deploy preflight gates              | Implemented                                                                                   |
-| Deploy smoke                        | Static surface only                                                                           |
-| Contact form persistence (Postgres) | Implemented                                                                                   |
-| Postmark lead notification          | Implemented; required in production by ADR-024                                                |
-| Durable outbox + worker             | Implemented                                                                                   |
-| External automation provider        | Implemented; `AUTOMATION_PROVIDER=n8n` or `webhook`; n8n is external per ADR-027, not bundled |
-| PITR backups (WAL-G)                | Implemented                                                                                   |
-| Restore drill                       | Script exists; scheduling and evidence persistence in pass 07                                 |
-| Rollback automation                 | Manual today; planned pass 05                                                                 |
-| Live health visibility              | `/healthz` + `/readyz` only; unified surface in pass 08                                       |
-| Uploads / content recovery          | Local backup; offsite chain to be verified before pass 07                                     |
-| Migration safety classification     | Not implemented; planned pass 03                                                              |
-| Junior-hire recovery doc            | `docs/operations/restore.md` exists; rewrite for audience deferred                            |
-| Fleet-wide ops view                 | Not implemented; deferred until ≥2 client sites                                               |
-| Client editing during GitHub outage | Not supported (Sveltia is git-backed per ADR-024)                                             |
+| Capability                          | Status                                                                                          |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Local bootstrap                     | Implemented                                                                                     |
+| Launch validation gates             | Implemented                                                                                     |
+| Deploy preflight gates              | Implemented                                                                                     |
+| Deploy smoke                        | Implemented; E2E through Postmark test token per ADR-029 when `SMOKE_TEST_SECRET` is configured |
+| Contact form persistence (Postgres) | Implemented                                                                                     |
+| Postmark lead notification          | Implemented; required in production by ADR-024                                                  |
+| Durable outbox + worker             | Implemented                                                                                     |
+| External automation provider        | Implemented; `AUTOMATION_PROVIDER=n8n` or `webhook`; n8n is external per ADR-027, not bundled   |
+| PITR backups (WAL-G)                | Implemented                                                                                     |
+| Restore drill                       | Script exists; scheduling and evidence persistence in pass 08                                   |
+| Rollback automation                 | Manual today; planned pass 05                                                                   |
+| Live health visibility              | `/healthz` + `/readyz` only; unified surface in pass 08                                         |
+| Uploads / content recovery          | Local backup; offsite chain to be verified before pass 07                                       |
+| Migration safety classification     | Not implemented; planned pass 03                                                                |
+| Junior-hire recovery doc            | `docs/operations/restore.md` exists; rewrite for audience deferred                              |
+| Fleet-wide ops view                 | Not implemented; deferred until ≥2 client sites                                                 |
+| Client editing during GitHub outage | Not supported (Sveltia is git-backed per ADR-024)                                               |
 
 A "Warm Coral" re-skin example lives at [src/lib/styles/brand.example.css](src/lib/styles/brand.example.css) — it shows exactly which token sections to swap when starting a new brand.
 

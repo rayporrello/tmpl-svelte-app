@@ -15,17 +15,32 @@
  * required. If a project wants the official SDK, add it per project.
  */
 
-import type { EmailPayload, EmailProvider } from '../email-provider';
+import type {
+	EmailPayload,
+	EmailProvider,
+	EmailSendOptions,
+	EmailSendResult,
+} from '../email-provider';
 
 export function makePostmarkProvider(serverToken: string): EmailProvider {
 	return {
-		async send(payload: EmailPayload): Promise<void> {
+		async send(payload: EmailPayload, opts: EmailSendOptions = {}): Promise<EmailSendResult> {
+			const useTestToken = opts.useTestToken === true;
+			const token = useTestToken ? process.env.POSTMARK_API_TEST : serverToken;
+			if (!token) {
+				throw new Error(
+					useTestToken
+						? 'Postmark test token is not configured.'
+						: 'Postmark server token is not configured.'
+				);
+			}
+
 			const response = await fetch('https://api.postmarkapp.com/email', {
 				method: 'POST',
 				headers: {
 					Accept: 'application/json',
 					'Content-Type': 'application/json',
-					'X-Postmark-Server-Token': serverToken,
+					'X-Postmark-Server-Token': token,
 				},
 				body: JSON.stringify({
 					From: payload.from,
@@ -41,6 +56,14 @@ export function makePostmarkProvider(serverToken: string): EmailProvider {
 				const body = await response.text().catch(() => '(no body)');
 				throw new Error(`Postmark send failed: ${response.status} ${body}`);
 			}
+
+			return {
+				provider: 'postmark',
+				testTokenUsed: useTestToken,
+				metadata: {
+					postmark_test_token_used: useTestToken,
+				},
+			};
 		},
 	};
 }

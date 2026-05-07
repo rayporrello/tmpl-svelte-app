@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import postgres from 'postgres';
 
 import {
 	PERMISSIONS_POLICY,
@@ -24,6 +25,8 @@ export type DeploySmokeOptions = {
 	skipReadyz?: boolean;
 	fetcher?: typeof fetch;
 	timeoutMs?: number;
+	env?: NodeJS.ProcessEnv;
+	sql?: postgres.Sql;
 };
 
 type CliOptions = {
@@ -61,6 +64,21 @@ async function fetchWithTimeout(
 	const timeout = setTimeout(() => controller.abort(), timeoutMs);
 	try {
 		return await fetcher(url, { signal: controller.signal });
+	} finally {
+		clearTimeout(timeout);
+	}
+}
+
+async function fetchWithTimeoutInit(
+	fetcher: typeof fetch,
+	url: string,
+	init: RequestInit,
+	timeoutMs: number
+): Promise<Response> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
+	try {
+		return await fetcher(url, { ...init, signal: controller.signal });
 	} finally {
 		clearTimeout(timeout);
 	}
@@ -161,6 +179,220 @@ async function checkSecurityHeaders(
 	}
 }
 
+const E2E_IDS = [
+	'SMOKE-E2E-CONFIG-001',
+	'SMOKE-E2E-CONFIG-002',
+	'SMOKE-E2E-POST-001',
+	'SMOKE-E2E-DB-001',
+	'SMOKE-E2E-OUTBOX-001',
+	'SMOKE-E2E-OUTBOX-002',
+	'SMOKE-E2E-EMAIL-001',
+	'SMOKE-E2E-PRUNE-001',
+] as const;
+
+function skippedE2eResults(): OpsResult[] {
+	return E2E_IDS.map((id) =>
+		skip(id, 'E2E smoke not configured', 'SMOKE_TEST_SECRET is unset for this site.')
+	);
+}
+
+async function pollUntil<T>(timeoutMs: number, read: () => Promise<T | null>): Promise<T | null> {
+	const startedAt = Date.now();
+	while (Date.now() - startedAt < timeoutMs) {
+		const value = await read();
+		if (value) return value;
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+	}
+	return null;
+}
+
+async function runE2eSmoke(options: {
+	fetcher: typeof fetch;
+	baseUrl: string;
+	timeoutMs: number;
+	env: NodeJS.ProcessEnv;
+	sql?: postgres.Sql;
+}): Promise<OpsResult[]> {
+	const secret = options.env.SMOKE_TEST_SECRET?.trim();
+	if (!secret) return skippedE2eResults();
+
+	const results: OpsResult[] = [
+		pass('SMOKE-E2E-CONFIG-001', 'E2E smoke secret configured', 'SMOKE_TEST_SECRET is set.'),
+	];
+
+	if (!options.env.POSTMARK_API_TEST?.trim()) {
+		results.push(
+			fail(
+				'SMOKE-E2E-CONFIG-002',
+				'Postmark test token configured',
+				'POSTMARK_API_TEST is required when SMOKE_TEST_SECRET is set.'
+			)
+		);
+		return results;
+	}
+	results.push(
+		pass('SMOKE-E2E-CONFIG-002', 'Postmark test token configured', 'POSTMARK_API_TEST is set.')
+	);
+
+	const databaseUrl = options.env.DATABASE_URL;
+	if (!databaseUrl && !options.sql) {
+		results.push(
+			fail('SMOKE-E2E-DB-001', 'Smoke database check', 'DATABASE_URL is required for E2E smoke.')
+		);
+		return results;
+	}
+
+	const sql = options.sql ?? postgres(databaseUrl!, { max: 1 });
+	const ownsSql = options.sql === undefined;
+	let contactId: string | null = null;
+
+	try {
+		const body = new URLSearchParams({
+			name: 'Deploy Smoke',
+			email: 'smoke@example.com',
+			message: 'Deploy smoke test submission.',
+			website: '',
+		});
+		const response = await fetchWithTimeoutInit(
+			options.fetcher,
+			joinUrl(options.baseUrl, '/contact'),
+			{
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+					Accept: 'application/json',
+					'X-Smoke-Test': secret,
+				},
+				body,
+			},
+			options.timeoutMs
+		);
+		const parsed = (await response.json().catch(() => ({}))) as {
+			ok?: unknown;
+			contact_id?: unknown;
+		};
+		if (!response.ok || parsed.ok !== true || typeof parsed.contact_id !== 'string') {
+			results.push(
+				fail(
+					'SMOKE-E2E-POST-001',
+					'Smoke contact POST',
+					`/contact returned HTTP ${response.status} without ok/contact_id JSON.`
+				)
+			);
+			return results;
+		}
+		contactId = parsed.contact_id;
+		results.push(
+			pass('SMOKE-E2E-POST-001', 'Smoke contact POST', `Inserted contact ${contactId}.`)
+		);
+
+		const contactRows = await sql`
+			select is_smoke_test
+			from contact_submissions
+			where id = ${contactId}
+			limit 1
+		`;
+		if (contactRows[0]?.is_smoke_test !== true) {
+			results.push(
+				fail('SMOKE-E2E-DB-001', 'Smoke database check', 'Contact row was not tagged smoke.')
+			);
+			return results;
+		}
+		results.push(pass('SMOKE-E2E-DB-001', 'Smoke database check', 'Contact row is tagged smoke.'));
+
+		const outbox = await pollUntil(30_000, async () => {
+			const rows = await sql`
+				select id, status, payload
+				from automation_events
+				where payload->>'submission_id' = ${contactId}
+				order by created_at desc
+				limit 1
+			`;
+			const row = rows[0] as
+				| { id: string; status: string; payload: Record<string, unknown> }
+				| undefined;
+			return row?.status === 'completed' ? row : null;
+		});
+		if (!outbox) {
+			results.push(
+				fail(
+					'SMOKE-E2E-OUTBOX-001',
+					'Smoke outbox completed',
+					'Outbox row did not reach completed within 30 seconds.'
+				)
+			);
+			return results;
+		}
+		results.push(
+			pass('SMOKE-E2E-OUTBOX-001', 'Smoke outbox completed', `Outbox ${outbox.id} completed.`)
+		);
+
+		if (outbox.payload.automation_skipped !== true) {
+			results.push(
+				fail(
+					'SMOKE-E2E-OUTBOX-002',
+					'Smoke automation skipped',
+					'Outbox metadata did not include automation_skipped=true.'
+				)
+			);
+		} else {
+			results.push(
+				pass(
+					'SMOKE-E2E-OUTBOX-002',
+					'Smoke automation skipped',
+					'Outbox metadata recorded automation_skipped=true.'
+				)
+			);
+		}
+
+		if (outbox.payload.postmark_test_token_used !== true) {
+			results.push(
+				fail(
+					'SMOKE-E2E-EMAIL-001',
+					'Smoke email used Postmark test token',
+					'Outbox metadata did not include postmark_test_token_used=true.'
+				)
+			);
+		} else {
+			results.push(
+				pass(
+					'SMOKE-E2E-EMAIL-001',
+					'Smoke email used Postmark test token',
+					'Outbox metadata recorded postmark_test_token_used=true.'
+				)
+			);
+		}
+
+		const deleted = await sql`
+			with deleted as (
+				delete from contact_submissions
+				where id = ${contactId}
+					and is_smoke_test = true
+				returning 1
+			)
+			select count(*)::int as count from deleted
+		`;
+		const deletedCount = Number(deleted[0]?.count ?? 0);
+		if (deletedCount !== 1) {
+			results.push(
+				fail('SMOKE-E2E-PRUNE-001', 'Smoke row cleanup', 'Smoke contact row was not deleted.')
+			);
+		} else {
+			results.push(pass('SMOKE-E2E-PRUNE-001', 'Smoke row cleanup', 'Smoke contact row deleted.'));
+		}
+
+		return results;
+	} catch (error) {
+		const id = contactId ? 'SMOKE-E2E-OUTBOX-001' : 'SMOKE-E2E-POST-001';
+		results.push(
+			fail(id, 'E2E smoke failed', error instanceof Error ? error.message : String(error))
+		);
+		return results;
+	} finally {
+		if (ownsSql) await sql.end();
+	}
+}
+
 export async function runDeploySmoke(options: DeploySmokeOptions): Promise<{
 	results: OpsResult[];
 	exitCode: number;
@@ -169,6 +401,7 @@ export async function runDeploySmoke(options: DeploySmokeOptions): Promise<{
 	const timeoutMs = options.timeoutMs ?? 10_000;
 	const baseUrl = options.baseUrl.replace(/\/+$/u, '');
 	const results: DeploySmokeResult[] = [];
+	const env = options.env ?? process.env;
 
 	results.push(
 		await checkJsonOk(
@@ -228,6 +461,7 @@ export async function runDeploySmoke(options: DeploySmokeOptions): Promise<{
 		)
 	);
 	results.push(await checkSecurityHeaders(fetcher, baseUrl, timeoutMs));
+	results.push(...(await runE2eSmoke({ fetcher, baseUrl, timeoutMs, env, sql: options.sql })));
 
 	return {
 		results,

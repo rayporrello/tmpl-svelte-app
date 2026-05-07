@@ -45,10 +45,13 @@ describe('deploy smoke', () => {
 			'/contact': response('<h1>Contact</h1><form></form>'),
 		});
 
-		const result = await runDeploySmoke({ baseUrl: 'https://example.com', fetcher });
+		const result = await runDeploySmoke({ baseUrl: 'https://example.com', fetcher, env: {} });
 
 		expect(result.exitCode).toBe(0);
 		expect(result.results).not.toContainEqual(expect.objectContaining({ severity: 'fail' }));
+		expect(result.results).toContainEqual(
+			expect.objectContaining({ id: 'SMOKE-E2E-CONFIG-001', severity: 'info' })
+		);
 	});
 
 	it('can skip readiness when the operator asks for a liveness-only smoke', async () => {
@@ -64,6 +67,7 @@ describe('deploy smoke', () => {
 			baseUrl: 'https://example.com',
 			fetcher,
 			skipReadyz: true,
+			env: {},
 		});
 
 		expect(result.exitCode).toBe(0);
@@ -77,5 +81,27 @@ describe('deploy smoke', () => {
 		expect(parseArgs(['--url', 'https://example.com'], {})).toMatchObject({
 			baseUrl: 'https://example.com',
 		});
+	});
+
+	it('fails E2E config when smoke secret is set without Postmark test token', async () => {
+		const fetcher = fakeFetch({
+			'/': response('<h1>Home</h1>', { headers: securityHeaders() }),
+			'/healthz': response(JSON.stringify({ ok: true })),
+			'/readyz': response(JSON.stringify({ ok: true })),
+			'/sitemap.xml': response('<?xml version="1.0"?><urlset></urlset>'),
+			'/robots.txt': response('User-agent: *\nSitemap: https://example.com/sitemap.xml'),
+			'/contact': response('<h1>Contact</h1><form></form>'),
+		});
+
+		const result = await runDeploySmoke({
+			baseUrl: 'https://example.com',
+			fetcher,
+			env: { SMOKE_TEST_SECRET: '0123456789abcdef0123456789abcdef' },
+		});
+
+		expect(result.exitCode).toBe(1);
+		expect(result.results).toContainEqual(
+			expect.objectContaining({ id: 'SMOKE-E2E-CONFIG-002', severity: 'fail' })
+		);
 	});
 });

@@ -53,6 +53,7 @@ website appliance. These are the env/secrets expectations for that profile:
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`                                 | Required when using bundled local Postgres                                 | Optional unless provisioning Postgres                       | Required for bundled production Postgres                         |
 | `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL`                                            | Optional unless testing real email                                         | Optional                                                    | Required with Postmark                                           |
 | `POSTMARK_SERVER_TOKEN`                                                             | Optional; console provider may be used                                     | Optional                                                    | Required unless `LAUNCH_ALLOW_CONSOLE_EMAIL=1` is explicitly set |
+| `SMOKE_TEST_SECRET`, `POSTMARK_API_TEST`                                            | Optional                                                                   | Optional unless running E2E smoke                           | Required together when E2E deploy smoke is enabled               |
 | `LAUNCH_ALLOW_CONSOLE_EMAIL`                                                        | Usually unset / `0`                                                        | Usually unset / `0`                                         | Optional waiver only; not the normal launch path                 |
 | `AUTOMATION_PROVIDER`                                                               | Optional; unset resolves to `noop`                                         | Optional                                                    | Optional; unset or `noop` is valid                               |
 | `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`                                             | Required only when `AUTOMATION_PROVIDER=n8n`                               | Required only when testing n8n delivery                     | Required only when `AUTOMATION_PROVIDER=n8n`                     |
@@ -207,6 +208,8 @@ These values belong in `secrets.yaml`:
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — required bundled Postgres initialization values
 - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_PREFIX` — WAL-G/PITR backup target for the dedicated client cluster
 - `POSTMARK_SERVER_TOKEN` — transactional email API key
+- `SMOKE_TEST_SECRET` — authenticated deploy-smoke backdoor credential for `/contact`; rotate per `docs/operations/smoke.md`
+- `POSTMARK_API_TEST` — Postmark test API token used only for authenticated smoke email
 - `SESSION_SECRET` — must be a long random string; never a placeholder
 - OAuth client secrets and callback tokens
 - Webhook signing secrets
