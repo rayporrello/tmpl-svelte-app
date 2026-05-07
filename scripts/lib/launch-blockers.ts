@@ -107,6 +107,21 @@ const FORBIDDEN_PROD_HOSTS = new Set([
 	'example.net',
 ]);
 
+// Must include every required env-reading blocker so check:init-site and CI launch
+// pass on a freshly-init'd site. When adding a new required env-reading blocker,
+// add its passing stub here — check:init-site will fail loudly otherwise.
+export const LAUNCH_TEST_ENV = {
+	ORIGIN: 'https://acme-studio.dev',
+	PUBLIC_SITE_URL: 'https://acme-studio.dev',
+	DATABASE_URL: 'postgres://ci_stub:ci_stub@127.0.0.1:5432/ci_stub',
+	POSTMARK_SERVER_TOKEN: 'postmark-token',
+	CONTACT_TO_EMAIL: 'hello@acme-studio.dev',
+	CONTACT_FROM_EMAIL: 'website@acme-studio.dev',
+	AUTOMATION_PROVIDER: 'noop',
+	HEALTH_ADMIN_PASSWORD_HASH: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+	BACKUP_REMOTE: 'r2:bucket/acme-studio',
+} as const satisfies Record<string, string>;
+
 function rootDirFrom(context?: LaunchBlockerCheckContext): string {
 	return resolve(context?.rootDir ?? DEFAULT_ROOT_DIR);
 }
