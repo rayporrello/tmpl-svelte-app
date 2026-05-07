@@ -59,10 +59,13 @@ backups/
 
 # ── Claude Code session settings ─────────────────────────────────────────────
 # Per-user / per-session settings — never the source of truth. A future project
-# may commit a shared `.claude/settings.json`, but the `.local.*` variants are
-# always per-user.
+# may commit a shared `.claude/settings.json`, but the `.local.*` variants and
+# the per-user state directories below are always per-user.
 .claude/settings.local.json
 .claude/settings.local.*.json
+.claude/projects/
+.claude/worktrees/
+.claude/.history/
 
 # ── Image optimization output directories ────────────────────────────────────
 # The current pipeline generates .webp siblings inside static/uploads/ and
