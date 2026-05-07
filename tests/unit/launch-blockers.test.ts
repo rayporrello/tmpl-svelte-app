@@ -452,4 +452,36 @@ describe('launch-blockers manifest', () => {
 			status: 'pass',
 		});
 	});
+
+	it('fails admin health launch gate when the Caddy hash is missing or malformed', async () => {
+		const rootDir = copyReadyFixture();
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			[
+				'ORIGIN=https://ready.example',
+				'PUBLIC_SITE_URL=https://ready.example',
+				'BACKUP_REMOTE=r2:bucket',
+				'POSTMARK_SERVER_TOKEN=token',
+				'CONTACT_TO_EMAIL=hello@ready.example',
+				'CONTACT_FROM_EMAIL=website@ready.example',
+				'AUTOMATION_PROVIDER=noop',
+			].join('\n')
+		);
+
+		await expect(resultFor('LAUNCH-HEALTH-001', rootDir)).resolves.toMatchObject({
+			status: 'fail',
+			detail: expect.stringContaining('HEALTH_ADMIN_PASSWORD_HASH'),
+		});
+
+		writeFixtureFile(
+			rootDir,
+			'production.env',
+			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nHEALTH_ADMIN_PASSWORD_HASH=not-a-caddy-hash\n'
+		);
+		await expect(resultFor('LAUNCH-HEALTH-001', rootDir)).resolves.toMatchObject({
+			status: 'fail',
+			detail: expect.stringContaining('Caddy bcrypt hash'),
+		});
+	});
 });

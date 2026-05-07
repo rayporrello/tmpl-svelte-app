@@ -21,6 +21,19 @@ Empty ADRs are forbidden — if a topic isn't worth writing 3 paragraphs of rati
 
 ## Open topics (each needs a dedicated thread)
 
+### Reliability triggers
+
+These stay deferred until real client usage says otherwise. Revisit after two
+or three more launched client sites, or sooner if one of these frictions repeats
+in production:
+
+| Topic                                       | Current decision                                             | Trigger to scope                                                                                         |
+| ------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| **Auto-rollback on smoke failure**          | Deferred by ADR-028; smoke prints failures for the operator. | Operators repeatedly run manual rollback immediately after deploy smoke fails, with no diagnosis needed. |
+| **Fleet view**                              | Deferred by ADR-024/ADR-030; health is per site.             | Two or more active client sites make cross-site health checks a routine operator workflow.               |
+| **`deploy:apply` plan/apply split**         | Deferred by ADR-028; one command owns deploy orchestration.  | Deploy approvals need a durable dry-run artifact, or CI/CD wants separate planning and execution steps.  |
+| **Dedicated backup channel in health view** | Shipped after pass 09 via `backup.json`.                     | Closed; keep the channel unless client operations reveal a better evidence shape.                        |
+
 ### Application-shape topics
 
 | Topic                                  | Why it matters                                                                                                                    | First question to settle                                                                              |

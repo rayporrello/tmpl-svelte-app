@@ -6,6 +6,8 @@ export interface OpsResult {
 	/** Stable identifier, e.g. 'DOCTOR-PG-001'. Used for grepping logs and tests. */
 	id: string;
 	severity: OpsSeverity;
+	/** Data source for operator surfaces that merge ledger snapshots and live probes. */
+	source?: string;
 	/** Single-line headline, operator-readable. */
 	summary: string;
 	/** Multi-line detail, optional. */
@@ -116,6 +118,8 @@ function renderOpsResult(result: OpsResult, options: PrintOpsOptions = {}): stri
 	const lines = [
 		`${colorize(GLYPH[result.severity], result.severity, color)} ${result.id} ${result.summary}`,
 	];
+
+	if (result.source) lines.push(`    [${result.source}]`);
 
 	if (result.detail) {
 		for (const line of result.detail.split(/\r?\n/u)) lines.push(`    ${line}`);

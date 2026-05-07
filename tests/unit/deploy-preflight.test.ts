@@ -110,6 +110,7 @@ function writeReadyProject(): string {
 			'AUTOMATION_PROVIDER=n8n',
 			'N8N_WEBHOOK_URL=https://n8n.ready.example/webhook/ready',
 			'N8N_WEBHOOK_SECRET=ready-shared-secret',
+			'HEALTH_ADMIN_PASSWORD_HASH=$2a$14$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY12',
 			'R2_ACCESS_KEY_ID=ready-r2-key',
 			'R2_SECRET_ACCESS_KEY=ready-r2-secret',
 			'R2_ENDPOINT=https://accountid.r2.cloudflarestorage.com',
@@ -529,6 +530,7 @@ describe('deploy preflight', () => {
 				'BACKUP_REMOTE=r2:bucket/ready',
 				'AUTOMATION_PROVIDER=noop',
 				'LAUNCH_ALLOW_CONSOLE_EMAIL=1',
+				'HEALTH_ADMIN_PASSWORD_HASH=$2a$14$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY12',
 				'',
 			].join('\n')
 		);

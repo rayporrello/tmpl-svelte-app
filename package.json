@@ -24,6 +24,7 @@
 		"postinstall": "bun run scripts/vendor-sveltia.ts",
 		"bootstrap": "bun scripts/bootstrap.ts",
 		"doctor": "bun scripts/doctor.ts",
+		"health:live": "bun run scripts/health-live.ts",
 		"check:bootstrap": "bun scripts/check-bootstrap.ts",
 		"check:bootstrap:podman": "BOOTSTRAP_PODMAN=1 bun scripts/check-bootstrap-podman.ts",
 		"check:db": "bun run scripts/check-db-health.ts",

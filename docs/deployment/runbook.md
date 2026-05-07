@@ -352,6 +352,17 @@ Run these after every deploy to verify the site is up and healthy. This is where
 bun run deploy:smoke -- --url https://<domain>
 ```
 
+After `deploy:apply` succeeds, run the unified health view as the next operator
+read:
+
+```bash
+bun run health:live -- --no-color
+```
+
+For browser ops, open `/admin/health` after Caddy has the
+`HEALTH_ADMIN_PASSWORD_HASH` basicauth value configured. See
+[Live Health](../operations/health.md).
+
 The smoke checks `/healthz`, `/readyz`, `/sitemap.xml`, `/robots.txt`,
 `/contact`, and baseline security headers. Use `--skip-readyz` only when
 database readiness is intentionally checked through a separate production probe.

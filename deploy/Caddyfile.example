@@ -2,6 +2,9 @@
 #
 # Replace example.com with the real domain before use.
 # See docs/deployment/runbook.md for the full deployment procedure.
+# /admin/* is operator-only. Generate HEALTH_ADMIN_PASSWORD_HASH via
+# `caddy hash-password` and store it in secrets.yaml. The cleartext password
+# is never written to any file this template ships.
 #
 # Security header ownership (ADR-018, ADR-019):
 #   Caddy owns:  TLS, compression, access logging
@@ -91,6 +94,14 @@ example.com {
     #
     # @svelte_immutable path /_app/immutable/*
     # header @svelte_immutable Cache-Control "public, max-age=31536000, immutable"
+
+    # ── Operator admin auth ──────────────────────────────────────────────────
+    # Protects Sveltia CMS and /admin/health. The hash is generated with
+    # `caddy hash-password` and supplied through the rendered env file.
+    @admin path /admin/*
+    basicauth @admin {
+        admin {env.HEALTH_ADMIN_PASSWORD_HASH}
+    }
 
     # ── Reverse proxy ─────────────────────────────────────────────────────────
     # Host-installed Caddy reaches the web container through the loopback-only

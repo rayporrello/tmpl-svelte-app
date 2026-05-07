@@ -9,8 +9,25 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+START_NS=$(date +%s%N)
 
 PASS=true
+
+record_backup_attempt() {
+  local status="$1"
+  local summary="$2"
+  local end_ns elapsed_ms source
+  end_ns=$(date +%s%N)
+  elapsed_ms=$(( (end_ns - START_NS) / 1000000 ))
+  source="backup:all db=${DB_STATUS:-unknown} uploads=${UPLOADS_STATUS:-unknown} push=${PUSH_STATUS:-unknown}"
+  bun "${ROOT_DIR}/scripts/backup-record.ts" \
+    --kind=legacy-all \
+    --status="${status}" \
+    --source="${source}" \
+    --duration-ms="${elapsed_ms}" \
+    --summary="${summary}" || true
+}
 
 # ── Database ───────────────────────────────────────────────────────────────────
 
@@ -59,6 +76,7 @@ echo "  Push:     ${PUSH_STATUS}"
 echo ""
 
 if [[ "$PASS" == "true" ]]; then
+  record_backup_attempt pass "Backup legacy-all completed"
   echo "All backups completed."
   echo ""
   echo "Verify with:   bun run backup:verify"
@@ -75,5 +93,6 @@ if [[ "$PASS" == "true" ]]; then
   fi
 else
   echo "One or more backups FAILED. Check output above." >&2
+  record_backup_attempt fail "Backup legacy-all failed"
   exit 1
 fi

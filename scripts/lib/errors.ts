@@ -26,6 +26,7 @@ export const ERRORS = {
 	'LAUNCH-SMOKE-001': 'E2E smoke secret missing or malformed',
 	'LAUNCH-SMOKE-002': 'Postmark test token missing for E2E smoke',
 	'LAUNCH-SMOKE-003': 'E2E smoke database migration missing',
+	'LAUNCH-HEALTH-001': 'admin health password hash missing or malformed',
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;

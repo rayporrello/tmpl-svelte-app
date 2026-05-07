@@ -66,13 +66,13 @@ Each channel file holds a snapshot of the form:
 
 Channels added in their owning passes:
 
-| Channel              | Owner pass         | Purpose                                                        |
-| -------------------- | ------------------ | -------------------------------------------------------------- |
-| `releases.json`      | pass 03 (this)     | release history (image, sha, time, migrations, safety class)   |
-| `smoke.json`         | pass 06            | last smoke result, history pointer                             |
-| `restore-drill.json` | pass 07            | last drill evidence, cadence info                              |
-| `backup.json`        | pass 07 or earlier | last backup, last verify                                       |
-| `migration.json`     | TBD                | applied-migration tracking if needed alongside Drizzle journal |
+| Channel              | Owner pass        | Purpose                                                        |
+| -------------------- | ----------------- | -------------------------------------------------------------- |
+| `releases.json`      | pass 03 (this)    | release history (image, sha, time, migrations, safety class)   |
+| `smoke.json`         | pass 06           | last smoke result, history pointer                             |
+| `restore-drill.json` | pass 07           | last drill evidence, cadence info                              |
+| `backup.json`        | pass 09 follow-up | last backup attempt, last successful backup, cadence info      |
+| `migration.json`     | TBD               | applied-migration tracking if needed alongside Drizzle journal |
 
 Other channels appear as later passes need them. Channels are not
 pre-allocated.

@@ -134,10 +134,16 @@ The drill spins up a temporary Postgres container off the same image,
 restores the latest base, replays WAL up to "now − 1 hour", runs a
 read-only sanity SELECT against `contact_submissions`, and tears the
 container down. It also writes evidence to
-`~/.local/state/<project>/ops/restore-drill.json`. **Run it the first
-time after activating PITR for any new client; the systemd timer keeps a
-weekly cadence thereafter.** A passing drill is the only proof that PITR
-actually works for that site.
+`~/.local/state/<project>/ops/restore-drill.json`.
+
+`backup:base` writes each base-backup attempt to
+`~/.local/state/<project>/ops/backup.json`; the legacy `backup:all` path writes
+the same channel after its database/uploads/push summary. `health:live` and
+`/admin/health` surface backup freshness from that file next to restore-drill
+freshness. **Run a base backup and a restore drill the first time after
+activating PITR for any new client; the systemd timers keep their cadence
+thereafter.** A passing drill is the only proof that PITR actually works for
+that site.
 
 For incident-time restore (the real thing), follow
 [restore.md](restore.md).

@@ -91,6 +91,7 @@ const PROCESS_ENV_FALLBACK_KEYS = [
 	'POSTMARK_SERVER_TOKEN',
 	'POSTMARK_API_TEST',
 	'SMOKE_TEST_SECRET',
+	'HEALTH_ADMIN_PASSWORD_HASH',
 ] as const;
 const RESTORE_DRILL_LAUNCH_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 const SITE_TITLE_PLACEHOLDERS = new Set([
@@ -615,6 +616,30 @@ async function checkSmokeMigration(
 	return pass('is_smoke_test exists in schema.ts and the Drizzle smoke migration.');
 }
 
+function caddyPasswordHashLooksValid(value: string): boolean {
+	return /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/u.test(value.trim());
+}
+
+async function checkHealthAdminPasswordHash(
+	context?: LaunchBlockerCheckContext
+): Promise<LaunchBlockerResult> {
+	const reference = readLaunchEnv(context);
+	if (!reference.ok) return fail(`Admin health auth could not be checked: ${reference.detail}.`);
+
+	const value = reference.env.HEALTH_ADMIN_PASSWORD_HASH?.trim();
+	if (!value) {
+		return fail(`HEALTH_ADMIN_PASSWORD_HASH is missing from ${reference.label}.`);
+	}
+
+	if (!caddyPasswordHashLooksValid(value)) {
+		return fail(
+			`HEALTH_ADMIN_PASSWORD_HASH in ${reference.label} does not look like a Caddy bcrypt hash. Generate it with caddy hash-password.`
+		);
+	}
+
+	return pass(`HEALTH_ADMIN_PASSWORD_HASH is set in ${reference.label}.`);
+}
+
 async function checkProjectManifestDrift(
 	context?: LaunchBlockerCheckContext
 ): Promise<LaunchBlockerResult> {
@@ -766,6 +791,15 @@ export const LAUNCH_BLOCKERS: LaunchBlocker[] = [
 		check: checkSmokeMigration,
 		fixHint: 'NEXT: Apply the Drizzle migration that adds contact_submissions.is_smoke_test.',
 		docsPath: 'docs/database/README.md',
+	},
+	{
+		id: 'LAUNCH-HEALTH-001',
+		label: 'Admin health password hash is configured',
+		severity: 'required',
+		check: checkHealthAdminPasswordHash,
+		fixHint:
+			'NEXT: Generate a hash with `caddy hash-password`, store it as HEALTH_ADMIN_PASSWORD_HASH, and reload Caddy.',
+		docsPath: 'docs/operations/health.md',
 	},
 ];
 

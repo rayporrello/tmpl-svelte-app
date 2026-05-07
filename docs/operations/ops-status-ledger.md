@@ -23,11 +23,12 @@ Each operational concern gets one JSON channel file:
 
 ```text
 releases.json
+backup.json
 restore-drill.json
 ```
 
-Future passes may add channels such as smoke, backup, or migration state.
-Channels are not pre-created.
+Future passes may add channels such as smoke or migration state. Channels are
+not pre-created.
 
 A channel snapshot follows this shape:
 
@@ -45,6 +46,31 @@ A channel snapshot follows this shape:
 The `detail` object is owned by the channel. For `releases.json`, it
 contains release history with image refs, deployed SHAs, migration
 filenames, and rollback-safety classification.
+
+For `backup.json`, `detail` follows this shape:
+
+```json
+{
+	"attemptedAt": "2026-05-07T03:15:00.000Z",
+	"succeededAt": "2026-05-07T03:15:00.000Z",
+	"status": "pass",
+	"kind": "base",
+	"durationMs": 42000,
+	"backupSource": "WAL-G backup-push via project-postgres",
+	"steps": [
+		{
+			"id": "BACKUP-BASE-001",
+			"severity": "pass",
+			"summary": "Backup base completed"
+		}
+	]
+}
+```
+
+The channel uses `stale_after_seconds = 129600` (36 hours), matching the
+daily base-backup cadence plus scheduling jitter. Failed backups update
+`last_attempt_at` and preserve the previous `last_success_at` so operators can
+see both the newest attempt and the newest successful backup.
 
 For `restore-drill.json`, `detail` follows this shape:
 
@@ -83,6 +109,19 @@ writers so operators do not end up with torn JSON.
 
 If an interrupted run leaves a `.tmp` file behind, readers ignore it and
 continue reading the last complete channel file.
+
+## Reading The Ledger
+
+For operator health checks, prefer the shared health surfaces over hand-reading
+the channel files:
+
+```bash
+bun run health:live -- --source=ledger --no-color
+```
+
+The browser view at `/admin/health` also reads the ledger, then adds live DB
+facts. Both surfaces label ledger-derived results with `source: ledger` so
+snapshot evidence is distinct from live host or DB probes.
 
 ## Event Log
 

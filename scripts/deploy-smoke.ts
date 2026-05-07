@@ -14,6 +14,7 @@ import {
 	fail as opsFail,
 	info as opsInfo,
 	pass as opsPass,
+	printOpsResults,
 	severityToExitCode,
 	type OpsResult,
 } from './lib/ops-result';
@@ -518,12 +519,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 			skipReadyz: options.skipReadyz,
 			timeoutMs: options.timeoutMs,
 		});
-		for (const item of results) {
-			const prefix = item.severity === 'pass' ? 'OK  ' : item.severity === 'info' ? 'SKIP' : 'FAIL';
-			console[item.severity === 'fail' ? 'error' : 'log'](
-				`${prefix} ${item.id} ${item.summary}: ${item.detail}`
-			);
-		}
+		printOpsResults(results);
 		if (exitCode === 0) console.log('\ndeploy:smoke passed.\n');
 		else console.error('\ndeploy:smoke failed.\n');
 		return exitCode;

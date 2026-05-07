@@ -61,7 +61,7 @@ appliance. This is what currently ships:
 | PITR backups (WAL-G)                | Implemented                                                                                     |
 | Restore drill                       | Implemented; weekly via systemd timer; evidence in ops-status ledger                            |
 | Rollback automation                 | Manual today; planned pass 05                                                                   |
-| Live health visibility              | `/healthz` + `/readyz` only; unified surface in pass 08                                         |
+| Live health visibility              | Implemented; CLI (`bun run health:live`) and web (`/admin/health`) per ADR-030                  |
 | Uploads / content recovery          | Local backup; offsite chain to be verified before pass 07                                       |
 | Migration safety classification     | Not implemented; planned pass 03                                                                |
 | Junior-hire recovery doc            | `docs/operations/restore.md` exists; rewrite for audience deferred                              |

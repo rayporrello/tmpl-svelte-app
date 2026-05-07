@@ -18,6 +18,7 @@ function setEnv(vars: Record<string, string | undefined>) {
 	delete process.env.PUBLIC_SITE_URL;
 	delete process.env.DATABASE_URL;
 	delete process.env.IN_CONTAINER;
+	delete process.env.HEALTH_ADMIN_PASSWORD_HASH;
 	// Apply new values
 	for (const [k, v] of Object.entries(vars)) {
 		if (v === undefined) delete process.env[k];
@@ -107,6 +108,28 @@ describe('initEnv()', () => {
 		// remove vars — second call should use cached result, not re-validate
 		delete process.env.ORIGIN;
 		expect(() => initEnv()).not.toThrow();
+	});
+
+	it('validates HEALTH_ADMIN_PASSWORD_HASH format when set', async () => {
+		setEnv({
+			ORIGIN: 'https://mysite.com',
+			PUBLIC_SITE_URL: 'https://mysite.com',
+			...VALID_PRIVATE,
+			HEALTH_ADMIN_PASSWORD_HASH: '$2a$14$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY12',
+		});
+		const { initEnv } = await import('$lib/server/env');
+		expect(() => initEnv()).not.toThrow();
+	});
+
+	it('throws when HEALTH_ADMIN_PASSWORD_HASH is malformed', async () => {
+		setEnv({
+			ORIGIN: 'https://mysite.com',
+			PUBLIC_SITE_URL: 'https://mysite.com',
+			...VALID_PRIVATE,
+			HEALTH_ADMIN_PASSWORD_HASH: 'not-a-hash',
+		});
+		const { initEnv } = await import('$lib/server/env');
+		expect(() => initEnv()).toThrow(/HEALTH_ADMIN_PASSWORD_HASH/);
 	});
 });
 

@@ -31,17 +31,17 @@ it without context overflow. If it grows, split.
 
 ## Status
 
-| #   | Title                                               | Status                | ADR     |
-| --- | --------------------------------------------------- | --------------------- | ------- |
-| 01  | Lead-gen website appliance contract                 | complete              | ADR-024 |
-| 02  | OpsResult convergence with `doctor.ts` canary       | complete              | n/a     |
-| 03  | Ops-status ledger + release state + Quadlet helpers | complete              | ADR-025 |
-| 04  | Lock site bundle: remove bundled n8n                | complete              | ADR-027 |
-| 05  | Rollback CLI                                        | complete              | n/a     |
-| 06  | `deploy:apply` orchestrator                         | complete              | ADR-028 |
-| 07  | E2E smoke through Postmark (authenticated backdoor) | complete              | ADR-029 |
-| 08  | Restore-drill scheduling and evidence persistence   | drafted, ready to run | n/a     |
-| 09  | `health:live` ledger view                           | not yet drafted       | TBD     |
+| #   | Title                                               | Status   | ADR     |
+| --- | --------------------------------------------------- | -------- | ------- |
+| 01  | Lead-gen website appliance contract                 | complete | ADR-024 |
+| 02  | OpsResult convergence with `doctor.ts` canary       | complete | n/a     |
+| 03  | Ops-status ledger + release state + Quadlet helpers | complete | ADR-025 |
+| 04  | Lock site bundle: remove bundled n8n                | complete | ADR-027 |
+| 05  | Rollback CLI                                        | complete | n/a     |
+| 06  | `deploy:apply` orchestrator                         | complete | ADR-028 |
+| 07  | E2E smoke through Postmark (authenticated backdoor) | complete | ADR-029 |
+| 08  | Restore-drill scheduling and evidence persistence   | complete | n/a     |
+| 09  | `health:live` ledger view                           | complete | ADR-030 |
 
 Subsequent passes are drafted only after the prior one has merged, so
 each prompt is informed by current repo reality, not a stale plan.

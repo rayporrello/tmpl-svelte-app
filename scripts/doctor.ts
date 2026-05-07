@@ -8,6 +8,7 @@ import postgres from 'postgres';
 import { BootstrapScriptError } from './lib/errors';
 import { readEnv, type EnvMap } from './lib/env-file';
 import { evaluateLaunchBlockers, type LaunchEnvSource } from './lib/launch-blockers';
+import { readLedgerFacts, summarize } from './lib/health-engine';
 import {
 	printOpsResults,
 	severityToExitCode,
@@ -1167,6 +1168,20 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 	const restoreDrill = restoreDrillSection();
 	const deployment = deploymentArtifactsSection(rootDir);
 	const nextCommands = nextCommandsSection();
+	const liveHealthLedger = readLedgerFacts({ eventsLimit: 10 });
+	const liveHealthResults = [
+		...summarize(
+			{
+				currentRelease: liveHealthLedger.facts.currentRelease,
+				previousRelease: liveHealthLedger.facts.previousRelease,
+				backup: liveHealthLedger.facts.backup,
+				drill: liveHealthLedger.facts.drill,
+				recentEvents: liveHealthLedger.facts.recentEvents,
+			},
+			liveHealthLedger.results
+		),
+		...liveHealthLedger.results,
+	].map((result) => ({ ...result, summary: `Live Health: ${result.summary}` }));
 
 	const sections = [
 		environment,
@@ -1182,6 +1197,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 	const results = sections.flatMap((section) =>
 		section.checks.map((check) => toOpsResult(section, check))
 	);
+	results.push(...liveHealthResults);
 	const worst = worstSeverity(results);
 
 	return {
