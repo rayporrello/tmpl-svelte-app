@@ -3,3 +3,17 @@
 # Keep this file even when empty so CI can always pass a stable ignore file to
 # Trivy. Runtime images now install production dependencies only, so the former
 # esbuild/devDependency suppressions are intentionally removed.
+
+# ── deploy/Containerfile.postgres — WAL-G 3.0.8 transitive Go deps ──────────
+# WAL-G v3.0.8 (released 2026-01-21) is the latest stable release. The CRITICAL
+# CVEs below are in transitive Go dependencies (Go stdlib, pgx, grpc) inside
+# the WAL-G binary and other Go binaries inherited from the postgres:18-bookworm
+# base image. None are in WAL-G's own code; all require an upstream WAL-G
+# rebuild (or new postgres base) before they can be cleared.
+#
+# Re-evaluate: when a WAL-G release after v3.0.8 ships, or by 2026-08-01
+# at the latest. Bump WAL_G_VERSION + WAL_G_SHA256_* in
+# deploy/Containerfile.postgres and remove any of these that no longer apply.
+CVE-2025-68121
+CVE-2026-33186
+CVE-2026-33816
