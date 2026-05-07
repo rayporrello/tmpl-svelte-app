@@ -10,10 +10,6 @@ import type { LaunchErrorCode } from './errors';
 import { type EnvMap, readEnv } from './env-file';
 import { runCheckProject } from '../check-project';
 import { evaluateRoutePolicyCoverage } from './route-scanner';
-import {
-	readAutomationProviderConfig,
-	validateAutomationProviderConfig,
-} from '../../src/lib/server/automation/providers';
 import { readLastDrill } from './restore-drill-state';
 
 export type LaunchBlockerStatus = 'pass' | 'warn' | 'fail';
@@ -532,6 +528,13 @@ async function checkAutomationProvider(
 ): Promise<LaunchBlockerResult> {
 	const reference = readLaunchEnv(context);
 	if (!reference.ok) return fail(reference.detail);
+
+	// Dynamic import: this module reaches into src/lib via $lib aliases that only
+	// resolve after `svelte-kit sync` has generated .svelte-kit/tsconfig.json.
+	// Loading it lazily keeps launch-blockers safe to import from any script
+	// entry point, including clean checkouts (e.g. the init-site CI job).
+	const { readAutomationProviderConfig, validateAutomationProviderConfig } =
+		await import('../../src/lib/server/automation/providers');
 
 	const config = readAutomationProviderConfig(reference.env as NodeJS.ProcessEnv);
 	const problems = validateAutomationProviderConfig(config);
