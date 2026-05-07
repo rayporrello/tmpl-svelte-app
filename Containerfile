@@ -36,6 +36,7 @@ RUN apk add --no-cache git
 # local package-manager guard changes)
 COPY package.json bun.lock ./
 COPY scripts/ensure-bun.ts ./scripts/ensure-bun.ts
+COPY scripts/vendor-sveltia.ts ./scripts/vendor-sveltia.ts
 RUN bun install --frozen-lockfile
 
 # Copy source and build

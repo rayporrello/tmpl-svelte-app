@@ -130,13 +130,17 @@ jobs:
           DATABASE_URL: postgres://tmpl_smoke_user:tmpl_smoke_pw@127.0.0.1:5432/tmpl_smoke
           BOOTSTRAP_PACKAGE_NAME: tmpl-bootstrap-smoke
           BOOTSTRAP_SITE_NAME: Bootstrap Smoke
-          BOOTSTRAP_PRODUCTION_URL: https://bootstrap-smoke.example.com
+          # Use the RFC 2606-reserved .test TLD so smoke values do not contain
+          # the substring "example.com", which scripts/lib/site-state.ts treats
+          # as a placeholder pattern. A subdomain of example.com would false-
+          # positive the post-init placeholder check.
+          BOOTSTRAP_PRODUCTION_URL: https://bootstrap-smoke.test
           BOOTSTRAP_META_DESCRIPTION: Bootstrap smoke description.
           BOOTSTRAP_GITHUB_OWNER: bootstrap-smoke
           BOOTSTRAP_GITHUB_REPO: tmpl-bootstrap-smoke
-          BOOTSTRAP_SUPPORT_EMAIL: hello@bootstrap-smoke.example.com
+          BOOTSTRAP_SUPPORT_EMAIL: hello@bootstrap-smoke.test
           BOOTSTRAP_PROJECT_SLUG: tmpl-bootstrap-smoke
-          BOOTSTRAP_PRODUCTION_DOMAIN: bootstrap-smoke.example.com
+          BOOTSTRAP_PRODUCTION_DOMAIN: bootstrap-smoke.test
           BOOTSTRAP_PWA_SHORT_NAME: Smoke
         run: ./bootstrap --ci
 
