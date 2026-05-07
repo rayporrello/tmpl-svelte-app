@@ -56,10 +56,9 @@ jobs:
 
       # bun audit reports advisories from the npm registry against bun.lock.
       # Advisory-only until v1.0.0 tag; flip to gating then by removing
-      # continue-on-error and (if needed) failing on bun audit's exit code.
+      # `|| true` so bun audit's exit code fails the job.
       - name: bun audit (advisory until v1.0.0)
-        run: bun audit
-        continue-on-error: true
+        run: bun audit || true
 
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
