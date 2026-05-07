@@ -46,6 +46,7 @@ describe('backup:check', () => {
 
 		const result = await runBackupCheck({
 			rootDir,
+			env: {},
 			runtime: 'podman',
 			verifyPort: 54329,
 			readinessTimeoutMs: 1,
@@ -92,6 +93,7 @@ describe('backup:check', () => {
 
 		const result = await runBackupCheck({
 			rootDir,
+			env: {},
 			runtime: 'podman',
 			verifyPort: 54329,
 			readinessTimeoutMs: 1,
@@ -125,6 +127,7 @@ describe('backup:check', () => {
 
 		const result = await runBackupCheck({
 			rootDir,
+			env: {},
 			runtime: 'podman',
 			verifyPort: 54329,
 			readinessTimeoutMs: 1,
@@ -144,7 +147,7 @@ describe('backup:check', () => {
 		write(rootDir, 'package.json', JSON.stringify({ name: 'ready-site' }, null, 2));
 		const runner = okRunner();
 
-		const result = await runBackupCheck({ rootDir, runtime: 'podman', runner });
+		const result = await runBackupCheck({ rootDir, env: {}, runtime: 'podman', runner });
 
 		expect(result).toMatchObject({
 			status: 'fail',

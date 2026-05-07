@@ -63,7 +63,7 @@ function blocker(id: LaunchErrorCode) {
 }
 
 async function resultFor(id: LaunchErrorCode, rootDir: string, envSource: 'dev' | 'prod' = 'prod') {
-	return blocker(id).check({ rootDir, envSource });
+	return blocker(id).check({ rootDir, envSource, env: {} });
 }
 
 describe('launch-blockers manifest', () => {
