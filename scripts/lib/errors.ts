@@ -20,6 +20,7 @@ export const ERRORS = {
 	'LAUNCH-ENV-002': 'PUBLIC_SITE_URL points to localhost',
 	'LAUNCH-APPHTML-001': 'src/app.html title still template fallback',
 	'LAUNCH-BACKUP-001': 'production backup config missing',
+	'LAUNCH-DRILL-001': 'restore drill evidence missing or stale',
 	'LAUNCH-EMAIL-001': 'contact form still console-only (POSTMARK_SERVER_TOKEN unset)',
 	'LAUNCH-AUTOMATION-001': 'automation provider config incomplete for production',
 	'LAUNCH-SMOKE-001': 'E2E smoke secret missing or malformed',

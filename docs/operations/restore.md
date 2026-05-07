@@ -10,6 +10,10 @@ Two restore paths:
 If you are choosing under pressure: PITR is almost always the right answer.
 Faster, more recent, atomic across all databases.
 
+Before touching production, check the latest non-destructive proof in
+[restore-drill.md](restore-drill.md). It shows where the weekly drill writes
+evidence and how to run one immediately.
+
 ---
 
 ## Before any destructive restore

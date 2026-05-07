@@ -25,6 +25,8 @@ export const PROTECTED_FILES = [
 	'deploy/systemd/backup-base.timer',
 	'deploy/systemd/backup-check.service',
 	'deploy/systemd/backup-check.timer',
+	'deploy/systemd/restore-drill.service',
+	'deploy/systemd/restore-drill.timer',
 	'content/pages/home.yml',
 	'README.md',
 ] as const;
@@ -51,6 +53,8 @@ export const INIT_SITE_OWNED_FILES = [
 	'deploy/systemd/backup-base.timer',
 	'deploy/systemd/backup-check.service',
 	'deploy/systemd/backup-check.timer',
+	'deploy/systemd/restore-drill.service',
+	'deploy/systemd/restore-drill.timer',
 	'content/pages/home.yml',
 	'README.md',
 ] as const;

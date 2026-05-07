@@ -14,6 +14,7 @@ import {
 	readAutomationProviderConfig,
 	validateAutomationProviderConfig,
 } from '../../src/lib/server/automation/providers';
+import { readLastDrill } from './restore-drill-state';
 
 export type LaunchBlockerStatus = 'pass' | 'warn' | 'fail';
 export type LaunchBlockerSeverity = 'required' | 'recommended';
@@ -91,6 +92,7 @@ const PROCESS_ENV_FALLBACK_KEYS = [
 	'POSTMARK_API_TEST',
 	'SMOKE_TEST_SECRET',
 ] as const;
+const RESTORE_DRILL_LAUNCH_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 const SITE_TITLE_PLACEHOLDERS = new Set([
 	'',
 	TEMPLATE_PACKAGE_NAME,
@@ -456,6 +458,39 @@ async function checkBackupRemote(
 	return checkOptionalProdEnvVar('BACKUP_REMOTE', 'Off-host backups are not configured:', context);
 }
 
+async function checkRestoreDrillFresh(
+	context?: LaunchBlockerCheckContext
+): Promise<LaunchBlockerResult> {
+	const now = new Date(context?.env?.LAUNCH_NOW ?? Date.now());
+	const drill = readLastDrill();
+	if (!drill) {
+		return warn(
+			'No restore drill evidence found in the ops-status ledger; run `bun run backup:restore:drill` before launch if time allows.'
+		);
+	}
+
+	if (!drill.succeededAt) {
+		return warn(
+			`Last restore drill attempted at ${drill.attemptedAt} but has no recorded success; run \`bun run backup:restore:drill\`.`
+		);
+	}
+
+	const succeededAt = new Date(drill.succeededAt);
+	if (Number.isNaN(succeededAt.getTime())) {
+		return warn(
+			`Restore drill evidence has an invalid success timestamp (${drill.succeededAt}); rerun the drill.`
+		);
+	}
+
+	if (now.getTime() - succeededAt.getTime() > RESTORE_DRILL_LAUNCH_WINDOW_MS) {
+		return warn(
+			`Last successful restore drill was ${drill.succeededAt}, older than the 14-day launch guidance.`
+		);
+	}
+
+	return pass(`Last successful restore drill was ${drill.succeededAt}.`);
+}
+
 async function checkPostmarkToken(
 	context?: LaunchBlockerCheckContext
 ): Promise<LaunchBlockerResult> {
@@ -680,6 +715,14 @@ export const LAUNCH_BLOCKERS: LaunchBlocker[] = [
 		check: checkBackupRemote,
 		fixHint: 'NEXT: Configure BACKUP_REMOTE before launch or document the backup waiver.',
 		docsPath: 'docs/operations/backups.md',
+	},
+	{
+		id: 'LAUNCH-DRILL-001',
+		label: 'Restore drill evidence is fresh',
+		severity: 'recommended',
+		check: checkRestoreDrillFresh,
+		fixHint: 'NEXT: Run bun run backup:restore:drill and inspect the ops-status ledger.',
+		docsPath: 'docs/operations/restore-drill.md',
 	},
 	{
 		id: 'LAUNCH-AUTOMATION-001',

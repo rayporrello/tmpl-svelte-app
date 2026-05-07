@@ -102,6 +102,8 @@ export const PROJECT_GENERATED_FILES = [
 	'deploy/systemd/backup-base.timer',
 	'deploy/systemd/backup-check.service',
 	'deploy/systemd/backup-check.timer',
+	'deploy/systemd/restore-drill.service',
+	'deploy/systemd/restore-drill.timer',
 ] as const;
 
 export const PROJECT_REGION_FILES = ['README.md', 'src/app.html'] as const;
@@ -587,6 +589,27 @@ function rewriteBackupCheckSystemd(content: string, manifest: SiteProjectManifes
 	return out;
 }
 
+function rewriteRestoreDrillSystemd(content: string, manifest: SiteProjectManifest): string {
+	let out = content.replace(/<project>/gu, manifest.project.projectSlug);
+	out = out.replace(
+		/^(Description=Weekly non-destructive restore drill(?: timer)? — )(.+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	out = out.replace(
+		/^(WorkingDirectory=%h\/)([^\s]+)$/mu,
+		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
+	);
+	out = out.replace(
+		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	out = out.replace(
+		/^(Unit=)([^\s]+?)(-restore-drill\.service)$/mu,
+		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+	);
+	return out;
+}
+
 const REWRITERS: Record<string, (content: string, manifest: SiteProjectManifest) => string> = {
 	'package.json': rewritePackageJson,
 	'src/lib/config/site.ts': rewriteSiteTs,
@@ -607,6 +630,8 @@ const REWRITERS: Record<string, (content: string, manifest: SiteProjectManifest)
 	'deploy/systemd/backup-base.timer': rewriteBackupBaseSystemd,
 	'deploy/systemd/backup-check.service': rewriteBackupCheckSystemd,
 	'deploy/systemd/backup-check.timer': rewriteBackupCheckSystemd,
+	'deploy/systemd/restore-drill.service': rewriteRestoreDrillSystemd,
+	'deploy/systemd/restore-drill.timer': rewriteRestoreDrillSystemd,
 	'README.md': rewriteReadme,
 	'src/app.html': rewriteAppHtml,
 };

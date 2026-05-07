@@ -23,10 +23,11 @@ Each operational concern gets one JSON channel file:
 
 ```text
 releases.json
+restore-drill.json
 ```
 
-Future passes may add channels such as smoke, restore drill, backup, or
-migration state. Channels are not pre-created.
+Future passes may add channels such as smoke, backup, or migration state.
+Channels are not pre-created.
 
 A channel snapshot follows this shape:
 
@@ -44,6 +45,30 @@ A channel snapshot follows this shape:
 The `detail` object is owned by the channel. For `releases.json`, it
 contains release history with image refs, deployed SHAs, migration
 filenames, and rollback-safety classification.
+
+For `restore-drill.json`, `detail` follows this shape:
+
+```json
+{
+	"attemptedAt": "2026-05-07T03:15:00.000Z",
+	"succeededAt": "2026-05-07T03:15:00.000Z",
+	"status": "pass",
+	"targetTime": "2026-05-07T02:15:00.000Z",
+	"durationMs": 42000,
+	"backupSource": "WAL-G LATEST via project-postgres image=ghcr.io/owner/project:<sha>",
+	"steps": [
+		{
+			"id": "DRILL-001",
+			"severity": "pass",
+			"summary": "Source container project-postgres present."
+		}
+	]
+}
+```
+
+The channel uses `stale_after_seconds = 604800` (7 days). Failed drills update
+`last_attempt_at` and preserve the previous `last_success_at` so operators can
+see both the newest attempt and the newest successful proof.
 
 ## Atomic Writes And Locking
 

@@ -2,9 +2,9 @@
 /**
  * backup:restore:drill — non-destructive PITR restore drill.
  *
- * Ships as a script the operator runs (manually or from cron quarterly),
- * NOT as a systemd timer. An automated restore drill that fails silently is
- * worse than no drill — operator visibility is the load-bearing piece.
+ * Ships as a script the operator runs manually or from the weekly systemd
+ * timer. Results are written to the ops-status ledger so operators can inspect
+ * the latest restore proof without relying on memory.
  *
  * What it does:
  *   1. Pulls the same Postgres+WAL-G image the production container uses.
@@ -28,10 +28,21 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+	fail,
+	pass,
+	printOpsResults,
+	severityToExitCode,
+	worstSeverity,
+	type OpsResult,
+} from './lib/ops-result';
 import { run as defaultRunner, type RunResult } from './lib/run';
 import { sanitizeProjectSlug } from './lib/postgres-dev';
+import { recordDrill as defaultRecordDrill } from './lib/restore-drill-state';
 
 const ROOT_DIR = resolve(fileURLToPath(new URL('..', import.meta.url)));
+
+type RestoreDrillRecorder = typeof defaultRecordDrill;
 
 export interface RestoreDrillOptions {
 	rootDir?: string;
@@ -40,13 +51,17 @@ export interface RestoreDrillOptions {
 	targetTimeIso?: string;
 	tempPort?: number;
 	runner?: typeof defaultRunner;
+	recordDrill?: RestoreDrillRecorder;
 	now?: () => Date;
 	env?: NodeJS.ProcessEnv;
 }
 
-export interface RestoreDrillResult {
-	exitCode: number;
-	steps: Array<{ id: string; status: 'pass' | 'fail' | 'skip'; detail: string }>;
+export interface RestoreDrillRun {
+	results: OpsResult[];
+	targetTime: string;
+	backupSource: string;
+	startedAt: Date;
+	finishedAt: Date;
 	tempContainer: string;
 }
 
@@ -72,12 +87,8 @@ function defaultTargetTime(now: () => Date): string {
 	return t.toISOString();
 }
 
-function step(
-	id: string,
-	status: 'pass' | 'fail' | 'skip',
-	detail: string
-): RestoreDrillResult['steps'][number] {
-	return { id, status, detail };
+function step(id: string, severity: 'pass' | 'fail', summary: string): OpsResult {
+	return severity === 'pass' ? pass(id, summary) : fail(id, summary);
 }
 
 async function execOk(
@@ -89,20 +100,22 @@ async function execOk(
 	return runner(command, args, { cwd, capture: true });
 }
 
-export async function runRestoreDrill(
+export async function collectRestoreDrillResults(
 	options: RestoreDrillOptions = {}
-): Promise<RestoreDrillResult> {
+): Promise<RestoreDrillRun> {
 	const rootDir = options.rootDir ?? ROOT_DIR;
 	const runner = options.runner ?? defaultRunner;
 	const now = options.now ?? (() => new Date());
 	const env = options.env ?? process.env;
+	const startedAt = now();
 
 	const slug = readProjectSlug(rootDir, options.projectSlug);
 	const sourceContainer = `${slug}-postgres`;
-	const tempContainer = `${slug}-postgres-restore-drill-${Date.now()}`;
+	const tempContainer = `${slug}-postgres-restore-drill-${startedAt.getTime()}`;
 	const targetTime = options.targetTimeIso ?? defaultTargetTime(now);
 	const tempPort = options.tempPort ?? 55432;
-	const steps: RestoreDrillResult['steps'] = [];
+	const results: OpsResult[] = [];
+	let backupSource = `WAL-G LATEST via ${sourceContainer}`;
 
 	// 1. Source container exists (drill needs the same image to run with).
 	const exists = await runner('podman', ['container', 'exists', sourceContainer], {
@@ -110,16 +123,16 @@ export async function runRestoreDrill(
 		capture: true,
 	});
 	if (exists.code !== 0) {
-		steps.push(
+		results.push(
 			step(
 				'DRILL-001',
 				'fail',
 				`Source container ${sourceContainer} not found. Cannot determine the image to drill against.`
 			)
 		);
-		return { exitCode: 1, steps, tempContainer };
+		return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 	}
-	steps.push(step('DRILL-001', 'pass', `Source container ${sourceContainer} present.`));
+	results.push(step('DRILL-001', 'pass', `Source container ${sourceContainer} present.`));
 
 	// 2. Look up the source image so the drill runs on the same WAL-G binary.
 	const inspect = await runner(
@@ -128,11 +141,12 @@ export async function runRestoreDrill(
 		{ cwd: rootDir, capture: true }
 	);
 	if (inspect.code !== 0 || !inspect.stdout.trim()) {
-		steps.push(step('DRILL-002', 'fail', `Could not read image for ${sourceContainer}.`));
-		return { exitCode: 1, steps, tempContainer };
+		results.push(step('DRILL-002', 'fail', `Could not read image for ${sourceContainer}.`));
+		return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 	}
 	const image = inspect.stdout.trim();
-	steps.push(step('DRILL-002', 'pass', `Image: ${image}`));
+	backupSource = `WAL-G LATEST via ${sourceContainer} image=${image}`;
+	results.push(step('DRILL-002', 'pass', `Image: ${image}`));
 
 	// 3. Copy R2 credentials from the source container's env. WAL-G needs
 	//    them to fetch the base backup + WAL chain. We pass them through
@@ -153,22 +167,24 @@ export async function runRestoreDrill(
 		credExports.push('-e', `${key}=${value}`);
 	}
 	if (credExports.length === 0) {
-		steps.push(
+		results.push(
 			step(
 				'DRILL-003',
 				'fail',
 				'No R2/WAL-G env vars in current shell. Source the prod env file before running the drill.'
 			)
 		);
-		return { exitCode: 1, steps, tempContainer };
+		return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 	}
-	steps.push(step('DRILL-003', 'pass', `Forwarding ${credExports.length / 2} R2/WAL-G env vars.`));
+	results.push(
+		step('DRILL-003', 'pass', `Forwarding ${credExports.length / 2} R2/WAL-G env vars.`)
+	);
 
 	// 4. Start the temp container without auto-starting Postgres so we can
 	//    run wal-g backup-fetch into the empty PGDATA volume first. We mount
 	//    a scratch named volume so the host PGDATA isn't touched.
 	const tempVolume = `${tempContainer}-data`;
-	steps.push(step('DRILL-004', 'pass', `Drill container=${tempContainer} volume=${tempVolume}.`));
+	results.push(step('DRILL-004', 'pass', `Drill container=${tempContainer} volume=${tempVolume}.`));
 
 	const startResult = await runner(
 		'podman',
@@ -194,10 +210,10 @@ export async function runRestoreDrill(
 		{ cwd: rootDir, capture: true }
 	);
 	if (startResult.code !== 0) {
-		steps.push(step('DRILL-005', 'fail', `podman run failed: ${startResult.stderr.trim()}`));
-		return { exitCode: 1, steps, tempContainer };
+		results.push(step('DRILL-005', 'fail', `podman run failed: ${startResult.stderr.trim()}`));
+		return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 	}
-	steps.push(step('DRILL-005', 'pass', 'Temp container running.'));
+	results.push(step('DRILL-005', 'pass', 'Temp container running.'));
 
 	const teardown = async (): Promise<void> => {
 		await runner('podman', ['rm', '-f', tempContainer], { cwd: rootDir, capture: true });
@@ -220,12 +236,12 @@ export async function runRestoreDrill(
 			rootDir
 		);
 		if (fetchResult.code !== 0) {
-			steps.push(
+			results.push(
 				step('DRILL-006', 'fail', `wal-g backup-fetch failed: ${fetchResult.stderr.trim()}`)
 			);
-			return { exitCode: 1, steps, tempContainer };
+			return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 		}
-		steps.push(step('DRILL-006', 'pass', 'Base backup restored from R2.'));
+		results.push(step('DRILL-006', 'pass', 'Base backup restored from R2.'));
 
 		// 6. Write recovery.signal + restore_command + recovery_target_time.
 		//    Postgres will replay WAL up to the target on startup.
@@ -246,12 +262,12 @@ export async function runRestoreDrill(
 			{ cwd: rootDir, capture: true }
 		);
 		if (writeRecovery.code !== 0) {
-			steps.push(
+			results.push(
 				step('DRILL-007', 'fail', `Could not write recovery signal: ${writeRecovery.stderr.trim()}`)
 			);
-			return { exitCode: 1, steps, tempContainer };
+			return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 		}
-		steps.push(step('DRILL-007', 'pass', `recovery_target_time=${targetTime} written.`));
+		results.push(step('DRILL-007', 'pass', `recovery_target_time=${targetTime} written.`));
 
 		// 7. Start Postgres in recovery mode.
 		const startPg = await runner(
@@ -269,10 +285,10 @@ export async function runRestoreDrill(
 			{ cwd: rootDir, capture: true }
 		);
 		if (startPg.code !== 0) {
-			steps.push(
+			results.push(
 				step('DRILL-008', 'fail', `Postgres recovery start failed: ${startPg.stderr.trim()}`)
 			);
-			return { exitCode: 1, steps, tempContainer };
+			return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 		}
 
 		// Poll until pg_isready accepts connections (recovery complete enough
@@ -302,10 +318,10 @@ export async function runRestoreDrill(
 			await new Promise((r) => setTimeout(r, 1000));
 		}
 		if (!ready) {
-			steps.push(step('DRILL-008', 'fail', 'Postgres did not become ready within 90s.'));
-			return { exitCode: 1, steps, tempContainer };
+			results.push(step('DRILL-008', 'fail', 'Postgres did not become ready within 90s.'));
+			return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 		}
-		steps.push(step('DRILL-008', 'pass', 'Postgres reached ready state in recovery mode.'));
+		results.push(step('DRILL-008', 'pass', 'Postgres reached ready state in recovery mode.'));
 
 		// 8. Read-only sanity check: confirm the contact_submissions table
 		//    exists and SELECT count(*) succeeds. We don't assert on count
@@ -326,23 +342,56 @@ export async function runRestoreDrill(
 			{ cwd: rootDir, capture: true }
 		);
 		if (sanity.code !== 0) {
-			steps.push(
+			results.push(
 				step(
 					'DRILL-009',
 					'fail',
 					`Sanity SELECT failed: ${sanity.stderr.trim() || sanity.stdout.trim()}`
 				)
 			);
-			return { exitCode: 1, steps, tempContainer };
+			return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 		}
-		steps.push(
+		results.push(
 			step('DRILL-009', 'pass', `contact_submissions count=${sanity.stdout.trim()} (read-only).`)
 		);
 
-		return { exitCode: 0, steps, tempContainer };
+		return { results, targetTime, backupSource, startedAt, finishedAt: now(), tempContainer };
 	} finally {
 		if (!options.keepContainer) await teardown();
 	}
+}
+
+export async function runRestoreDrill(options: RestoreDrillOptions = {}): Promise<OpsResult[]> {
+	const rootDir = options.rootDir ?? ROOT_DIR;
+	const now = options.now ?? (() => new Date());
+	const startedAt = now();
+	const targetTime = options.targetTimeIso ?? defaultTargetTime(now);
+	const recorder = options.recordDrill ?? defaultRecordDrill;
+
+	let drill: RestoreDrillRun;
+	try {
+		drill = await collectRestoreDrillResults({ ...options, rootDir, now });
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		drill = {
+			results: [fail('DRILL-000', `Restore drill could not run: ${message}`)],
+			targetTime,
+			backupSource: 'WAL-G LATEST',
+			startedAt,
+			finishedAt: now(),
+			tempContainer: '',
+		};
+	}
+
+	recorder({
+		results: drill.results,
+		targetTime: drill.targetTime,
+		backupSource: drill.backupSource,
+		startedAt: drill.startedAt,
+		finishedAt: drill.finishedAt,
+	});
+
+	return drill.results;
 }
 
 function parseArgs(args: string[]): {
@@ -367,7 +416,7 @@ Options:
   --target-time=ISO       Override recovery target (default: now - 1h).
   --help                  Show this help.
 
-Run quarterly per docs/operations/pitr-restore.md.
+Run manually or weekly via systemd; see docs/operations/restore-drill.md.
 `;
 }
 
@@ -378,21 +427,19 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
 		return 0;
 	}
 
-	const result = await runRestoreDrill({
+	const results = await runRestoreDrill({
 		keepContainer: options.keep,
 		targetTimeIso: options.targetTime,
 	});
 
-	for (const item of result.steps) {
-		const prefix = item.status === 'pass' ? 'OK  ' : item.status === 'skip' ? 'SKIP' : 'FAIL';
-		const stream = item.status === 'fail' ? console.error : console.log;
-		stream(`${prefix} ${item.id} ${item.detail}`);
-	}
+	printOpsResults(results);
 
-	if (result.exitCode === 0) console.log('\nbackup:restore:drill passed.\n');
+	const severity = worstSeverity(results);
+	const exitCode = severityToExitCode(severity);
+	if (exitCode === 0) console.log('\nbackup:restore:drill passed.\n');
 	else console.error('\nbackup:restore:drill FAILED — PITR is at risk.\n');
 
-	return result.exitCode;
+	return exitCode;
 }
 
 if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {

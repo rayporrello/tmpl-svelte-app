@@ -57,6 +57,8 @@ const TARGET_FILES = [
 	'deploy/systemd/backup-base.timer',
 	'deploy/systemd/backup-check.service',
 	'deploy/systemd/backup-check.timer',
+	'deploy/systemd/restore-drill.service',
+	'deploy/systemd/restore-drill.timer',
 ];
 
 const EXPECTED_STRINGS: Record<string, string[]> = {
@@ -139,6 +141,15 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 		'ExecStart=%h/my-cool-site/scripts/backup-pitr-check.sh',
 	],
 	'deploy/systemd/backup-check.timer': ['Unit=my-cool-site-backup-check.service'],
+	'deploy/systemd/restore-drill.service': [
+		'Description=Weekly non-destructive restore drill — my-cool-site',
+		'WorkingDirectory=%h/my-cool-site',
+		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
+	],
+	'deploy/systemd/restore-drill.timer': [
+		'Description=Weekly non-destructive restore drill timer — my-cool-site',
+		'Unit=my-cool-site-restore-drill.service',
+	],
 };
 
 const FORBIDDEN_AFTER_INIT = [

@@ -59,7 +59,7 @@ appliance. This is what currently ships:
 | Durable outbox + worker             | Implemented                                                                                     |
 | External automation provider        | Implemented; `AUTOMATION_PROVIDER=n8n` or `webhook`; n8n is external per ADR-027, not bundled   |
 | PITR backups (WAL-G)                | Implemented                                                                                     |
-| Restore drill                       | Script exists; scheduling and evidence persistence in pass 08                                   |
+| Restore drill                       | Implemented; weekly via systemd timer; evidence in ops-status ledger                            |
 | Rollback automation                 | Manual today; planned pass 05                                                                   |
 | Live health visibility              | `/healthz` + `/readyz` only; unified surface in pass 08                                         |
 | Uploads / content recovery          | Local backup; offsite chain to be verified before pass 07                                       |
@@ -276,7 +276,7 @@ bun run automation:worker:daemon  # long-lived poll loop used by worker.containe
 bun run backup:base          # WAL-G base backup (also fired by backup-base.timer)
 bun run backup:wal:check     # verify latest archived WAL is fresh in R2
 bun run backup:pitr:check    # verify base + WAL chain are intact for PITR
-bun run backup:restore:drill # non-destructive PITR restore drill (run quarterly)
+bun run backup:restore:drill # non-destructive PITR restore drill (also scheduled weekly)
 bun run db:generate          # generate migration SQL from schema changes
 bun run db:migrate           # apply pending migrations
 bun run db:push              # push schema directly (dev only)

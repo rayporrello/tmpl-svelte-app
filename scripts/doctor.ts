@@ -18,6 +18,7 @@ import {
 import { checkBun, detectContainerRuntime, gitWorkingTreeDirty } from './lib/preflight';
 import { sanitizeProjectSlug } from './lib/postgres-dev';
 import type { PrintStream } from './lib/print';
+import { isDrillStale, readLastDrill } from './lib/restore-drill-state';
 import { redactSecrets, run as runCommand, type RunOptions, type RunResult } from './lib/run';
 import { REQUIRED_PRIVATE_ENV_VARS, REQUIRED_PUBLIC_ENV_VARS } from '../src/lib/server/env';
 
@@ -929,6 +930,57 @@ async function launchBlockersSection(
 	return { id: 'launch-blockers', label: 'Launch Blockers', checks };
 }
 
+function restoreDrillSection(): DoctorSection {
+	const lastDrill = readLastDrill();
+	if (!lastDrill) {
+		return {
+			id: 'restore-drill',
+			label: 'Restore Drill',
+			checks: [
+				warn(
+					'DOCTOR-DRILL-001',
+					'Restore-drill ledger channel exists',
+					'restore-drill.json is missing; drill has never run',
+					'recommended',
+					'Drill has never run; first run is scheduled by the timer or operator can run `bun run backup:restore:drill` manually.'
+				),
+			],
+		};
+	}
+
+	const checks: DoctorCheck[] = [
+		pass(
+			'DOCTOR-DRILL-001',
+			'Restore-drill ledger channel exists',
+			`last_attempt_at=${lastDrill.attemptedAt}; last_success_at=${lastDrill.succeededAt ?? 'never'}`,
+			'recommended'
+		),
+	];
+
+	if (isDrillStale()) {
+		checks.push(
+			warn(
+				'DOCTOR-DRILL-002',
+				'Last restore drill is fresh',
+				`last_attempt_at=${lastDrill.attemptedAt}; last_success_at=${lastDrill.succeededAt ?? 'never'}`,
+				'recommended',
+				'Run `bun run backup:restore:drill` and inspect docs/operations/restore-drill.md if it fails.'
+			)
+		);
+	} else {
+		checks.push(
+			pass(
+				'DOCTOR-DRILL-002',
+				'Last restore drill is fresh',
+				`last_attempt_at=${lastDrill.attemptedAt}; last_success_at=${lastDrill.succeededAt}`,
+				'recommended'
+			)
+		);
+	}
+
+	return { id: 'restore-drill', label: 'Restore Drill', checks };
+}
+
 function deploymentArtifactsSection(rootDir: string): DoctorSection {
 	const checks: DoctorCheck[] = [];
 	const deployDir = join(rootDir, 'deploy');
@@ -961,6 +1013,8 @@ function deploymentArtifactsSection(rootDir: string): DoctorSection {
 		'deploy/systemd/backup-base.timer',
 		'deploy/systemd/backup-check.service',
 		'deploy/systemd/backup-check.timer',
+		'deploy/systemd/restore-drill.service',
+		'deploy/systemd/restore-drill.timer',
 	];
 	const missing = requiredFiles.filter((path) => !existsSync(join(rootDir, path)));
 	if (missing.length) {
@@ -1110,6 +1164,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 	);
 	const validation = await validationForecastSection(rootDir, env, runner);
 	const launchBlockers = await launchBlockersSection(rootDir, env, envSource);
+	const restoreDrill = restoreDrillSection();
 	const deployment = deploymentArtifactsSection(rootDir);
 	const nextCommands = nextCommandsSection();
 
@@ -1120,6 +1175,7 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 		runtime,
 		validation,
 		launchBlockers,
+		restoreDrill,
 		deployment,
 		nextCommands,
 	];

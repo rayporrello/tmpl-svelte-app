@@ -8,16 +8,23 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { runCheckLaunch } from '../../scripts/check-launch';
 import { ERRORS, type LaunchErrorCode } from '../../scripts/lib/errors';
 import { evaluateLaunchBlockers, LAUNCH_BLOCKERS } from '../../scripts/lib/launch-blockers';
+import { recordDrill } from '../../scripts/lib/restore-drill-state';
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const READY_FIXTURE = join(REPO_ROOT, 'tests/fixtures/ready-to-launch');
 const TEMPLATE_OG = readFileSync(join(REPO_ROOT, 'static/og-default.png'));
 
 let tempDirs: string[] = [];
+const previousOpsStateDir = process.env.OPS_STATE_DIR;
 
 afterEach(() => {
 	for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
 	tempDirs = [];
+	if (previousOpsStateDir === undefined) {
+		delete process.env.OPS_STATE_DIR;
+	} else {
+		process.env.OPS_STATE_DIR = previousOpsStateDir;
+	}
 });
 
 function copyReadyFixture(): string {
@@ -31,6 +38,22 @@ function writeFixtureFile(rootDir: string, path: string, content: string | Buffe
 	const target = join(rootDir, path);
 	mkdirSync(dirname(target), { recursive: true });
 	writeFileSync(target, content);
+}
+
+function useTempOpsState(): void {
+	const stateDir = mkdtempSync(join(tmpdir(), 'launch-ops-state-'));
+	tempDirs.push(stateDir);
+	process.env.OPS_STATE_DIR = stateDir;
+}
+
+function recordSuccessfulDrill(finishedAt: string): void {
+	recordDrill({
+		results: [{ id: 'DRILL-001', severity: 'pass', summary: 'Source container present.' }],
+		targetTime: '2026-05-07T02:00:00.000Z',
+		backupSource: 'WAL-G LATEST via ready-site-postgres',
+		startedAt: new Date(new Date(finishedAt).getTime() - 1000),
+		finishedAt: new Date(finishedAt),
+	});
 }
 
 function blocker(id: LaunchErrorCode) {
@@ -58,6 +81,7 @@ describe('launch-blockers manifest', () => {
 	});
 
 	it('passes every blocker for the ready-to-launch fixture', async () => {
+		useTempOpsState();
 		const results = await evaluateLaunchBlockers({
 			rootDir: copyReadyFixture(),
 			envSource: 'prod',
@@ -69,6 +93,7 @@ describe('launch-blockers manifest', () => {
 			)
 		);
 		expect(results.filter((item) => item.status !== 'pass')).toEqual([
+			expect.objectContaining({ id: 'LAUNCH-DRILL-001', status: 'warn' }),
 			expect.objectContaining({ id: 'LAUNCH-SMOKE-001', status: 'warn' }),
 		]);
 	});
@@ -311,6 +336,7 @@ describe('launch-blockers manifest', () => {
 	});
 
 	it('fails check:launch only for required blocker failures', async () => {
+		useTempOpsState();
 		const rootDir = copyReadyFixture();
 		writeFixtureFile(rootDir, 'static/og-default.png', TEMPLATE_OG);
 		writeFixtureFile(
@@ -327,6 +353,42 @@ describe('launch-blockers manifest', () => {
 		});
 		expect(result.results.find((item) => item.id === 'LAUNCH-BACKUP-001')).toMatchObject({
 			status: 'warn',
+		});
+		expect(result.results.find((item) => item.id === 'LAUNCH-DRILL-001')).toMatchObject({
+			status: 'warn',
+		});
+	});
+
+	it('warns when restore drill evidence is missing or stale and passes when fresh', async () => {
+		useTempOpsState();
+		const rootDir = copyReadyFixture();
+
+		await expect(resultFor('LAUNCH-DRILL-001', rootDir)).resolves.toMatchObject({
+			status: 'warn',
+			detail: expect.stringContaining('No restore drill evidence'),
+		});
+
+		recordSuccessfulDrill('2026-04-20T03:00:00.000Z');
+		await expect(
+			blocker('LAUNCH-DRILL-001').check({
+				rootDir,
+				envSource: 'prod',
+				env: { LAUNCH_NOW: '2026-05-07T03:00:00.000Z' },
+			})
+		).resolves.toMatchObject({
+			status: 'warn',
+			detail: expect.stringContaining('older than the 14-day'),
+		});
+
+		recordSuccessfulDrill('2026-05-01T03:00:00.000Z');
+		await expect(
+			blocker('LAUNCH-DRILL-001').check({
+				rootDir,
+				envSource: 'prod',
+				env: { LAUNCH_NOW: '2026-05-07T03:00:00.000Z' },
+			})
+		).resolves.toMatchObject({
+			status: 'pass',
 		});
 	});
 

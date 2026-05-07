@@ -75,6 +75,8 @@ cp deploy/systemd/backup-base.service  ~/.config/systemd/user/<project>-backup-b
 cp deploy/systemd/backup-base.timer    ~/.config/systemd/user/<project>-backup-base.timer
 cp deploy/systemd/backup-check.service ~/.config/systemd/user/<project>-backup-check.service
 cp deploy/systemd/backup-check.timer   ~/.config/systemd/user/<project>-backup-check.timer
+cp deploy/systemd/restore-drill.service ~/.config/systemd/user/<project>-restore-drill.service
+cp deploy/systemd/restore-drill.timer   ~/.config/systemd/user/<project>-restore-drill.timer
 
 # Automation outbox worker (long-lived per-site container).
 cp deploy/quadlets/worker.container ~/.config/containers/systemd/<project>-worker.container
@@ -142,7 +144,8 @@ systemctl --user status <project>-worker
 # Backup timers for the required bundled Postgres path.
 systemctl --user enable --now <project>-backup-base.timer
 systemctl --user enable --now <project>-backup-check.timer
-systemctl --user list-timers | grep <project>-backup
+systemctl --user enable --now <project>-restore-drill.timer
+systemctl --user list-timers | grep <project>-
 ```
 
 After the first base backup runs (or trigger it manually with
@@ -152,9 +155,10 @@ After the first base backup runs (or trigger it manually with
 bun run backup:restore:drill
 ```
 
-This is non-destructive; it builds and tears down a temp container.
-Run it the first time after activating PITR for any new client, then
-quarterly.
+This is non-destructive; it builds and tears down a temp container and
+writes evidence to the ops-status ledger. Run it the first time after
+activating PITR for any new client; the timer keeps a weekly cadence
+thereafter.
 
 ### 8. Configure and start Caddy
 

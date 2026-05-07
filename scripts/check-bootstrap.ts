@@ -87,6 +87,8 @@ const BASE_COPY_PATHS = [
 	'deploy/systemd/backup-base.timer',
 	'deploy/systemd/backup-check.service',
 	'deploy/systemd/backup-check.timer',
+	'deploy/systemd/restore-drill.service',
+	'deploy/systemd/restore-drill.timer',
 	'package.json',
 	'README.md',
 	'scripts',

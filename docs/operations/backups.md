@@ -127,15 +127,17 @@ values. There is no managed-provider backup path in this template.
 bun run backup:base               # one-shot base backup (also the daily timer's job)
 bun run backup:wal:check          # confirm latest archived WAL is < 10 minutes old
 bun run backup:pitr:check         # confirm a recent base + fresh WAL chain
-bun run backup:restore:drill      # non-destructive restore drill (run quarterly)
+bun run backup:restore:drill      # non-destructive restore drill (also scheduled weekly)
 ```
 
 The drill spins up a temporary Postgres container off the same image,
 restores the latest base, replays WAL up to "now − 1 hour", runs a
 read-only sanity SELECT against `contact_submissions`, and tears the
-container down. **Run it the first time after activating PITR for any
-new client, then quarterly thereafter.** A passing drill is the only
-proof that PITR actually works for that site.
+container down. It also writes evidence to
+`~/.local/state/<project>/ops/restore-drill.json`. **Run it the first
+time after activating PITR for any new client; the systemd timer keeps a
+weekly cadence thereafter.** A passing drill is the only proof that PITR
+actually works for that site.
 
 For incident-time restore (the real thing), follow
 [restore.md](restore.md).
