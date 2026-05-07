@@ -48,7 +48,7 @@ describe('deploy smoke', () => {
 		const result = await runDeploySmoke({ baseUrl: 'https://example.com', fetcher });
 
 		expect(result.exitCode).toBe(0);
-		expect(result.results).not.toContainEqual(expect.objectContaining({ status: 'fail' }));
+		expect(result.results).not.toContainEqual(expect.objectContaining({ severity: 'fail' }));
 	});
 
 	it('can skip readiness when the operator asks for a liveness-only smoke', async () => {
@@ -68,7 +68,7 @@ describe('deploy smoke', () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.results).toContainEqual(
-			expect.objectContaining({ id: 'SMOKE-READY-001', status: 'skip' })
+			expect.objectContaining({ id: 'SMOKE-READY-001', severity: 'info' })
 		);
 	});
 

@@ -180,34 +180,50 @@ CI (`.github/workflows/ci.yml`) builds, scans, and pushes the image to GHCR on e
 On the host:
 
 ```bash
-# 1. Find the SHA of the commit you want to deploy
 SHA=$(git rev-parse <branch-or-tag>)
-
-# 2. Pull the new image (CI already pushed it to GHCR)
 podman pull ghcr.io/<owner>/<name>:$SHA
 
-# 3. Update the Quadlet Image= line
-sed -i "s|Image=ghcr.io/<owner>/<name>:.*|Image=ghcr.io/<owner>/<name>:$SHA|" \
-  ~/.config/containers/systemd/<project>-web.container
+bun run deploy:apply -- \
+  --image=ghcr.io/<owner>/<name>:$SHA \
+  --sha=$SHA \
+  --safety=rollback-safe
+```
 
-# 4. Apply pending migrations explicitly before restarting web
+Choose `--safety=rollback-safe` only when the previous image can run against the
+post-migration schema. Use `--safety=rollback-blocked` for destructive or
+compatibility-breaking migrations. See
+[docs/operations/deploy-apply.md](../operations/deploy-apply.md) for the full
+operator runbook and dry-run mode.
+
+If `deploy:apply` fails before restart, stop and fix the reported step. If smoke
+fails after restart, the release is recorded and the CLI prints the appropriate
+rollback or PITR next step.
+
+### Manual fallback
+
+Use this only when `deploy:apply` is unavailable and you are operating directly
+on the host.
+
+```bash
+SHA=$(git rev-parse <branch-or-tag>)
+podman pull ghcr.io/<owner>/<name>:$SHA
+
+sed -i "s|^Image=.*|Image=ghcr.io/<owner>/<name>:$SHA|" \
+  ~/.config/containers/systemd/<project>-web.container
+sed -i "s|^Image=.*|Image=ghcr.io/<owner>/<name>:$SHA|" \
+  ~/.config/containers/systemd/<project>-worker.container
+
 cd ~/<project>
 set -a
 source ~/secrets/<project>.prod.env
 set +a
 bun run db:migrate
 
-# 5. Reload and restart
 systemctl --user daemon-reload
-systemctl --user restart <project>-web
-
-# 6. Verify the unit is healthy
-systemctl --user status <project>-web
+systemctl --user restart <project>-web.service <project>-worker.service
+curl -fsS http://127.0.0.1:3000/readyz
+bun run deploy:smoke -- --url https://<domain>
 ```
-
-If `bun run db:migrate` fails, stop the deploy and keep the current web unit
-running. The template does not run migrations automatically from container
-startup because failed or destructive migrations should be operator-visible.
 
 ---
 

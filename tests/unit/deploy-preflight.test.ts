@@ -235,7 +235,7 @@ describe('deploy preflight', () => {
 		const result = await runDeployPreflight({ rootDir: writeReadyProject(), env: {} });
 
 		expect(result.exitCode).toBe(0);
-		expect(result.results.every((item) => item.status === 'pass')).toBe(true);
+		expect(result.results.every((item) => item.severity === 'pass')).toBe(true);
 	});
 
 	it('fails with multiple reasons for a placeholder project', async () => {
@@ -259,12 +259,12 @@ describe('deploy preflight', () => {
 		const result = await runDeployPreflight({ rootDir, env: {} });
 
 		expect(result.exitCode).toBe(1);
-		expect(result.results.filter((item) => item.status === 'fail').length).toBeGreaterThan(4);
+		expect(result.results.filter((item) => item.severity === 'fail').length).toBeGreaterThan(4);
 		expect(result.results.find((item) => item.id === 'PREFLIGHT-ENV-001')).toMatchObject({
-			status: 'fail',
+			severity: 'fail',
 		});
 		expect(result.results.find((item) => item.id === 'PREFLIGHT-CADDY-001')).toMatchObject({
-			status: 'fail',
+			severity: 'fail',
 		});
 	});
 
@@ -471,8 +471,8 @@ describe('deploy preflight', () => {
 
 		const result = await check({ rootDir, env: {} });
 
-		expect(result).toMatchObject({ id, status: 'fail' });
-		expect(result.hint).toContain('NEXT:');
+		expect(result).toMatchObject({ id, severity: 'fail' });
+		expect(result.remediation?.join('\n')).toContain('NEXT:');
 	});
 
 	it('allows an explicit backup waiver', async () => {
@@ -484,7 +484,7 @@ describe('deploy preflight', () => {
 		);
 
 		await expect(checkBackupConfigured({ rootDir, env: {} })).resolves.toMatchObject({
-			status: 'pass',
+			severity: 'pass',
 		});
 	});
 
@@ -508,7 +508,7 @@ describe('deploy preflight', () => {
 		);
 
 		await expect(checkRequiredLaunchBlockers({ rootDir, env: {} })).resolves.toMatchObject({
-			status: 'fail',
+			severity: 'fail',
 			detail: expect.stringContaining('LAUNCH-EMAIL-001'),
 		});
 	});
@@ -534,7 +534,7 @@ describe('deploy preflight', () => {
 		);
 
 		await expect(checkRequiredLaunchBlockers({ rootDir, env: {} })).resolves.toMatchObject({
-			status: 'pass',
+			severity: 'pass',
 		});
 	});
 
@@ -550,7 +550,7 @@ describe('deploy preflight', () => {
 
 		const result = await checkSopsRender({ rootDir, env: {}, runner });
 
-		expect(result.status).toBe('pass');
+		expect(result.severity).toBe('pass');
 		expect(runner).toHaveBeenCalledWith(
 			'sops',
 			['--decrypt', '--output-type', 'dotenv', join(rootDir, 'secrets.yaml')],
@@ -563,7 +563,7 @@ describe('deploy preflight', () => {
 		write(rootDir, 'secrets.yaml', 'ORIGIN: https://ready.example\n');
 
 		await expect(checkSopsRender({ rootDir, env: {} })).resolves.toMatchObject({
-			status: 'fail',
+			severity: 'fail',
 		});
 	});
 });

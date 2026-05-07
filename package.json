@@ -62,6 +62,7 @@
 		"launch:check": "bun run validate:launch",
 		"deploy:preflight": "bun scripts/deploy-preflight.ts",
 		"deploy:smoke": "bun scripts/deploy-smoke.ts",
+		"deploy:apply": "bun run scripts/deploy-apply.ts",
 		"rollback": "bun run scripts/rollback.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",

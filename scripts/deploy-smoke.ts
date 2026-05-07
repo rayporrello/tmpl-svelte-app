@@ -9,15 +9,15 @@ import {
 	X_CONTENT_TYPE_OPTIONS,
 	X_FRAME_OPTIONS,
 } from '../src/lib/server/security-headers';
+import {
+	fail as opsFail,
+	info as opsInfo,
+	pass as opsPass,
+	severityToExitCode,
+	type OpsResult,
+} from './lib/ops-result';
 
-export type DeploySmokeStatus = 'pass' | 'fail' | 'skip';
-
-export type DeploySmokeResult = {
-	id: string;
-	status: DeploySmokeStatus;
-	label: string;
-	detail: string;
-};
+export type DeploySmokeResult = OpsResult;
 
 export type DeploySmokeOptions = {
 	baseUrl: string;
@@ -32,16 +32,16 @@ type CliOptions = {
 	timeoutMs: number;
 };
 
-function pass(id: string, label: string, detail: string): DeploySmokeResult {
-	return { id, status: 'pass', label, detail };
+function pass(id: string, summary: string, detail: string): OpsResult {
+	return opsPass(id, summary, { detail });
 }
 
-function fail(id: string, label: string, detail: string): DeploySmokeResult {
-	return { id, status: 'fail', label, detail };
+function fail(id: string, summary: string, detail: string): OpsResult {
+	return opsFail(id, summary, { detail });
 }
 
-function skip(id: string, label: string, detail: string): DeploySmokeResult {
-	return { id, status: 'skip', label, detail };
+function skip(id: string, summary: string, detail: string): OpsResult {
+	return opsInfo(id, summary, { detail });
 }
 
 function joinUrl(baseUrl: string, path: string): string {
@@ -162,7 +162,7 @@ async function checkSecurityHeaders(
 }
 
 export async function runDeploySmoke(options: DeploySmokeOptions): Promise<{
-	results: DeploySmokeResult[];
+	results: OpsResult[];
 	exitCode: number;
 }> {
 	const fetcher = options.fetcher ?? fetch;
@@ -231,7 +231,9 @@ export async function runDeploySmoke(options: DeploySmokeOptions): Promise<{
 
 	return {
 		results,
-		exitCode: results.some((item) => item.status === 'fail') ? 1 : 0,
+		exitCode: severityToExitCode(
+			results.some((item) => item.severity === 'fail') ? 'fail' : 'pass'
+		),
 	};
 }
 
@@ -283,9 +285,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 			timeoutMs: options.timeoutMs,
 		});
 		for (const item of results) {
-			const prefix = item.status === 'pass' ? 'OK  ' : item.status === 'skip' ? 'SKIP' : 'FAIL';
-			console[item.status === 'fail' ? 'error' : 'log'](
-				`${prefix} ${item.id} ${item.label}: ${item.detail}`
+			const prefix = item.severity === 'pass' ? 'OK  ' : item.severity === 'info' ? 'SKIP' : 'FAIL';
+			console[item.severity === 'fail' ? 'error' : 'log'](
+				`${prefix} ${item.id} ${item.summary}: ${item.detail}`
 			);
 		}
 		if (exitCode === 0) console.log('\ndeploy:smoke passed.\n');

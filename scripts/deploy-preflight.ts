@@ -12,16 +12,15 @@ import {
 	readAutomationProviderConfig,
 	validateAutomationProviderConfig,
 } from '../src/lib/server/automation/providers';
+import {
+	fail as opsFail,
+	info as opsInfo,
+	pass as opsPass,
+	severityToExitCode,
+	type OpsResult,
+} from './lib/ops-result';
 
-export type DeployPreflightStatus = 'pass' | 'fail' | 'skip';
-
-export type DeployPreflightResult = {
-	id: string;
-	label: string;
-	status: DeployPreflightStatus;
-	detail: string;
-	hint: string;
-};
+export type DeployPreflightResult = OpsResult;
 
 export type DeployPreflightContext = {
 	rootDir: string;
@@ -60,7 +59,7 @@ type ImageReference =
 type CheckDefinition = {
 	id: string;
 	label: string;
-	run: (context: DeployPreflightContext) => Promise<DeployPreflightResult>;
+	run: (context: DeployPreflightContext) => Promise<OpsResult>;
 	/**
 	 * When true, this check is skipped (with a synthesized 'skip' result) when
 	 * PREFLIGHT-ENV-001 fails. Avoids duplicating the same "no production env
@@ -85,28 +84,20 @@ const PROD_ENV_PATH_ENV_KEYS = [
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1']);
 const FORBIDDEN_PROD_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
-function pass(id: string, label: string, detail: string, hint: string): DeployPreflightResult {
-	return { id, label, status: 'pass', detail, hint };
+function remediation(hint: string): string[] {
+	return [hint.startsWith('NEXT:') ? hint : `NEXT: ${hint}`];
 }
 
-function fail(id: string, label: string, detail: string, hint: string): DeployPreflightResult {
-	return {
-		id,
-		label,
-		status: 'fail',
-		detail,
-		hint: hint.startsWith('NEXT:') ? hint : `NEXT: ${hint}`,
-	};
+function pass(id: string, summary: string, detail: string, hint: string): OpsResult {
+	return opsPass(id, summary, { detail, remediation: remediation(hint) });
 }
 
-function skip(id: string, label: string, reason: string, hint: string): DeployPreflightResult {
-	return {
-		id,
-		label,
-		status: 'skip',
-		detail: reason,
-		hint: hint.startsWith('NEXT:') ? hint : `NEXT: ${hint}`,
-	};
+function fail(id: string, summary: string, detail: string, hint: string): OpsResult {
+	return opsFail(id, summary, { detail, remediation: remediation(hint) });
+}
+
+function skip(id: string, summary: string, reason: string, hint: string): OpsResult {
+	return opsInfo(id, summary, { detail: reason, remediation: remediation(hint) });
 }
 
 function displayPath(rootDir: string, path: string): string {
@@ -1148,7 +1139,7 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 
 export async function runDeployPreflight(
 	options: Partial<DeployPreflightContext> = {}
-): Promise<{ results: DeployPreflightResult[]; exitCode: number }> {
+): Promise<{ results: OpsResult[]; exitCode: number }> {
 	const context: DeployPreflightContext = {
 		rootDir: options.rootDir ?? process.cwd(),
 		env: options.env ?? process.env,
@@ -1163,7 +1154,7 @@ export async function runDeployPreflight(
 	const envCheck = DEPLOY_PREFLIGHT_CHECKS.find((check) => check.id === 'PREFLIGHT-ENV-001');
 	if (!envCheck) throw new Error('PREFLIGHT-ENV-001 is required in DEPLOY_PREFLIGHT_CHECKS.');
 	const envResult = await envCheck.run(context);
-	const envOk = envResult.status === 'pass';
+	const envOk = envResult.severity === 'pass';
 
 	const otherResults = await Promise.all(
 		DEPLOY_PREFLIGHT_CHECKS.filter((check) => check.id !== 'PREFLIGHT-ENV-001').map((check) => {
@@ -1188,7 +1179,9 @@ export async function runDeployPreflight(
 
 	return {
 		results,
-		exitCode: results.some((item) => item.status === 'fail') ? 1 : 0,
+		exitCode: severityToExitCode(
+			results.some((item) => item.severity === 'fail') ? 'fail' : 'pass'
+		),
 	};
 }
 
@@ -1208,9 +1201,11 @@ export async function main(
 	});
 	const lines = ['Deploy preflight'];
 	for (const item of result.results) {
-		const prefix = item.status === 'pass' ? 'OK  ' : item.status === 'skip' ? 'SKIP' : 'FAIL';
+		const prefix = item.severity === 'pass' ? 'OK  ' : item.severity === 'info' ? 'SKIP' : 'FAIL';
 		lines.push(`  ${prefix} ${item.id} ${item.detail}`);
-		if (item.status === 'fail' || item.status === 'skip') lines.push(`       ${item.hint}`);
+		if (item.severity === 'fail' || item.severity === 'info') {
+			for (const step of item.remediation ?? []) lines.push(`       ${step}`);
+		}
 	}
 	lines.push('');
 

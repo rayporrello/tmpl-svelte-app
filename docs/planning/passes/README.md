@@ -38,8 +38,8 @@ it without context overflow. If it grows, split.
 | 03  | Ops-status ledger + release state + Quadlet helpers | complete              | ADR-025 |
 | 04  | Lock site bundle: remove bundled n8n                | complete              | ADR-027 |
 | 05  | Rollback CLI                                        | complete              | n/a     |
-| 06  | `deploy:apply` orchestrator                         | drafted, ready to run | ADR-028 |
-| 07  | E2E smoke through Postmark sandbox                  | not yet drafted       | TBD     |
+| 06  | `deploy:apply` orchestrator                         | complete              | ADR-028 |
+| 07  | E2E smoke through Postmark (authenticated backdoor) | drafted, ready to run | ADR-029 |
 | 08  | Restore-drill scheduling and evidence persistence   | not yet drafted       | TBD     |
 | 09  | `health:live` ledger view                           | not yet drafted       | TBD     |
 
