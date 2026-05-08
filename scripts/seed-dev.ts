@@ -67,7 +67,7 @@ Launching a small website is easier when the checklist is visible, specific, and
 
 ## Start With The Basics
 
-Confirm the production domain, analytics consent state, contact-form routing, and backup destination before the first public deploy.
+Confirm the production domain, analytics consent state, contact-form routing, and platform handoff before the first public deploy.
 
 ## Keep The Review Human
 
@@ -239,7 +239,7 @@ const CONTACT_ROWS: SeedContactSubmission[] = [
 		createdAt: '2026-04-25T18:20:00.000Z',
 		name: 'Avery Morgan',
 		email: 'avery.seed@example.com',
-		message: 'We want to verify backups and launch checks before going live.',
+		message: 'We want to verify platform operations and launch checks before going live.',
 		sourcePath: '/contact',
 		userAgent: 'seed-dev',
 		requestId: 'seed-dev-005',

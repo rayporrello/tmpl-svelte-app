@@ -8,23 +8,16 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { runCheckLaunch } from '../../scripts/check-launch';
 import { ERRORS, type LaunchErrorCode } from '../../scripts/lib/errors';
 import { evaluateLaunchBlockers, LAUNCH_BLOCKERS } from '../../scripts/lib/launch-blockers';
-import { recordDrill } from '../../scripts/lib/restore-drill-state';
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const READY_FIXTURE = join(REPO_ROOT, 'tests/fixtures/ready-to-launch');
 const TEMPLATE_OG = readFileSync(join(REPO_ROOT, 'static/og-default.png'));
 
 let tempDirs: string[] = [];
-const previousOpsStateDir = process.env.OPS_STATE_DIR;
 
 afterEach(() => {
 	for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
 	tempDirs = [];
-	if (previousOpsStateDir === undefined) {
-		delete process.env.OPS_STATE_DIR;
-	} else {
-		process.env.OPS_STATE_DIR = previousOpsStateDir;
-	}
 });
 
 function copyReadyFixture(): string {
@@ -38,22 +31,6 @@ function writeFixtureFile(rootDir: string, path: string, content: string | Buffe
 	const target = join(rootDir, path);
 	mkdirSync(dirname(target), { recursive: true });
 	writeFileSync(target, content);
-}
-
-function useTempOpsState(): void {
-	const stateDir = mkdtempSync(join(tmpdir(), 'launch-ops-state-'));
-	tempDirs.push(stateDir);
-	process.env.OPS_STATE_DIR = stateDir;
-}
-
-function recordSuccessfulDrill(finishedAt: string): void {
-	recordDrill({
-		results: [{ id: 'DRILL-001', severity: 'pass', summary: 'Source container present.' }],
-		targetTime: '2026-05-07T02:00:00.000Z',
-		backupSource: 'WAL-G LATEST via ready-site-postgres',
-		startedAt: new Date(new Date(finishedAt).getTime() - 1000),
-		finishedAt: new Date(finishedAt),
-	});
 }
 
 function blocker(id: LaunchErrorCode) {
@@ -72,16 +49,18 @@ describe('launch-blockers manifest', () => {
 		expect(LAUNCH_BLOCKERS.map((item) => item.id).sort()).toEqual(registryLaunchCodes.sort());
 	});
 
-	it('marks backup as recommended and email as required', () => {
+	it('keeps smoke optional and production email required', () => {
 		const severities = Object.fromEntries(LAUNCH_BLOCKERS.map((item) => [item.id, item.severity]));
-		expect(severities['LAUNCH-BACKUP-001']).toBe('recommended');
 		expect(severities['LAUNCH-EMAIL-001']).toBe('required');
+		expect(severities['LAUNCH-SMOKE-001']).toBe('recommended');
 		expect(severities['LAUNCH-OG-001']).toBe('required');
 		expect(severities['LAUNCH-ENV-001']).toBe('required');
+		expect(severities['LAUNCH-BACKUP-001']).toBeUndefined();
+		expect(severities['LAUNCH-AUTOMATION-001']).toBeUndefined();
+		expect(severities['LAUNCH-DRILL-001']).toBeUndefined();
 	});
 
-	it('passes every blocker for the ready-to-launch fixture', async () => {
-		useTempOpsState();
+	it('passes every required blocker for the ready-to-launch fixture', async () => {
 		const results = await evaluateLaunchBlockers({
 			rootDir: copyReadyFixture(),
 			envSource: 'prod',
@@ -92,8 +71,8 @@ describe('launch-blockers manifest', () => {
 				LAUNCH_BLOCKERS.map((item) => expect.objectContaining({ id: item.id }))
 			)
 		);
+		expect(results.filter((item) => item.status === 'fail')).toEqual([]);
 		expect(results.filter((item) => item.status !== 'pass')).toEqual([
-			expect.objectContaining({ id: 'LAUNCH-DRILL-001', status: 'warn' }),
 			expect.objectContaining({ id: 'LAUNCH-SMOKE-001', status: 'warn' }),
 		]);
 	});
@@ -213,76 +192,6 @@ describe('launch-blockers manifest', () => {
 		});
 	});
 
-	it('fails LAUNCH-AUTOMATION-001 when AUTOMATION_PROVIDER=n8n but webhook config is missing', async () => {
-		const rootDir = copyReadyFixture();
-		writeFixtureFile(
-			rootDir,
-			'production.env',
-			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nAUTOMATION_PROVIDER=n8n\n'
-		);
-
-		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
-			status: 'fail',
-			detail: expect.stringContaining('N8N_WEBHOOK_URL'),
-		});
-	});
-
-	it('fails LAUNCH-AUTOMATION-001 for AUTOMATION_PROVIDER=console (dev-only)', async () => {
-		const rootDir = copyReadyFixture();
-		writeFixtureFile(
-			rootDir,
-			'production.env',
-			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nAUTOMATION_PROVIDER=console\n'
-		);
-
-		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
-			status: 'fail',
-			detail: expect.stringContaining('development only'),
-		});
-	});
-
-	it('passes LAUNCH-AUTOMATION-001 for explicit AUTOMATION_PROVIDER=noop', async () => {
-		const rootDir = copyReadyFixture();
-		writeFixtureFile(
-			rootDir,
-			'production.env',
-			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nAUTOMATION_PROVIDER=noop\n'
-		);
-
-		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
-			status: 'pass',
-			detail: expect.stringContaining('explicitly disabled'),
-		});
-	});
-
-	it('passes LAUNCH-AUTOMATION-001 when AUTOMATION_PROVIDER is unset', async () => {
-		const rootDir = copyReadyFixture();
-		writeFixtureFile(
-			rootDir,
-			'production.env',
-			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nCONTACT_TO_EMAIL=hello@ready.example\nCONTACT_FROM_EMAIL=website@ready.example\n'
-		);
-
-		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
-			status: 'pass',
-			detail: expect.stringContaining('AUTOMATION_PROVIDER=noop'),
-		});
-	});
-
-	it('fails LAUNCH-AUTOMATION-001 when AUTOMATION_PROVIDER=webhook but webhook config is missing', async () => {
-		const rootDir = copyReadyFixture();
-		writeFixtureFile(
-			rootDir,
-			'production.env',
-			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\nBACKUP_REMOTE=r2:bucket\nPOSTMARK_SERVER_TOKEN=token\nCONTACT_TO_EMAIL=hello@ready.example\nCONTACT_FROM_EMAIL=website@ready.example\nAUTOMATION_PROVIDER=webhook\n'
-		);
-
-		await expect(resultFor('LAUNCH-AUTOMATION-001', rootDir)).resolves.toMatchObject({
-			status: 'fail',
-			detail: expect.stringContaining('AUTOMATION_WEBHOOK_URL'),
-		});
-	});
-
 	it('fails LAUNCH-EMAIL-001 when Postmark production env is missing', async () => {
 		const rootDir = copyReadyFixture();
 		writeFixtureFile(
@@ -291,10 +200,6 @@ describe('launch-blockers manifest', () => {
 			'ORIGIN=https://ready.example\nPUBLIC_SITE_URL=https://ready.example\n'
 		);
 
-		await expect(resultFor('LAUNCH-BACKUP-001', rootDir)).resolves.toMatchObject({
-			status: 'warn',
-			detail: expect.stringContaining('BACKUP_REMOTE'),
-		});
 		await expect(resultFor('LAUNCH-EMAIL-001', rootDir)).resolves.toMatchObject({
 			status: 'fail',
 			detail: expect.stringContaining('POSTMARK_SERVER_TOKEN'),
@@ -336,7 +241,6 @@ describe('launch-blockers manifest', () => {
 	});
 
 	it('fails check:launch only for required blocker failures', async () => {
-		useTempOpsState();
 		const rootDir = copyReadyFixture();
 		writeFixtureFile(rootDir, 'static/og-default.png', TEMPLATE_OG);
 		writeFixtureFile(
@@ -351,45 +255,9 @@ describe('launch-blockers manifest', () => {
 		expect(result.results.find((item) => item.id === 'LAUNCH-OG-001')).toMatchObject({
 			status: 'fail',
 		});
-		expect(result.results.find((item) => item.id === 'LAUNCH-BACKUP-001')).toMatchObject({
-			status: 'warn',
-		});
-		expect(result.results.find((item) => item.id === 'LAUNCH-DRILL-001')).toMatchObject({
-			status: 'warn',
-		});
-	});
-
-	it('warns when restore drill evidence is missing or stale and passes when fresh', async () => {
-		useTempOpsState();
-		const rootDir = copyReadyFixture();
-
-		await expect(resultFor('LAUNCH-DRILL-001', rootDir)).resolves.toMatchObject({
-			status: 'warn',
-			detail: expect.stringContaining('No restore drill evidence'),
-		});
-
-		recordSuccessfulDrill('2026-04-20T03:00:00.000Z');
-		await expect(
-			blocker('LAUNCH-DRILL-001').check({
-				rootDir,
-				envSource: 'prod',
-				env: { LAUNCH_NOW: '2026-05-07T03:00:00.000Z' },
-			})
-		).resolves.toMatchObject({
-			status: 'warn',
-			detail: expect.stringContaining('older than the 14-day'),
-		});
-
-		recordSuccessfulDrill('2026-05-01T03:00:00.000Z');
-		await expect(
-			blocker('LAUNCH-DRILL-001').check({
-				rootDir,
-				envSource: 'prod',
-				env: { LAUNCH_NOW: '2026-05-07T03:00:00.000Z' },
-			})
-		).resolves.toMatchObject({
-			status: 'pass',
-		});
+		const resultIds = result.results.map((item) => item.id as string);
+		expect(resultIds).not.toContain('LAUNCH-BACKUP-001');
+		expect(resultIds).not.toContain('LAUNCH-DRILL-001');
 	});
 
 	it('fails smoke launch gates when secret is short or test token is missing', async () => {
@@ -400,11 +268,9 @@ describe('launch-blockers manifest', () => {
 			[
 				'ORIGIN=https://ready.example',
 				'PUBLIC_SITE_URL=https://ready.example',
-				'BACKUP_REMOTE=r2:bucket',
 				'POSTMARK_SERVER_TOKEN=token',
 				'CONTACT_TO_EMAIL=hello@ready.example',
 				'CONTACT_FROM_EMAIL=website@ready.example',
-				'AUTOMATION_PROVIDER=noop',
 				'SMOKE_TEST_SECRET=short',
 			].join('\n')
 		);
@@ -423,7 +289,7 @@ describe('launch-blockers manifest', () => {
 		writeFixtureFile(rootDir, 'src/lib/server/db/schema.ts', 'export const isSmokeTest = true;\n');
 		writeFixtureFile(
 			rootDir,
-			'drizzle/0003_smoke_test_contact_rows.sql',
+			'drizzle/0000_baseline.sql',
 			'ALTER TABLE contact_submissions ADD COLUMN is_smoke_test boolean;\n'
 		);
 		writeFixtureFile(
@@ -432,12 +298,10 @@ describe('launch-blockers manifest', () => {
 			[
 				'ORIGIN=https://ready.example',
 				'PUBLIC_SITE_URL=https://ready.example',
-				'BACKUP_REMOTE=r2:bucket',
 				'POSTMARK_SERVER_TOKEN=token',
 				'POSTMARK_API_TEST=POSTMARK_API_TEST',
 				'CONTACT_TO_EMAIL=hello@ready.example',
 				'CONTACT_FROM_EMAIL=website@ready.example',
-				'AUTOMATION_PROVIDER=noop',
 				'SMOKE_TEST_SECRET=0123456789abcdef0123456789abcdef',
 			].join('\n')
 		);
@@ -461,11 +325,9 @@ describe('launch-blockers manifest', () => {
 			[
 				'ORIGIN=https://ready.example',
 				'PUBLIC_SITE_URL=https://ready.example',
-				'BACKUP_REMOTE=r2:bucket',
 				'POSTMARK_SERVER_TOKEN=token',
 				'CONTACT_TO_EMAIL=hello@ready.example',
 				'CONTACT_FROM_EMAIL=website@ready.example',
-				'AUTOMATION_PROVIDER=noop',
 			].join('\n')
 		);
 

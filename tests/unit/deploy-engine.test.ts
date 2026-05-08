@@ -39,6 +39,7 @@ function seedProject(image = 'ghcr.io/example/site:old'): void {
 		JSON.stringify({
 			project: { projectSlug: 'deploy-engine' },
 			site: { productionUrl: 'https://deploy.example' },
+			deployment: { loopbackPort: 3000 },
 		})
 	);
 	write(
@@ -80,7 +81,7 @@ function fakeRunner(failRestart = false): DeployRunner & { calls: string[][] } {
 		calls,
 		async exec(cmd: string[]) {
 			calls.push(cmd);
-			if (failRestart && cmd.join(' ') === 'systemctl --user restart worker.service') {
+			if (failRestart && cmd.join(' ') === 'systemctl --user restart web.service') {
 				return { exitCode: 1, stdout: '', stderr: 'restart failed' };
 			}
 			return { exitCode: 0, stdout: 'ok', stderr: '' };
@@ -178,7 +179,7 @@ describe('deploy engine', () => {
 		);
 	});
 
-	it('dry-runs without running migrations, systemctl, writes, or ledger events', async () => {
+	it('dry-runs without pulling, running systemctl, writing Quadlets, or ledger events', async () => {
 		const runner = fakeRunner();
 
 		const results = await applyDeploy(plan(), {
@@ -210,11 +211,9 @@ describe('deploy engine', () => {
 		});
 
 		expect(runner.calls).toEqual([
-			['bun', 'run', 'db:migrate'],
+			['podman', 'pull', 'ghcr.io/example/site:new'],
 			['systemctl', '--user', 'daemon-reload'],
 			['systemctl', '--user', 'restart', 'web.service'],
-			['systemctl', '--user', 'restart', 'postgres.service'],
-			['systemctl', '--user', 'restart', 'worker.service'],
 		]);
 		for (const name of ALL_QUADLETS) {
 			expect(readFileSync(join(quadletsDir, name), 'utf8')).toContain(
@@ -267,7 +266,7 @@ describe('deploy engine', () => {
 		);
 	});
 
-	it('uses PITR remediation when smoke fails for a rollback-blocked release', async () => {
+	it('uses platform restore remediation when smoke fails for a rollback-blocked release', async () => {
 		const blockedPlan = { ...plan(), migrationSafety: 'rollback-blocked' as const };
 
 		const results = await applyDeploy(blockedPlan, {
@@ -283,7 +282,7 @@ describe('deploy engine', () => {
 			severity: 'fail',
 			remediation: expect.arrayContaining([
 				'bun run rollback --status',
-				expect.stringContaining('docs/operations/restore.md'),
+				expect.stringContaining('platform-infrastructure restore runbook'),
 			]),
 		});
 	});

@@ -1,3 +1,5 @@
+<!-- 2026-05-08: Historical planning note. Shared-infrastructure cleanup supersedes per-site production Postgres/worker/backup/restore assumptions; see docs/planning/adrs/ADR-031-shared-infrastructure-cell.md. -->
+
 # Phase 1 — Script Primitives
 
 > Plan reference: §5.1 (New files), §6 Phase 1, §8 (Error code registry),

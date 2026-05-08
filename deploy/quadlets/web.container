@@ -21,19 +21,18 @@ After=network-online.target
 Image=ghcr.io/<owner>/<name>:<sha>
 
 # Read runtime env vars from the rendered secrets file.
-# This file is produced by bun run secrets:render and contains ORIGIN, PUBLIC_SITE_URL, etc.
+# Production files are rendered by the platform-infrastructure repo.
 EnvironmentFile=%h/secrets/<project>.prod.env
 
-# Join the project network so the app can reach the required per-project
-# Postgres container at <project>-postgres:5432.
-Network=<project>.network
+# Join the platform-owned network so the app can reach shared Postgres at
+# web-platform-postgres:5432.
+Network=web-platform.network
 
 # Host-installed Caddy reaches the app through this loopback-only publish.
-# If multiple sites share one host, change both this line and
-# deploy/Caddyfile.example to the same unused loopback port.
+# init:site replaces the host port from site.project.json deployment.loopbackPort.
 PublishPort=127.0.0.1:3000:3000
 
-# Stable hostname for other project containers on <project>.network.
+# Stable hostname for logs and platform-side diagnostics.
 HostName=<project>-web
 
 # Give serve.js enough room to drain before Podman escalates to SIGKILL.

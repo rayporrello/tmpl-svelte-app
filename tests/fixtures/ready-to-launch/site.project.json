@@ -17,7 +17,8 @@
 	},
 	"deployment": {
 		"unitName": "ready-to-launch-site-web",
-		"containerImage": "ghcr.io/acme/ready-to-launch-site:<sha>"
+		"containerImage": "ghcr.io/acme/ready-to-launch-site:<sha>",
+		"loopbackPort": 3000
 	},
 	"cms": {
 		"backendRepo": "acme/ready-to-launch-site",

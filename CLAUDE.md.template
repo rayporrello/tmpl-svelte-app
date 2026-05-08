@@ -175,9 +175,9 @@ n8n is an optional external automation layer. The site works without it.
 - **Do not** add n8n to `package.json`
 - **Do not** import n8n packages in any SvelteKit module
 - **Content automations:** n8n writes to `content/` via GitHub API — must follow `config.yml` schema
-- **Runtime automations:** server action → Postgres source row + minimized outbox row → `bun run automation:worker` → signed provider delivery; exhausted failures land in `automation_dead_letters`
+- **Runtime automations:** server action → Postgres source row + minimized outbox row → platform fleet worker in production; `bun run automation:worker` is local one-shot only
 - User-facing actions must not call webhook providers directly
-- HTTP providers with no URL skip cleanly when the worker runs
+- Local HTTP providers with no URL skip cleanly when the one-shot worker runs
 - Provider delivery failures must not break user-facing form submissions
 - Production HTTP delivery must be HMAC-signed with the selected provider secret
 - Do not commit real webhook URLs or secrets — use `.env.example` for variable names only
@@ -216,7 +216,7 @@ Secrets workflow: `bun run secrets:render` / `bun run secrets:check`
 
 - [Forms: schema is at `src/lib/forms/contact.schema.ts`; server action at `src/routes/contact/+page.server.ts`]
 - [The `/blog` route loads from Sveltia CMS; do not hardcode posts]
-- [Forms submit to an n8n webhook at `N8N_WEBHOOK_URL` env var]
+- [Forms write outbox rows; production provider config lives in the platform repo]
 
 ## Images
 
@@ -319,28 +319,27 @@ Runtime PII retention defaults live in `src/lib/server/privacy/retention.ts`.
 
 - Keep `automation_dead_letters` free of full webhook payloads.
 - Run `bun run privacy:prune` as a dry-run before `bun run privacy:prune -- --apply`.
-- Run pruning before scheduled production database backups, but do not auto-run pruning from backup scripts or app startup.
+- Coordinate production pruning with the platform repo's backup/maintenance window; do not auto-run pruning from app startup.
 - Do not delete pending/processing automation events unless an operator passes `--include-stale-pending-days=N`.
 
-## Backups
+## Shared platform operations
 
-Full docs: [docs/operations/backups.md](docs/operations/backups.md)
+Production Postgres, fleet worker, backups, restore, and production secrets are
+owned by `platform-infrastructure`, not this website repo.
 
-The template ships local `pg_dump` + uploads tar + verify scripts and a turnkey off-host path (rclone + a systemd `.timer` + Healthchecks.io ping). Setting `BACKUP_REMOTE` in the env makes `bun run backup:all` auto-push after the local backups complete; `BACKUP_HEALTHCHECK_URL` adds start/success/fail pings.
+Website deploys use:
 
 ```bash
-bun run backup:all     # pg_dump + uploads tar (+ rclone push when BACKUP_REMOTE is set)
-bun run backup:push    # rclone push only — useful for retrying a failed upload
-bun run backup:verify  # integrity + checksum check on most recent backup
+bun run deploy:preflight
+bun run deploy:apply -- --image=<ghcr image> --sha=<sha>
+bun run deploy:smoke -- --url=<production url>
 ```
 
 **Agent rules:**
 
-- Do not auto-prune inside backup scripts. The systemd service runs `privacy:prune --apply` before `backup:all` — keep that order.
-- Do not commit `backups/` (gitignored).
-- Do not put real `BACKUP_REMOTE` or `BACKUP_HEALTHCHECK_URL` values in `.env.example` — variable names only; real values go in `secrets.yaml`.
-- Do not add a second backup tool (restic, borg, etc.) without explicit approval — rclone is the standard for off-host transfer.
-- The systemd unit (`deploy/systemd/backup.service`) calls `bun` from `%h/.bun/bin/bun`. If your install path differs, edit the `ExecStart` lines.
+- Do not reintroduce production Postgres, worker, backup, restore, or network Quadlets here.
+- Do not put production automation provider secrets in this repo.
+- Use platform scripts for provisioning, fleet migrations, backup, restore, and per-client exports.
 
 ## What not to do
 
@@ -357,9 +356,10 @@ bun run backup:verify  # integrity + checksum check on most recent backup
 - Do not commit `.env` or any file containing real secrets.
 - Do not add SQLite — Postgres is the runtime data store.
 - Do not add n8n as a package dependency — it is an external operator, not an app dependency.
+- Do not add production Postgres, worker, backup, restore, or network Quadlets to this website repo.
 - Do not use gray-matter for pure YAML files (`content/pages/`, `content/team/`, `content/testimonials/`).
 - Do not rename CMS fields without updating config, content files, types, loaders, components, and docs.
-- Do not call webhook providers from user-facing actions — insert automation outbox rows and deliver with `bun run automation:worker`.
+- Do not call webhook providers from user-facing actions — insert automation outbox rows; production delivery belongs to the platform fleet worker.
 - Do not add Sentry, OpenTelemetry, Grafana, Prometheus, Loki, or pino without explicit approval.
 - Do not log secrets, tokens, cookies, authorization headers, or raw form payloads.
 - Do not use `console.error` directly for server-side errors — use `logger.error()`.

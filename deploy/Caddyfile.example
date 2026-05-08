@@ -1,7 +1,9 @@
-# deploy/Caddyfile.example — Caddy reverse proxy for a SvelteKit site
+# deploy/Caddyfile.example — per-site Caddy reverse proxy snippet
 #
 # Replace example.com with the real domain before use.
-# See docs/deployment/runbook.md for the full deployment procedure.
+# Host-level Caddy is operated by platform-infrastructure. This file is the
+# per-site block/snippet that points at this site's loopback-published web port.
+# See docs/deployment/runbook.md for the website-side deployment procedure.
 # /admin/* is operator-only. Generate HEALTH_ADMIN_PASSWORD_HASH via
 # `caddy hash-password` and store it in secrets.yaml. The cleartext password
 # is never written to any file this template ships.
@@ -106,7 +108,7 @@ example.com {
     # ── Reverse proxy ─────────────────────────────────────────────────────────
     # Host-installed Caddy reaches the web container through the loopback-only
     # PublishPort in deploy/quadlets/web.container. Keep this port aligned with
-    # that unit if you run multiple sites on one host.
+    # site.project.json deployment.loopbackPort.
     reverse_proxy 127.0.0.1:3000 {
         # Health check — Caddy marks the upstream as healthy before serving.
         health_uri /healthz

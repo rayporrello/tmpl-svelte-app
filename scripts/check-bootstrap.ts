@@ -59,13 +59,7 @@ const TEMPLATE_PACKAGE_NAME = 'tmpl-svelte-app';
 const MOCK_PORT = 55432;
 const MOCK_SLUG = 'phase-five-smoke';
 const MOCK_CONTAINER = `${MOCK_SLUG}-postgres`;
-const REQUIRED_ENV_KEYS = [
-	'DATABASE_URL',
-	'DATABASE_DIRECT_URL',
-	'ORIGIN',
-	'PUBLIC_SITE_URL',
-	'SESSION_SECRET',
-] as const;
+const REQUIRED_ENV_KEYS = ['DATABASE_URL', 'ORIGIN', 'PUBLIC_SITE_URL', 'SESSION_SECRET'] as const;
 const HEX_32_BYTE_SECRET = /\b[a-f0-9]{64}\b/giu;
 const PROTECTED_FILE_SET = new Set<string>(PROTECTED_FILES);
 
@@ -75,21 +69,8 @@ const BASE_COPY_PATHS = [
 	'bootstrap',
 	'content/pages/home.yml',
 	'deploy/Caddyfile.example',
-	'deploy/Containerfile.postgres',
 	'deploy/env.example',
 	'deploy/quadlets/web.container',
-	'deploy/quadlets/web.network',
-	'deploy/quadlets/postgres.container',
-	'deploy/quadlets/postgres.volume',
-	'deploy/quadlets/worker.container',
-	'deploy/systemd/backup.service',
-	'deploy/systemd/backup.timer',
-	'deploy/systemd/backup-base.service',
-	'deploy/systemd/backup-base.timer',
-	'deploy/systemd/backup-check.service',
-	'deploy/systemd/backup-check.timer',
-	'deploy/systemd/restore-drill.service',
-	'deploy/systemd/restore-drill.timer',
 	'package.json',
 	'README.md',
 	'scripts',
@@ -522,7 +503,7 @@ async function runDryRunMode(): Promise<void> {
 	);
 	for (const expected of [
 		'DRY-RUN WOULD run: bun run init:site',
-		'DRY-RUN WOULD add 5 missing local .env keys',
+		'DRY-RUN WOULD add 4 missing local .env keys',
 		'DRY-RUN WOULD provision local project Postgres with Podman',
 		'DRY-RUN WOULD run: bun run db:migrate',
 		'DRY-RUN WOULD run: bun run check:db',

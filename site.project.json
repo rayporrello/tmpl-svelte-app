@@ -17,7 +17,8 @@
 	},
 	"deployment": {
 		"unitName": "project-web",
-		"containerImage": "ghcr.io/owner/repo-name:<sha>"
+		"containerImage": "ghcr.io/owner/repo-name:<sha>",
+		"loopbackPort": 3000
 	},
 	"cms": {
 		"backendRepo": "owner/repo-name",

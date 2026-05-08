@@ -10,7 +10,6 @@ import type { LaunchErrorCode } from './errors';
 import { type EnvMap, readEnv } from './env-file';
 import { runCheckProject } from '../check-project';
 import { evaluateRoutePolicyCoverage } from './route-scanner';
-import { readLastDrill } from './restore-drill-state';
 
 export type LaunchBlockerStatus = 'pass' | 'warn' | 'fail';
 export type LaunchBlockerSeverity = 'required' | 'recommended';
@@ -71,25 +70,14 @@ const PROD_ENV_PATH_ENV_KEYS = ['LAUNCH_PROD_ENV_FILE', 'PRODUCTION_ENV_FILE', '
 const PROCESS_ENV_FALLBACK_KEYS = [
 	'ORIGIN',
 	'PUBLIC_SITE_URL',
-	'BACKUP_REMOTE',
 	'CONTACT_FROM_EMAIL',
 	'CONTACT_TO_EMAIL',
 	'LAUNCH_ALLOW_CONSOLE_EMAIL',
-	'AUTOMATION_PROVIDER',
-	'N8N_WEBHOOK_URL',
-	'N8N_WEBHOOK_SECRET',
-	'N8N_WEBHOOK_AUTH_MODE',
-	'N8N_WEBHOOK_AUTH_HEADER',
-	'AUTOMATION_WEBHOOK_URL',
-	'AUTOMATION_WEBHOOK_SECRET',
-	'AUTOMATION_WEBHOOK_AUTH_MODE',
-	'AUTOMATION_WEBHOOK_AUTH_HEADER',
 	'POSTMARK_SERVER_TOKEN',
 	'POSTMARK_API_TEST',
 	'SMOKE_TEST_SECRET',
 	'HEALTH_ADMIN_PASSWORD_HASH',
 ] as const;
-const RESTORE_DRILL_LAUNCH_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 const SITE_TITLE_PLACEHOLDERS = new Set([
 	'',
 	TEMPLATE_PACKAGE_NAME,
@@ -117,9 +105,7 @@ export const LAUNCH_TEST_ENV = {
 	POSTMARK_SERVER_TOKEN: 'postmark-token',
 	CONTACT_TO_EMAIL: 'hello@acme-studio.dev',
 	CONTACT_FROM_EMAIL: 'website@acme-studio.dev',
-	AUTOMATION_PROVIDER: 'noop',
 	HEALTH_ADMIN_PASSWORD_HASH: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-	BACKUP_REMOTE: 'r2:bucket/acme-studio',
 } as const satisfies Record<string, string>;
 
 function rootDirFrom(context?: LaunchBlockerCheckContext): string {
@@ -447,62 +433,6 @@ async function checkAppHtmlTitle(
 	return pass(`src/app.html <title> is "${title}".`);
 }
 
-function checkOptionalProdEnvVar(
-	name: 'BACKUP_REMOTE',
-	missingDetail: string,
-	context?: LaunchBlockerCheckContext
-): LaunchBlockerResult {
-	const reference = readLaunchEnv(context);
-	if (!reference.ok) {
-		return warn(`${missingDetail} ${reference.detail}.`);
-	}
-
-	if (!reference.env[name]?.trim()) {
-		return warn(`${missingDetail} ${name} is missing from ${reference.label}.`);
-	}
-
-	return pass(`${name} is set in ${reference.label}.`);
-}
-
-async function checkBackupRemote(
-	context?: LaunchBlockerCheckContext
-): Promise<LaunchBlockerResult> {
-	return checkOptionalProdEnvVar('BACKUP_REMOTE', 'Off-host backups are not configured:', context);
-}
-
-async function checkRestoreDrillFresh(
-	context?: LaunchBlockerCheckContext
-): Promise<LaunchBlockerResult> {
-	const now = new Date(context?.env?.LAUNCH_NOW ?? Date.now());
-	const drill = readLastDrill();
-	if (!drill) {
-		return warn(
-			'No restore drill evidence found in the ops-status ledger; run `bun run backup:restore:drill` before launch if time allows.'
-		);
-	}
-
-	if (!drill.succeededAt) {
-		return warn(
-			`Last restore drill attempted at ${drill.attemptedAt} but has no recorded success; run \`bun run backup:restore:drill\`.`
-		);
-	}
-
-	const succeededAt = new Date(drill.succeededAt);
-	if (Number.isNaN(succeededAt.getTime())) {
-		return warn(
-			`Restore drill evidence has an invalid success timestamp (${drill.succeededAt}); rerun the drill.`
-		);
-	}
-
-	if (now.getTime() - succeededAt.getTime() > RESTORE_DRILL_LAUNCH_WINDOW_MS) {
-		return warn(
-			`Last successful restore drill was ${drill.succeededAt}, older than the 14-day launch guidance.`
-		);
-	}
-
-	return pass(`Last successful restore drill was ${drill.succeededAt}.`);
-}
-
 async function checkPostmarkToken(
 	context?: LaunchBlockerCheckContext
 ): Promise<LaunchBlockerResult> {
@@ -536,47 +466,6 @@ async function checkPostmarkToken(
 	return fail(
 		`Production email is not configured in ${reference.label}: missing ${missing.join(', ')}.`
 	);
-}
-
-async function checkAutomationProvider(
-	context?: LaunchBlockerCheckContext
-): Promise<LaunchBlockerResult> {
-	const reference = readLaunchEnv(context);
-	if (!reference.ok) return fail(reference.detail);
-
-	// Dynamic import: this module reaches into src/lib via $lib aliases that only
-	// resolve after `svelte-kit sync` has generated .svelte-kit/tsconfig.json.
-	// Loading it lazily keeps launch-blockers safe to import from any script
-	// entry point, including clean checkouts (e.g. the init-site CI job).
-	const { readAutomationProviderConfig, validateAutomationProviderConfig } =
-		await import('../../src/lib/server/automation/providers');
-
-	const config = readAutomationProviderConfig(reference.env as NodeJS.ProcessEnv);
-	const problems = validateAutomationProviderConfig(config);
-
-	if (problems.length > 0) {
-		const head =
-			config.provider === 'console'
-				? 'AUTOMATION_PROVIDER=console is for development only.'
-				: `AUTOMATION_PROVIDER=${config.provider} is incomplete in ${reference.label}:`;
-		return fail(`${head} ${problems.map((p) => p.message).join(' ')}`);
-	}
-
-	if (config.provider === 'noop') {
-		return pass(`AUTOMATION_PROVIDER=noop in ${reference.label} — automation explicitly disabled.`);
-	}
-
-	if (config.provider === 'console') {
-		// validateAutomationProviderConfig already flagged this above; the early
-		// return narrows the union for TypeScript before the auth-mode access.
-		return pass(
-			`AUTOMATION_PROVIDER=console in ${reference.label} — dev-only mode (use noop in production).`
-		);
-	}
-
-	const auth =
-		config.authMode === 'hmac' ? 'HMAC body signing' : `Header auth (${config.authHeader})`;
-	return pass(`AUTOMATION_PROVIDER=${config.provider} configured in ${reference.label} (${auth}).`);
 }
 
 function smokeEnv(context?: LaunchBlockerCheckContext): EnvReference {
@@ -627,11 +516,11 @@ async function checkSmokeMigration(
 
 	const rootDir = rootDirFrom(context);
 	const schema = readText(rootDir, 'src/lib/server/db/schema.ts') ?? '';
-	const migrations = readText(rootDir, 'drizzle/0003_smoke_test_contact_rows.sql') ?? '';
+	const migrations = readText(rootDir, 'drizzle/0000_baseline.sql') ?? '';
 	if (!schema.includes('isSmokeTest') || !migrations.includes('is_smoke_test')) {
-		return fail('is_smoke_test is missing from schema.ts or the Drizzle smoke migration.');
+		return fail('is_smoke_test is missing from schema.ts or the Drizzle baseline migration.');
 	}
-	return pass('is_smoke_test exists in schema.ts and the Drizzle smoke migration.');
+	return pass('is_smoke_test exists in schema.ts and the Drizzle baseline migration.');
 }
 
 function caddyPasswordHashLooksValid(value: string): boolean {
@@ -750,31 +639,6 @@ export const LAUNCH_BLOCKERS: LaunchBlocker[] = [
 		check: checkAppHtmlTitle,
 		fixHint: 'NEXT: Replace the fallback <title> in src/app.html.',
 		docsPath: 'docs/seo/page-contract.md',
-	},
-	{
-		id: 'LAUNCH-BACKUP-001',
-		label: 'Production backup config is missing',
-		severity: 'recommended',
-		check: checkBackupRemote,
-		fixHint: 'NEXT: Configure BACKUP_REMOTE before launch or document the backup waiver.',
-		docsPath: 'docs/operations/backups.md',
-	},
-	{
-		id: 'LAUNCH-DRILL-001',
-		label: 'Restore drill evidence is fresh',
-		severity: 'recommended',
-		check: checkRestoreDrillFresh,
-		fixHint: 'NEXT: Run bun run backup:restore:drill and inspect the ops-status ledger.',
-		docsPath: 'docs/operations/restore-drill.md',
-	},
-	{
-		id: 'LAUNCH-AUTOMATION-001',
-		label: 'Automation provider is configured for production',
-		severity: 'required',
-		check: checkAutomationProvider,
-		fixHint:
-			'NEXT: For n8n/webhook, set the provider URL and secret; otherwise leave AUTOMATION_PROVIDER unset or set it to noop.',
-		docsPath: 'docs/automations/n8n-workflow-contract.md',
 	},
 	{
 		id: 'LAUNCH-EMAIL-001',

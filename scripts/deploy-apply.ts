@@ -71,7 +71,7 @@ function missingFlagResults(options: CliOptions): OpsResult[] {
 				detail: 'Migration safety is operator-declared and has no default.',
 				remediation: [
 					'NEXT: Choose --safety=rollback-safe only when the previous image can run against the post-migration schema.',
-					'NEXT: Choose --safety=rollback-blocked when rollback would require PITR or a roll-forward fix.',
+					'NEXT: Choose --safety=rollback-blocked when rollback would require platform restore or a roll-forward fix.',
 				],
 				runbook: 'docs/planning/adrs/ADR-028-deploy-apply-semantics.md',
 			})

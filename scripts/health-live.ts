@@ -80,8 +80,6 @@ export async function runHealthLive(
 	const facts: HealthFacts = {
 		currentRelease: null,
 		previousRelease: null,
-		backup: null,
-		drill: null,
 		recentEvents: [],
 	};
 

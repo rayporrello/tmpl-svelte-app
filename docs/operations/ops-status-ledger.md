@@ -1,147 +1,29 @@
 # Ops Status Ledger
 
-The ops-status ledger is local, inspectable state for deployment and
-maintenance scripts. ADR-025 is the design source; this page is the
-operator-facing contract.
+The website repo keeps local evidence for website deploy operations.
 
-## State Directory
-
-By default, ledger files live at:
-
-```text
-~/.local/state/<project>/ops/
-```
-
-`<project>` comes from `project.projectSlug` in `site.project.json`.
-Set `OPS_STATE_DIR` to override the location, which is how tests and
-one-off diagnostics can redirect writes into a temporary directory.
-The directory is created on first use.
-
-## Channel Files
-
-Each operational concern gets one JSON channel file:
+## Channels
 
 ```text
 releases.json
-backup.json
-restore-drill.json
-```
-
-Future passes may add channels such as smoke or migration state. Channels are
-not pre-created.
-
-A channel snapshot follows this shape:
-
-```json
-{
-	"project": "project",
-	"last_attempt_at": "2026-05-06T12:34:56.000Z",
-	"last_success_at": "2026-05-06T12:34:56.000Z",
-	"status": "pass",
-	"stale_after_seconds": 86400,
-	"detail": {}
-}
-```
-
-The `detail` object is owned by the channel. For `releases.json`, it
-contains release history with image refs, deployed SHAs, migration
-filenames, and rollback-safety classification.
-
-For `backup.json`, `detail` follows this shape:
-
-```json
-{
-	"attemptedAt": "2026-05-07T03:15:00.000Z",
-	"succeededAt": "2026-05-07T03:15:00.000Z",
-	"status": "pass",
-	"kind": "base",
-	"durationMs": 42000,
-	"backupSource": "WAL-G backup-push via project-postgres",
-	"steps": [
-		{
-			"id": "BACKUP-BASE-001",
-			"severity": "pass",
-			"summary": "Backup base completed"
-		}
-	]
-}
-```
-
-The channel uses `stale_after_seconds = 129600` (36 hours), matching the
-daily base-backup cadence plus scheduling jitter. Failed backups update
-`last_attempt_at` and preserve the previous `last_success_at` so operators can
-see both the newest attempt and the newest successful backup.
-
-For `restore-drill.json`, `detail` follows this shape:
-
-```json
-{
-	"attemptedAt": "2026-05-07T03:15:00.000Z",
-	"succeededAt": "2026-05-07T03:15:00.000Z",
-	"status": "pass",
-	"targetTime": "2026-05-07T02:15:00.000Z",
-	"durationMs": 42000,
-	"backupSource": "WAL-G LATEST via project-postgres image=ghcr.io/owner/project:<sha>",
-	"steps": [
-		{
-			"id": "DRILL-001",
-			"severity": "pass",
-			"summary": "Source container project-postgres present."
-		}
-	]
-}
-```
-
-The channel uses `stale_after_seconds = 604800` (7 days). Failed drills update
-`last_attempt_at` and preserve the previous `last_success_at` so operators can
-see both the newest attempt and the newest successful proof.
-
-## Atomic Writes And Locking
-
-Channel writes are atomic:
-
-1. Write the next snapshot to `<channel>.json.tmp`.
-2. Rename the temp file over `<channel>.json`.
-
-The rename is atomic on Linux when both files are on the same
-filesystem. A sibling `<channel>.lock` file serializes concurrent
-writers so operators do not end up with torn JSON.
-
-If an interrupted run leaves a `.tmp` file behind, readers ignore it and
-continue reading the last complete channel file.
-
-## Reading The Ledger
-
-For operator health checks, prefer the shared health surfaces over hand-reading
-the channel files:
-
-```bash
-bun run health:live -- --source=ledger --no-color
-```
-
-The browser view at `/admin/health` also reads the ledger, then adds live DB
-facts. Both surfaces label ledger-derived results with `source: ledger` so
-snapshot evidence is distinct from live host or DB probes.
-
-## Event Log
-
-Every state change can also append one JSON object to:
-
-```text
 events.ndjson
 ```
 
-The log is newline-delimited JSON, one event per line, and is appended
-with `O_APPEND` so multiple writers can safely add events. It rotates at
-10 MB and keeps two old copies:
+Release records capture image, SHA, deployment time, migration safety, and the
+migration filenames associated with that web deploy. `events.ndjson` captures
+deploy, rollback, and smoke events.
 
-```text
-events.ndjson
-events.ndjson.1
-events.ndjson.2
-```
+Backup, restore, PITR, and fleet-worker state moved to
+`platform-infrastructure`.
 
-Older rotations are deleted. The ledger is local host state; ADR-025
-intentionally does not add replication, backup, or a REST API. Operators
-who need the ledger preserved across host loss can include the state
-directory in their backup chain.
+## Location
+
+By default the state directory is under the operator user's local state path for
+the project. Tests can override it with `OPS_STATE_DIR`.
+
+## Consumers
+
+- `deploy:apply`
+- `rollback`
+- `health:live`
+- `/admin/health`

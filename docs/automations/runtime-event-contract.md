@@ -143,4 +143,4 @@ Field notes:
 - HTTP providers with no URL return `not_configured`.
 - `console` returns delivered after logging metadata.
 - `noop` returns `disabled`.
-- Retries, backoff, and outbox scheduling are owned by `bun run automation:worker`.
+- Retries, backoff, and outbox scheduling are owned by the platform fleet worker in production and by `bun run automation:worker` only for local one-shot testing.

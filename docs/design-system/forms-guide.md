@@ -23,7 +23,7 @@ validate (Superforms + Valibot)
   → return success
 ```
 
-The DB transaction must succeed before the user sees success. Email delivery failures never erase a saved submission. Automation delivery happens later through `bun run automation:worker`.
+The DB transaction must succeed before the user sees success. Email delivery failures never erase a saved submission. Automation delivery happens later through the platform fleet worker in production, or `bun run automation:worker` during local development.
 
 **Honeypot — bot defense by default.** The schema (`src/lib/forms/contact.schema.ts`) includes an optional `website` field that real users never see — it's positioned off-screen via CSS, has `tabindex="-1"`, `autocomplete="off"`, and lives inside `aria-hidden="true"` markup. Bots scanning for common contact-form fields fill it in; the action returns the same success message it returns for legit submissions, but skips DB persistence, email, and outbox events. Silent success keeps bots from learning they've been caught and tuning around the trap.
 
@@ -50,7 +50,7 @@ change is needed. The provider implementation is in `postmark.ts`.
 
 ---
 
-### To trigger automations — choose a provider
+### To test automations locally — choose a provider
 
 ```
 AUTOMATION_PROVIDER=n8n
@@ -59,19 +59,19 @@ N8N_WEBHOOK_SECRET=a-long-random-string
 ```
 
 The contact form inserts a minimized `lead.created` outbox row after every successful
-submission. Run the worker from a timer, cron job, process supervisor, or manual
-operator command:
+submission. Run the local one-shot worker manually:
 
 ```bash
 bun run automation:worker
 ```
 
-The worker signs and sends events to the configured provider, retries failures with
+The local worker signs and sends events to the configured provider, retries failures with
 backoff, and writes exhausted failures to `automation_dead_letters` without storing
 the full contact payload. The form always succeeds once the DB transaction completes.
 
 Set `AUTOMATION_PROVIDER=webhook` with `AUTOMATION_WEBHOOK_URL` and
-`AUTOMATION_WEBHOOK_SECRET` for Make, Zapier, or a custom receiver.
+`AUTOMATION_WEBHOOK_SECRET` for Make, Zapier, or a custom receiver. Production
+provider config is platform-owned.
 
 See [docs/automations/README.md](../automations/README.md) for provider setup.
 See [docs/privacy/data-retention.md](../privacy/data-retention.md) for retention defaults.

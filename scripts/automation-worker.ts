@@ -5,9 +5,8 @@
  * Run one batch (CI / manual replay):
  *   bun run automation:worker
  *
- * Run as long-lived daemon (per-site worker.container default):
- *   bun run automation:worker:daemon
- *   bun run automation:worker -- --daemon [--poll-interval-seconds=30]
+ * Production fleet delivery is owned by platform-infrastructure. This script
+ * stays as a one-shot local-dev tool for a single website clone.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -28,10 +27,6 @@ export interface AutomationWorkerOptions {
 	batchSize: number;
 	staleAfterSeconds: number;
 	workerId: string;
-}
-
-export interface AutomationDaemonOptions {
-	pollIntervalSeconds: number;
 }
 
 export interface AutomationWorkerResult {
@@ -66,10 +61,6 @@ const DEFAULT_OPTIONS: AutomationWorkerOptions = {
 	workerId: `automation-worker-${randomUUID()}`,
 };
 
-const DEFAULT_DAEMON_OPTIONS: AutomationDaemonOptions = {
-	pollIntervalSeconds: 30,
-};
-
 export function nextBackoffSeconds(attemptCount: number): number {
 	const baseSeconds = 60;
 	const maxSeconds = 60 * 60;
@@ -93,26 +84,18 @@ function readFlagValue(args: string[], index: number, flag: string): [string | u
 	return [undefined, index];
 }
 
-export type ParsedWorkerArgs = AutomationWorkerOptions &
-	AutomationDaemonOptions & { help: boolean; daemon: boolean };
+export type ParsedWorkerArgs = AutomationWorkerOptions & { help: boolean };
 
 export function parseWorkerArgs(args: string[]): ParsedWorkerArgs {
 	const options: ParsedWorkerArgs = {
 		...DEFAULT_OPTIONS,
-		...DEFAULT_DAEMON_OPTIONS,
 		help: false,
-		daemon: false,
 	};
 
 	for (let index = 0; index < args.length; index += 1) {
 		const arg = args[index];
 		if (arg === '--help' || arg === '-h') {
 			options.help = true;
-			continue;
-		}
-
-		if (arg === '--daemon') {
-			options.daemon = true;
 			continue;
 		}
 
@@ -136,12 +119,6 @@ export function parseWorkerArgs(args: string[]): ParsedWorkerArgs {
 			continue;
 		}
 
-		[value, index] = readFlagValue(args, index, '--poll-interval-seconds');
-		if (value !== undefined) {
-			options.pollIntervalSeconds = parsePositiveInteger(value, '--poll-interval-seconds');
-			continue;
-		}
-
 		throw new Error(`Unknown option: ${arg}`);
 	}
 
@@ -151,18 +128,11 @@ export function parseWorkerArgs(args: string[]): ParsedWorkerArgs {
 function usage(): string {
 	return `Usage: bun run automation:worker -- [options]
 
-Modes:
-  (default)                  One-shot — claim a batch, deliver, exit.
-  --daemon                   Long-lived poll loop — claim batches forever
-                             until SIGTERM/SIGINT. Used by worker.container.
-
 Options:
   --batch-size=N             Events to claim in one run (default: 10)
   --stale-after-seconds=N    Recover processing rows older than N seconds
                              (default: 900)
   --worker-id=ID             Lock owner label (default: generated UUID)
-  --poll-interval-seconds=N  Daemon poll cadence (default: 30; ignored
-                             unless --daemon is set)
   --help                     Show this help
 `;
 }
@@ -403,73 +373,6 @@ export async function runAutomationWorker(
 	return result;
 }
 
-/**
- * Long-lived poll loop. Runs `runAutomationWorker` every `pollIntervalSeconds`
- * until SIGTERM/SIGINT. Each batch's outcome is logged as one line so
- * journald / Podman log capture works without buffering surprises. Finishes
- * the in-flight batch on shutdown signal so we never abort a delivery
- * mid-flight.
- */
-export async function runAutomationWorkerDaemon(
-	sql: postgres.Sql,
-	options: AutomationWorkerOptions & AutomationDaemonOptions,
-	logger: Pick<Console, 'log' | 'error'> = console
-): Promise<number> {
-	let stopRequested = false;
-	const onSignal = (signal: NodeJS.Signals): void => {
-		if (stopRequested) return;
-		stopRequested = true;
-		logger.log(`automation:worker:daemon received ${signal}; finishing current batch and exiting.`);
-	};
-	process.on('SIGTERM', onSignal);
-	process.on('SIGINT', onSignal);
-
-	logger.log(
-		`automation:worker:daemon start poll_interval_seconds=${options.pollIntervalSeconds} batch_size=${options.batchSize} worker_id=${options.workerId}`
-	);
-
-	const exitCode = 0;
-	try {
-		while (!stopRequested) {
-			try {
-				const result = await runAutomationWorker(sql, options);
-				logger.log(
-					`automation:worker:daemon claimed=${result.claimed} delivered=${result.delivered} skipped=${result.skipped} retried=${result.retried} dead_lettered=${result.deadLettered}`
-				);
-			} catch (error) {
-				logger.error(
-					`automation:worker:daemon batch failed: ${
-						error instanceof Error ? error.message : String(error)
-					}`
-				);
-				// Don't exit — a single failed batch shouldn't kill the worker.
-				// systemd / Podman would restart us anyway, but staying up means
-				// transient DB blips don't cascade into worker restarts.
-			}
-
-			if (stopRequested) break;
-			await sleep(options.pollIntervalSeconds * 1000, () => stopRequested);
-		}
-	} finally {
-		process.off('SIGTERM', onSignal);
-		process.off('SIGINT', onSignal);
-		logger.log('automation:worker:daemon stopped cleanly.');
-	}
-
-	return exitCode;
-}
-
-function sleep(ms: number, abort: () => boolean): Promise<void> {
-	return new Promise((resolve) => {
-		const start = Date.now();
-		const tick = (): void => {
-			if (abort() || Date.now() - start >= ms) resolve();
-			else setTimeout(tick, Math.min(500, ms));
-		};
-		tick();
-	});
-}
-
 export async function main(argv = process.argv.slice(2)): Promise<number> {
 	const options = parseWorkerArgs(argv);
 	if (options.help) {
@@ -481,9 +384,6 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
 	warnIfAutomationConfigIncomplete();
 	const sql = postgres(process.env.DATABASE_URL, { max: 2 });
 	try {
-		if (options.daemon) {
-			return await runAutomationWorkerDaemon(sql, options);
-		}
 		const result = await runAutomationWorker(sql, options);
 		console.log(
 			`automation:worker claimed ${result.claimed}; delivered ${result.delivered}; skipped ${result.skipped}; retried ${result.retried}; dead-lettered ${result.deadLettered}`

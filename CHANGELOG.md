@@ -27,6 +27,19 @@ When to skip:
 
 ---
 
+## 2026-05-08 — Architecture redirect: shared infrastructure for client websites
+
+The website template no longer ships per-site Postgres, worker, or backup tooling. Production infrastructure is owned by a separate `platform-infrastructure` repo. Local development is unchanged.
+
+- Redirected the website template from per-site infrastructure to the shared `web-platform` model.
+- Removed production Postgres, worker, backup, PITR, restore, and site-local network artifacts from the website repo.
+- Simplified the production env contract to web runtime values rendered by the platform repo.
+- Made `automation:worker` a one-shot local development tool and removed daemon mode.
+- Collapsed Drizzle migrations to a fresh baseline because no live data exists.
+- Updated deploy, preflight, launch, doctor, health, CI, tests, docs, and ADRs for the new platform-owned infrastructure model.
+
+---
+
 ## 2026-05-05 — Pass 4 (consistency sweep + ADR-022)
 
 Closing sweep after Pass 3 to align every reference and registry with

@@ -31,7 +31,7 @@ describe('ops result helpers', () => {
 			fail('OPS-001', 'Database is reachable', {
 				detail: 'connection refused',
 				remediation: ['NEXT: Check DATABASE_URL.'],
-				runbook: 'docs/operations/restore.md',
+				runbook: 'docs/operations/health.md',
 			})
 		).toEqual({
 			id: 'OPS-001',
@@ -39,7 +39,7 @@ describe('ops result helpers', () => {
 			summary: 'Database is reachable',
 			detail: 'connection refused',
 			remediation: ['NEXT: Check DATABASE_URL.'],
-			runbook: 'docs/operations/restore.md',
+			runbook: 'docs/operations/health.md',
 		});
 
 		expect(pass('OPS-002', 'Bun is installed').severity).toBe('pass');

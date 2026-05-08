@@ -3,7 +3,7 @@ import { basename, isAbsolute, join, parse, resolve } from 'node:path';
 
 import { runDeployPreflight } from '../deploy-preflight';
 import { runDeploySmoke } from '../deploy-smoke';
-import { fail, info, pass, type OpsResult } from './ops-result';
+import { fail, info, pass, warn, type OpsResult } from './ops-result';
 import { appendEvent } from './ops-status';
 import { parseQuadletImage, replaceQuadletImage } from './quadlet-image';
 import { ALL_QUADLETS } from './quadlets';
@@ -57,6 +57,9 @@ export interface ApplyDeployOptions {
 	readinessIntervalMs?: number;
 	smokeBaseUrl?: string;
 }
+
+const PLATFORM_CLI_MISSING_WARNING =
+	'[deploy:apply] platform-infrastructure CLI not found at PLATFORM_REPO_PATH — migration gate skipped. Confirm migrations applied manually before deploy.';
 
 type DrizzleJournal = {
 	entries?: Array<{ tag?: unknown }>;
@@ -243,7 +246,7 @@ function rollbackRemediation(migrationSafety: MigrationSafety): string[] {
 	if (migrationSafety === 'rollback-safe') return ['bun run rollback --to previous'];
 	return [
 		'bun run rollback --status',
-		'NEXT: This release is rollback-blocked. Use PITR restore docs when the database must move back: docs/operations/restore.md.',
+		'NEXT: This release is rollback-blocked. Use the platform-infrastructure restore runbook if the database must move back.',
 	];
 }
 
@@ -260,6 +263,78 @@ function readSiteProject(rootDir: string): Record<string, unknown> {
 	} catch {
 		return {};
 	}
+}
+
+function clientSlugFrom(rootDir: string, env: NodeJS.ProcessEnv): string {
+	const explicit = env.CLIENT_SLUG?.trim();
+	if (explicit) return explicit;
+	const siteProject = readSiteProject(rootDir);
+	const project = siteProject.project;
+	if (project && typeof project === 'object') {
+		const slug = (project as Record<string, unknown>).projectSlug;
+		if (typeof slug === 'string' && slug.trim()) return slug.trim();
+	}
+	return 'unknown-client';
+}
+
+function platformRepoPath(rootDir: string, env: NodeJS.ProcessEnv): string {
+	const configured = env.PLATFORM_REPO_PATH?.trim();
+	if (configured) return absoluteOrRelativeToRoot(rootDir, configured);
+	return resolve(rootDir, '..', 'platform-infrastructure');
+}
+
+function platformCliAvailable(path: string): boolean {
+	return existsSync(join(path, 'package.json'));
+}
+
+async function verifyMigrationsWithPlatform(opts: {
+	rootDir: string;
+	env: NodeJS.ProcessEnv;
+	runner: DeployRunner;
+	dryRun: boolean;
+}): Promise<OpsResult> {
+	const platformPath = platformRepoPath(opts.rootDir, opts.env);
+	const client = clientSlugFrom(opts.rootDir, opts.env);
+	if (!platformCliAvailable(platformPath)) {
+		return warn('DEPLOY-MIGRATE-001', 'Migration gate skipped', {
+			detail: PLATFORM_CLI_MISSING_WARNING,
+			remediation: [
+				'NEXT: Confirm platform migrations have been applied manually before deploying this web image.',
+			],
+			runbook: 'docs/operations/deploy-apply.md',
+		});
+	}
+
+	const command = [
+		'bun',
+		'run',
+		'-C',
+		platformPath,
+		'platform:fleet-migration-status',
+		'--',
+		`--client=${client}`,
+		`--repo=${opts.rootDir}`,
+	];
+	if (opts.dryRun) {
+		return info('DEPLOY-MIGRATE-DRY-RUN-001', 'Would verify migrations through platform CLI', {
+			detail: command.join(' '),
+		});
+	}
+
+	const status = await opts.runner.exec(command);
+	if (status.exitCode !== 0) {
+		return fail('DEPLOY-MIGRATE-001', 'Platform migration gate failed', {
+			detail: commandOutputDetail(status),
+			remediation: [
+				`bun run -C ${platformPath} platform:run-fleet-migrations -- --client=${client}`,
+			],
+			runbook: 'docs/operations/deploy-apply.md',
+		});
+	}
+
+	return pass('DEPLOY-MIGRATE-001', 'Platform migration gate passed', {
+		detail: commandOutputDetail(status),
+	});
 }
 
 function readPublishedReadyPort(plan: DeployPlan): string | null {
@@ -283,7 +358,8 @@ function readReadinessUrl(plan: DeployPlan, opts: ApplyDeployOptions): string {
 	const deployment = siteProject.deployment;
 	const deploymentPort =
 		deployment && typeof deployment === 'object'
-			? (deployment as Record<string, unknown>).port
+			? ((deployment as Record<string, unknown>).loopbackPort ??
+				(deployment as Record<string, unknown>).port)
 			: null;
 	const port =
 		env.DEPLOY_APPLY_READY_PORT ??
@@ -361,27 +437,31 @@ export async function applyDeploy(
 	if (hasFail(preflight)) return preflight;
 	results.push(pass('DEPLOY-PREFLIGHT-001', 'Preflight passed'));
 
+	const migrationGate = await verifyMigrationsWithPlatform({ rootDir, env, runner, dryRun });
+	results.push(migrationGate);
+	if (migrationGate.severity === 'fail') return results;
+
 	if (dryRun) {
 		results.push(
-			info('DEPLOY-MIGRATE-DRY-RUN-001', 'Would run database migrations', {
-				detail: 'Skipped command: bun run db:migrate',
+			info('DEPLOY-PULL-DRY-RUN-001', 'Would pull web image', {
+				detail: `podman pull ${plan.image}`,
 			})
 		);
 	} else {
-		const migration = await runner.exec(['bun', 'run', 'db:migrate']);
-		if (migration.exitCode !== 0) {
+		const pull = await runner.exec(['podman', 'pull', plan.image]);
+		if (pull.exitCode !== 0) {
 			results.push(
-				fail('DEPLOY-MIGRATE-001', 'Database migrations failed', {
-					detail: commandOutputDetail(migration),
-					remediation: ['NEXT: Fix the migration failure before restarting services.'],
+				fail('DEPLOY-PULL-001', 'Web image pull failed', {
+					detail: commandOutputDetail(pull),
+					remediation: ['NEXT: Confirm CI pushed the GHCR image and the host can pull it.'],
 					runbook: 'docs/operations/deploy-apply.md',
 				})
 			);
 			return results;
 		}
 		results.push(
-			pass('DEPLOY-MIGRATE-001', 'Database migrations completed', {
-				detail: commandOutputDetail(migration),
+			pass('DEPLOY-PULL-001', 'Web image pulled', {
+				detail: commandOutputDetail(pull),
 			})
 		);
 	}
@@ -415,7 +495,7 @@ export async function applyDeploy(
 		results.push(
 			info('DEPLOY-DRY-RUN-001', 'Deploy dry-run complete', {
 				detail:
-					'No migrations ran, no Quadlet files were written, no systemctl commands ran, and no release or smoke events were recorded.',
+					'No migration gate ran, no image was pulled, no Quadlet files were written, no systemctl commands ran, and no release or smoke events were recorded.',
 				runbook: 'docs/operations/deploy-apply.md',
 			})
 		);
@@ -503,7 +583,7 @@ export async function applyDeploy(
 		results.push(
 			fail('DEPLOY-SMOKE-001', 'Post-deploy smoke failed', {
 				detail:
-					'The release is recorded because the units restarted successfully. Choose rollback or PITR based on migration safety.',
+					'The release is recorded because the units restarted successfully. Choose image rollback or platform restore based on migration safety.',
 				remediation: rollbackRemediation(plan.migrationSafety),
 				runbook: 'docs/operations/deploy-apply.md',
 			})

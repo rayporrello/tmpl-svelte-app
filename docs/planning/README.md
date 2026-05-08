@@ -20,7 +20,7 @@ When any conflict exists, this is the authority order — top wins:
 Keep accepted ADRs unless a replacement ADR supersedes them. Current ADRs are:
 
 - `ADR-001`, `ADR-002`, `ADR-004`, `ADR-005`
-- `ADR-007` through `ADR-021`
+- `ADR-007` through `ADR-031`
 
 `ADR-003` and `ADR-006` were never written. Their topics were superseded by
 later ADRs and agent rules.
@@ -36,7 +36,7 @@ later ADRs and agent rules.
 | Database and business forms                    | `docs/database/README.md`, `docs/forms/README.md`                                             |
 | Runtime automation                             | `docs/automations/`                                                                           |
 | Analytics and consent                          | `docs/analytics/`, `docs/modules/cookie-consent.md`                                           |
-| Deployment, secrets, backups, restore          | `docs/deployment/`, `docs/operations/`, `docs/privacy/`                                       |
+| Deployment, secrets, platform operations       | `docs/deployment/`, `docs/operations/`, `docs/privacy/`, `ADR-031`                            |
 | Observability and runbooks                     | `docs/observability/`                                                                         |
 | Optional modules                               | `docs/modules/`                                                                               |
 

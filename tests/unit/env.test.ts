@@ -147,7 +147,7 @@ describe('initEnv() — container DATABASE_URL guard', () => {
 			IN_CONTAINER: '1',
 		});
 		const { initEnv } = await import('$lib/server/env');
-		expect(() => initEnv()).toThrow(/container hostname/);
+		expect(() => initEnv()).toThrow(/shared web-platform\.network hostname/);
 	});
 
 	it('throws when DATABASE_URL hostname is "localhost" inside a container', async () => {
@@ -158,14 +158,14 @@ describe('initEnv() — container DATABASE_URL guard', () => {
 			IN_CONTAINER: '1',
 		});
 		const { initEnv } = await import('$lib/server/env');
-		expect(() => initEnv()).toThrow(/container hostname/);
+		expect(() => initEnv()).toThrow(/shared web-platform\.network hostname/);
 	});
 
-	it('passes when DATABASE_URL uses a container hostname', async () => {
+	it('passes when DATABASE_URL uses the shared platform hostname', async () => {
 		setEnv({
 			ORIGIN: 'https://mysite.com',
 			PUBLIC_SITE_URL: 'https://mysite.com',
-			DATABASE_URL: 'postgres://user:pass@acme-postgres:5432/db',
+			DATABASE_URL: 'postgres://user:pass@web-platform-postgres:5432/db',
 			IN_CONTAINER: '1',
 		});
 		const { initEnv } = await import('$lib/server/env');

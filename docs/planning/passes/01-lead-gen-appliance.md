@@ -1,3 +1,5 @@
+<!-- 2026-05-08: Historical planning note. Shared-infrastructure cleanup supersedes per-site production Postgres/worker/backup/restore assumptions; see docs/planning/adrs/ADR-031-shared-infrastructure-cell.md. -->
+
 # Pass 01 — Lead-gen website appliance contract
 
 ## Goal

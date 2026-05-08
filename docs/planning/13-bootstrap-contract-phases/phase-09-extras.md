@@ -1,3 +1,5 @@
+<!-- 2026-05-08: Historical planning note. Shared-infrastructure cleanup supersedes per-site production Postgres/worker/backup/restore assumptions; see docs/planning/adrs/ADR-031-shared-infrastructure-cell.md. -->
+
 # Phase 9 — Polish Extras (each its own commit)
 
 > Plan reference: §6 Phase 9, §11 (PR sequence).

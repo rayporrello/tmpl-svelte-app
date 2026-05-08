@@ -4,6 +4,12 @@ Operating rules for AI agents (Claude, Codex, Cursor, etc.) working in this repo
 
 ---
 
+## Where production lives
+
+This repo owns the SvelteKit website template and local development workflow. Production Postgres, fleet automation workers, backups, restores, and rendered production secrets live in the separate `platform-infrastructure` repo. Website clones join the platform-owned `web-platform.network` and receive production env files rendered by that repo.
+
+---
+
 ## Source of truth order
 
 When planning docs conflict with real files, this is the authority order — top wins:
@@ -251,13 +257,13 @@ Full reference: [docs/privacy/data-retention.md](docs/privacy/data-retention.md)
 
 - Keep retention defaults in `src/lib/server/privacy/retention.ts` and update the privacy docs in the same change
 - Run `bun run privacy:prune` as a dry-run before using `bun run privacy:prune -- --apply`
-- Run privacy pruning before scheduled database backups in production maintenance
+- Coordinate production pruning with the platform repo's backup/maintenance window
 - Keep `automation_dead_letters` free of full webhook payloads; store only event type, nullable event reference, error text, and timestamps
 
 ### Never
 
 - Do not store names, emails, message bodies, or raw webhook payloads in `automation_dead_letters`
-- Do not auto-run pruning from backup scripts, app startup, public endpoints, or request handlers
+- Do not auto-run pruning from app startup, public endpoints, or request handlers
 - Do not delete pending/processing automation events unless an operator passes `--include-stale-pending-days=N`
 
 ---
@@ -533,7 +539,7 @@ src/
 scripts/
   bootstrap.ts          local setup orchestrator
   doctor.ts             read-only diagnostic
-  automation-worker.ts  outbox delivery/retry/dead-letter worker
+  automation-worker.ts  one-shot local-dev outbox delivery worker
   check-analytics.ts    validate analytics config (GTM format, docs exist, staging isolation)
   check-cms-config.ts   validate static/admin/config.yml
   validate-content.ts   validate Markdown/YAML files under content/
@@ -714,7 +720,7 @@ Full reference: [docs/automations/README.md](docs/automations/README.md)
 - **Do not add n8n to `package.json`** — n8n is the default external operator, not an app dependency
 - **Do not import n8n packages** in any SvelteKit module
 - **The site must work without an automation receiver** — HTTP providers with no URL must skip cleanly
-- **Do not call webhook providers from user-facing actions** — insert an outbox row in the same DB transaction as the primary record, then deliver with `bun run automation:worker`
+- **Do not call webhook providers from user-facing actions** — insert an outbox row in the same DB transaction as the primary record; production delivery is handled by the platform fleet worker
 - **Content automation files must match the CMS schema** — follow `static/admin/config.yml`; do not invent fields
 - **AI-generated content defaults to draft** — `draft: true` for articles, `published: false` for testimonials
 - **Do not commit webhook URLs or secrets** — use `.env.example` for variable names only; real values go in `secrets.yaml`
@@ -724,7 +730,7 @@ Full reference: [docs/automations/README.md](docs/automations/README.md)
 
 ```
 Content automations → automation provider writes to content/ via GitHub API
-	Runtime automations → SvelteKit server action → Postgres outbox → automation worker → provider delivery
+	Runtime automations → SvelteKit server action → Postgres outbox → platform fleet worker → provider delivery
 ```
 
 Content automation writes must pass the same schema validation as a human Sveltia CMS edit. They are not a separate path.
@@ -752,4 +758,4 @@ Verify against [docs/planning/08-quality-gates.md](docs/planning/08-quality-gate
 - All form controls pass the forms gates
 - CMS fields in `config.yml` match `types.ts` interfaces
 - No n8n package in `package.json`
-- `AUTOMATION_PROVIDER`, generic webhook vars, and n8n provider vars are documented in `.env.example`
+- Local-dev automation provider vars remain documented in `.env.example`; production provider config is platform-owned

@@ -49,18 +49,6 @@ const TARGET_FILES = [
 	'deploy/env.example',
 	'deploy/Caddyfile.example',
 	'deploy/quadlets/web.container',
-	'deploy/quadlets/web.network',
-	'deploy/quadlets/postgres.container',
-	'deploy/quadlets/postgres.volume',
-	'deploy/quadlets/worker.container',
-	'deploy/systemd/backup.service',
-	'deploy/systemd/backup.timer',
-	'deploy/systemd/backup-base.service',
-	'deploy/systemd/backup-base.timer',
-	'deploy/systemd/backup-check.service',
-	'deploy/systemd/backup-check.timer',
-	'deploy/systemd/restore-drill.service',
-	'deploy/systemd/restore-drill.timer',
 ];
 
 const EXPECTED_STRINGS: Record<string, string[]> = {
@@ -71,6 +59,7 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 		'"githubOwner": "acme-org"',
 		'"githubRepo": "my-cool-site"',
 		'"productionUrl": "https://acme-studio.dev"',
+		'"loopbackPort": 3000',
 		'"backendRepo": "acme-org/my-cool-site"',
 	],
 	'package.json': ['"name": "my-cool-site"'],
@@ -87,70 +76,24 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 	'README.md': ['# Acme Studio'],
 	'.env.example': [
 		'ORIGIN=https://acme-studio.dev',
-		'DATABASE_URL=postgres://my_cool_site_app_user:replace-me@my-cool-site-postgres:5432/my_cool_site_app',
+		'CLIENT_SLUG=my-cool-site',
+		'DATABASE_URL=postgres://my_cool_site_app_user:replace-me@web-platform-postgres:5432/my_cool_site_app',
 	],
 	'deploy/env.example': [
 		'ORIGIN=https://acme-studio.dev',
 		'PUBLIC_SITE_URL=https://acme-studio.dev',
-		'DATABASE_URL=postgres://my_cool_site_app_user:replace-me@my-cool-site-postgres:5432/my_cool_site_app',
-		'DATABASE_DIRECT_URL=postgres://my_cool_site_app_user:replace-me@127.0.0.1:5432/my_cool_site_app',
-		'POSTGRES_DB=my_cool_site_app',
-		'POSTGRES_USER=my_cool_site_app_user',
+		'CLIENT_SLUG=my-cool-site',
+		'DATABASE_URL=postgres://my_cool_site_app_user:replace-me@web-platform-postgres:5432/my_cool_site_app',
 	],
 	'deploy/Caddyfile.example': ['acme-studio.dev {', 'www.acme-studio.dev {'],
 	'deploy/quadlets/web.container': [
 		'Description=SvelteKit web app — my-cool-site',
 		'Image=ghcr.io/acme-org/my-cool-site:<sha>',
 		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
-		'Network=my-cool-site.network',
+		'Network=web-platform.network',
 		'PublishPort=127.0.0.1:3000:3000',
 		'HostName=my-cool-site-web',
 		'StopTimeout=15',
-	],
-	'deploy/quadlets/web.network': ['Description=Project network — my-cool-site'],
-	'deploy/quadlets/postgres.container': [
-		'Description=Postgres 18 + WAL-G — my-cool-site',
-		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
-		'Network=my-cool-site.network',
-		'HostName=my-cool-site-postgres',
-		'PublishPort=127.0.0.1:5432:5432',
-		'Volume=my-cool-site-postgres-data:/var/lib/postgresql/data',
-	],
-	'deploy/quadlets/postgres.volume': [
-		'Description=Postgres data volume — my-cool-site',
-		'VolumeName=my-cool-site-postgres-data',
-	],
-	'deploy/quadlets/worker.container': [
-		'Description=Automation outbox worker — my-cool-site',
-		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
-	],
-	'deploy/systemd/backup.service': [
-		'Description=Nightly backup (database + uploads) — my-cool-site',
-		'WorkingDirectory=%h/my-cool-site',
-		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
-	],
-	'deploy/systemd/backup.timer': [
-		'Description=Nightly backup timer — my-cool-site',
-		'Unit=my-cool-site-backup.service',
-	],
-	'deploy/systemd/backup-base.service': [
-		'WorkingDirectory=%h/my-cool-site',
-		'ExecStart=%h/my-cool-site/scripts/backup-base.sh',
-	],
-	'deploy/systemd/backup-base.timer': ['Unit=my-cool-site-backup-base.service'],
-	'deploy/systemd/backup-check.service': [
-		'WorkingDirectory=%h/my-cool-site',
-		'ExecStart=%h/my-cool-site/scripts/backup-pitr-check.sh',
-	],
-	'deploy/systemd/backup-check.timer': ['Unit=my-cool-site-backup-check.service'],
-	'deploy/systemd/restore-drill.service': [
-		'Description=Weekly non-destructive restore drill — my-cool-site',
-		'WorkingDirectory=%h/my-cool-site',
-		'EnvironmentFile=%h/secrets/my-cool-site.prod.env',
-	],
-	'deploy/systemd/restore-drill.timer': [
-		'Description=Weekly non-destructive restore drill timer — my-cool-site',
-		'Unit=my-cool-site-restore-drill.service',
 	],
 };
 

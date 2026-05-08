@@ -1,3 +1,5 @@
+<!-- 2026-05-08: Historical planning note. Shared-infrastructure cleanup supersedes per-site production Postgres/worker/backup/restore assumptions; see docs/planning/adrs/ADR-031-shared-infrastructure-cell.md. -->
+
 # Phase 3 — `./bootstrap` Orchestrator
 
 > Plan reference: §6 Phase 3, §7 (Bootstrap step contract), §4 (Hardening

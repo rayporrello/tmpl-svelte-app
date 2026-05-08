@@ -1,172 +1,50 @@
 # tmpl-svelte-app
 
-Database-backed SvelteKit website platform for fast hand-built lead-gen sites — with Postgres + Drizzle, Superforms, required production email, durable optional automation, SEO, CMS, deployment, and reusable scaffolding primitives built in.
+SvelteKit website template for client lead-gen sites. It ships the per-site app,
+content, forms, Drizzle schema, SEO/CMS/design-system tooling, and a web-only
+Podman deploy artifact. Production infrastructure is shared and operated from a
+separate `platform-infrastructure` repo.
 
-## What's included
+Local development is unchanged: `./bootstrap` provisions a per-clone local
+Postgres container on a hashed loopback port and writes a working `.env`.
 
-- SvelteKit / Svelte 5 skeleton with Bun tooling
-- Token-driven CSS design system (native CSS, no Tailwind, no component library)
-- Global button utilities (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-sm`, `.btn-lg`)
-- `forms.css` visual form primitives + Superforms + Valibot pre-installed; contact form live at `/contact`
-- **Postgres + Drizzle** — default data layer; starter schema (`contact_submissions`, `automation_events`, `automation_dead_letters`); Drizzle Kit migration workflow; required per-site Postgres Quadlet
-- **Privacy retention** — dry-run-first `privacy:prune` command for contact submissions and automation records
-- **Health endpoints** — `/healthz` (process check) and `/readyz` (Postgres connectivity probe, returns 503 if DB unreachable)
-- **Built-in SEO system** — central site config, SEO component, schema helpers, sitemap, robots.txt, llms.txt, validation
-- **Articles system** — `/articles` index + `/articles/[slug]` with sanitized Markdown rendering (three trust tiers)
-- Semantic HTML contract with `Section.svelte`, skip link, accessible site shell, real header/footer nav
-- **Git-backed content system** — `content/` directory, Sveltia CMS admin, typed content loaders for pages/articles/team/testimonials
-- **Observability spine** — friendly error page (with request ID + support link), `/healthz`, `/readyz`, structured logging, safe error handling
-- **Security baseline** — Valibot env schemas, per-route CSP (`/admin`-aware for Sveltia CDN), minimal HTTP security headers
-- **Quality gates** — source-level accessibility, security-header policy, SEO/page contract, built bundle performance budgets, deploy preflight, and URL-driven deploy smoke
-- **CMS content safety** — validation scripts that catch blank fields, bad dates, and destructive diffs before deploy
-- **Automation-ready** — transactional outbox in `automation_events`, `automation:worker` delivery/retry/dead-letter flow, n8n/webhook providers, production timer wiring
-- **Business form registry + scaffolds** — source-controlled form starter, source tables, Superforms schemas, outbox events, PII, retention, and redacted operator inspection
-- **Production runtime contract** — Containerfile (multi-stage, non-root, HEALTHCHECK), Podman Quadlet templates, Caddyfile example
-- **CI** — GitHub Actions workflow with validate / image / launch jobs, Trivy CRITICAL gating, smoke tests, GHCR push
-- **Tests** — Vitest unit tests in `validate:core`; Playwright e2e smoke (with axe accessibility and visual smoke checks) in `validate:ci`
-- **Ergonomics** — root `site.project.json` manifest, generated-file drift checks, Lefthook pre-commit, interactive/stdin-compatible `init:site`
-- Agent-readable operating rules (`AGENTS.md`, `CLAUDE.md.template`)
+## What's Included
 
-## Design system
+- SvelteKit / Svelte 5 with Bun-first tooling
+- Token-driven native CSS design system, no Tailwind or component library
+- Superforms + Valibot contact form at `/contact`
+- Postgres + Drizzle schema for `contact_submissions`, `automation_events`, and
+  `automation_dead_letters`
+- Transactional automation outbox helpers and a one-shot local dev worker
+- Git-backed content system with Sveltia CMS
+- SEO route registry, SEO component, sitemap, robots, RSS, and llms.txt
+- `/healthz` process liveness and `/readyz` database readiness
+- Privacy pruning, forms scaffolding, analytics guardrails, content checks, and
+  launch/deploy validation
+- Web runtime artifacts: `Containerfile`, `serve.js`,
+  `deploy/quadlets/web.container`, and a per-site `deploy/Caddyfile.example`
+  snippet
 
-This is a website-first SvelteKit template. The design system is native CSS, token-driven, and dependency-light.
+The template no longer ships production Postgres, production worker daemon,
+backup/PITR, restore, or site-local network artifacts. Those live in the shared
+platform repo.
 
-| Guide                                                                                  | Purpose                                            |
-| -------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| [docs/design-system/README.md](docs/design-system/README.md)                           | Overview, file structure, how to customize         |
-| [docs/design-system/tokens-guide.md](docs/design-system/tokens-guide.md)               | Complete token reference                           |
-| [docs/design-system/component-css-rules.md](docs/design-system/component-css-rules.md) | CSS authoring rules for components                 |
-| [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md)                 | Forms: CSS layer + Superforms behavior             |
-| [docs/design-system/llm-css-rules.md](docs/design-system/llm-css-rules.md)             | Concise rules for AI agents (paste into CLAUDE.md) |
+## Runtime Shape
 
-**Tailwind is not included.** Styling uses `tokens.css` + scoped Svelte `<style>` blocks.
+Production sites are separate SvelteKit clones, one per client. They share a
+platform-owned infrastructure cell:
 
-**Superforms + Valibot are pre-installed** as runtime dependencies because the live contact form uses them on the server. The contact form ships live at `src/routes/contact/`: it saves to Postgres, logs email through the console provider in local/dev when Postmark is not configured, and switches to Postmark when `POSTMARK_SERVER_TOKEN` is set. Production launch requires `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL` unless `LAUNCH_ALLOW_CONSOLE_EMAIL=1` is set as an explicit waiver. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md) for the behavior and provider details.
+- one Podman bridge network: `web-platform.network`
+- one shared Postgres hostname: `web-platform-postgres`
+- one database and one role per client
+- one fleet worker operated by `platform-infrastructure`
+- one host Caddy install proxying each site through a unique loopback port
 
-## Reliability surface
+This repo owns only the web container for a site. `deploy/quadlets/web.container`
+joins `web-platform.network` and publishes `127.0.0.1:<loopbackPort>:3000` for
+Caddy.
 
-ADR-024 defines the default product profile as a reliable lead-gen website
-appliance. This is what currently ships:
-
-| Capability                          | Status                                                                                          |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Local bootstrap                     | Implemented                                                                                     |
-| Launch validation gates             | Implemented                                                                                     |
-| Deploy preflight gates              | Implemented                                                                                     |
-| Deploy smoke                        | Implemented; E2E through Postmark test token per ADR-029 when `SMOKE_TEST_SECRET` is configured |
-| Contact form persistence (Postgres) | Implemented                                                                                     |
-| Postmark lead notification          | Implemented; required in production by ADR-024                                                  |
-| Durable outbox + worker             | Implemented                                                                                     |
-| External automation provider        | Implemented; `AUTOMATION_PROVIDER=n8n` or `webhook`; n8n is external per ADR-027, not bundled   |
-| PITR backups (WAL-G)                | Implemented                                                                                     |
-| Restore drill                       | Implemented; weekly via systemd timer; evidence in ops-status ledger                            |
-| Rollback automation                 | Manual today; planned pass 05                                                                   |
-| Live health visibility              | Implemented; CLI (`bun run health:live`) and web (`/admin/health`) per ADR-030                  |
-| Uploads / content recovery          | Local backup; offsite chain to be verified before pass 07                                       |
-| Migration safety classification     | Not implemented; planned pass 03                                                                |
-| Junior-hire recovery doc            | `docs/operations/restore.md` exists; rewrite for audience deferred                              |
-| Fleet-wide ops view                 | Not implemented; deferred until ≥2 client sites                                                 |
-| Client editing during GitHub outage | Not supported (Sveltia is git-backed per ADR-024)                                               |
-
-A "Warm Coral" re-skin example lives at [src/lib/styles/brand.example.css](src/lib/styles/brand.example.css) — it shows exactly which token sections to swap when starting a new brand.
-
-## SEO
-
-Every site built from this template inherits a complete SEO system:
-
-| File                                       | Purpose                                                                  |
-| ------------------------------------------ | ------------------------------------------------------------------------ |
-| `site.project.json`                        | Project contract for name, domain, repo, deploy, CMS, and launch assets  |
-| `src/lib/config/site.ts`                   | Generated SEO runtime config derived from the project manifest           |
-| `src/lib/seo/routes.ts`                    | Register public page routes; declare `indexable: true/false`             |
-| `src/lib/seo/route-policy.ts`              | Classify every SvelteKit route as indexable/noindex/private/api/feed/etc |
-| `src/lib/components/seo/SEO.svelte`        | Add to every `+page.svelte` with `title`, `description`, `canonicalPath` |
-| `src/lib/seo/schemas.ts`                   | JSON-LD helpers — use when visible page content supports the schema type |
-| `/sitemap.xml`, `/robots.txt`, `/llms.txt` | Auto-generated from config and route registry                            |
-
-```bash
-bun run project:check # manifest + generated-file drift
-bun run routes:check  # route policy coverage
-bun run check:seo     # structural SEO checks; launch placeholders are enforced by check:launch
-```
-
-**Share / OG images** follow a fall-through chain:
-
-- Articles: `og_image` frontmatter → `image` (feature image) frontmatter → `site.defaultOgImage`
-- Pages: `image` prop on `<SEO>` → `site.defaultOgImage`
-
-The article feature image becomes the share image automatically — no extra wiring per post. See [docs/seo/README.md → Share / OG image hierarchy](docs/seo/README.md#share--og-image-hierarchy).
-
-Full docs: [docs/seo/README.md](docs/seo/README.md)
-
-## Documentation map
-
-[docs/documentation-map.md](docs/documentation-map.md) maps implemented systems
-to their source files, authoritative docs, validation commands, and planning
-files that can be archived or deleted.
-
-## CMS and content
-
-The template ships a complete Git-backed content system:
-
-| Path                      | Purpose                                                            |
-| ------------------------- | ------------------------------------------------------------------ |
-| `static/admin/index.html` | Sveltia CMS editor UI (loads from CDN)                             |
-| `static/admin/config.yml` | CMS schema — update `backend.repo` before deploying                |
-| `content/pages/home.yml`  | Homepage content (edit via CMS or directly)                        |
-| `content/articles/`       | Markdown articles with YAML frontmatter                            |
-| `content/team/`           | Team member YAML files                                             |
-| `content/testimonials/`   | Testimonial YAML files                                             |
-| `src/lib/content/`        | Typed content loaders (js-yaml for YAML, gray-matter for Markdown) |
-
-Full docs: [docs/cms/README.md](docs/cms/README.md)
-
-## Database
-
-Postgres + Drizzle ships as a default, not an optional add-on. `DATABASE_URL` is required at runtime.
-
-| File / Path                   | Purpose                                                                               |
-| ----------------------------- | ------------------------------------------------------------------------------------- |
-| `src/lib/server/db/schema.ts` | Starter tables: `contact_submissions`, `automation_events`, `automation_dead_letters` |
-| `src/lib/server/db/index.ts`  | DB singleton (lazy connection via postgres.js)                                        |
-| `src/lib/server/db/health.ts` | `checkDbHealth()` — injectable probe used by `/readyz`                                |
-| `drizzle.config.ts`           | Drizzle Kit config (schema path, migrations dir, dialect)                             |
-| `drizzle/`                    | Migration files (generated by `bun run db:generate`)                                  |
-| `deploy/quadlets/postgres.*`  | Required per-site Postgres container and persistent volume                            |
-
-```bash
-bun run db:generate   # generate migration SQL from schema changes
-bun run db:migrate    # apply pending migrations
-bun run db:push       # push schema directly (dev only)
-bun run db:studio     # open Drizzle Studio
-bun run db:check      # check for schema drift
-bun run privacy:prune # dry-run expired PII/runtime record pruning
-```
-
-Production always uses the bundled per-site Postgres path. Web and worker
-containers use `DATABASE_URL` with the project Postgres hostname on the Podman
-network, for example `my-site-postgres`. Host-side migrations, backups, restores, and
-Drizzle Studio use `DATABASE_DIRECT_URL` through the loopback-published port.
-Managed Postgres and shared client clusters are not template paths.
-
-Full docs: [docs/database/README.md](docs/database/README.md) · [docs/privacy/data-retention.md](docs/privacy/data-retention.md)
-
-## Automation readiness
-
-Automation is durable by default and external workflow delivery is optional.
-`AUTOMATION_PROVIDER` unset or `noop` is valid for production; the worker still
-runs and marks outbox events delivered without calling an external system. n8n
-is an optional external provider per ADR-027: point `N8N_WEBHOOK_URL` at
-n8n.cloud or a separately hosted n8n endpoint. Use `AUTOMATION_PROVIDER=webhook`
-for Zapier, Make, or custom HTTPS receivers.
-
-- **Content automations:** n8n writes files to `content/` via the GitHub API, following the same schema as Sveltia CMS
-- **Runtime automations:** SvelteKit server actions insert outbox rows in `automation_events`; `bun run automation:worker` delivers, retries with backoff, and dead-letters exhausted failures
-- Production installs run the worker as a long-lived per-site container (`deploy/quadlets/worker.container`) via `bun run automation:worker:daemon`. It logs each batch's outcome through journald and safely warns when no runtime automation provider is configured.
-
-Env vars `N8N_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are documented in `.env.example`. See [docs/automations/README.md](docs/automations/README.md).
-
-## Using this template
+## Quick Start
 
 ```bash
 git clone git@github.com:<you>/<your-project>.git
@@ -175,267 +53,105 @@ cd <your-project>
 bun run dev
 ```
 
-`./bootstrap` provisions a local Postgres container, generates a working `.env`
-with sane local defaults, runs database migrations, and prints the next things
-to customize. It is idempotent and safe to re-run.
-
-For local CMS editing in a Chromium browser, follow the Work-with-Local-Repository
-flow at [docs/cms/README.md](docs/cms/README.md#local-development--work-with-local-repository).
-
-Before deploying:
+Before opening a PR:
 
 ```bash
-bun run launch:check   # release-grade gate; alias of validate:launch
-bun run deploy:preflight # structural deploy readiness after init/env rendering
+bun run validate
 ```
 
-See [docs/getting-started.md](docs/getting-started.md) for the full guide,
-including the manual setup path if you want to understand or override what
-bootstrap does.
-
-`site.project.json` is the durable project contract. `init:site` can still ask
-the original ten prompts for compatibility; it writes the manifest, then
-generates owned files from it. For manifest-only flows:
+Before launch/deploy:
 
 ```bash
-bun run init:site -- --check
-bun run init:site -- --write
+bun run launch:check
+bun run deploy:preflight
 ```
 
-For deterministic non-interactive setup, feed answers through stdin:
+CI runs `bun run validate:ci`, which adds Playwright, axe, visual smoke, launch,
+and deploy-readiness checks.
 
-```ts
-const answers = `my-cool-site
-Acme Studio
-https://acme-studio.dev
-Portrait and brand photography for independent makers.
-acme-org
-my-cool-site
-hello@acme-studio.dev
-my-cool-site
-acme-studio.dev
-Acme
-`;
+## Database
 
-const proc = Bun.spawn(['bun', 'run', 'init:site'], {
-	stdin: 'pipe',
-	stdout: 'inherit',
-	stderr: 'inherit',
-});
+`DATABASE_URL` is required at runtime. In production it is rendered by the
+platform repo and points at `web-platform-postgres`:
 
-proc.stdin.write(answers);
-proc.stdin.end();
-process.exit(await proc.exited);
+```env
+CLIENT_SLUG=example-client
+DATABASE_URL=postgres://example_client_app_user:...@web-platform-postgres:5432/example_client_app
+DATABASE_POOL_MAX=5
+DATABASE_STATEMENT_TIMEOUT_MS=5000
 ```
 
-After init, `bun run validate:launch` still fails until `static/og-default.png`
-is replaced with a real 1200×630 OG image. That is intentional: the default OG
-image is a manual launch asset.
+Drizzle migrations live in `drizzle/`. Because this template had no live client
+data during the architecture redirect, the migration history is collapsed to a
+fresh `0000_baseline.sql` that matches `src/lib/server/db/schema.ts`.
 
-## Bun-first workflow
-
-This template uses **Bun** for all package management and script execution. A `preinstall` guard (`scripts/ensure-bun.ts`) enforces both that the package manager is Bun and that the running Bun version is inside the range pinned in `engines.bun` (`>=1.3.13 <1.4.0`). The exact version is also pinned in `packageManager` (`bun@1.3.13`); bumping is a deliberate change tracked in [CHANGELOG.md](CHANGELOG.md). Never use `npm`, `npx`, `pnpm`, or `yarn`. Commit `bun.lock`.
+Local commands:
 
 ```bash
-bun install                  # install dependencies
-bun run dev                  # start dev server
-bun run build                # production build (prebuild runs image optimizer)
-bun run check                # TypeScript + svelte-check
-bun run lint                 # ESLint
-bun run format               # Prettier
-bun run format:check         # verify formatting
-bun run test                 # Vitest unit tests
-bun run test:e2e             # Playwright + axe smoke tests
-bun run test:e2e:built       # Playwright against existing build/ output (used by validate:ci)
-bun run images:optimize      # run image optimizer manually (idempotent)
-bun run check:bootstrap      # bootstrap dry-run + mock-provisioner harness
-bun run check:db             # live Postgres connectivity check
-bun run check:seo            # validate SEO config
-bun run check:analytics      # validate analytics config
-bun run check:cms            # validate static/admin/config.yml
-bun run check:content        # validate content/ files
-bun run project:check        # validate site.project.json + generated-file drift
-bun run routes:check         # validate route policy coverage
-bun run forms:check          # validate business form registry and outbox references
-bun run forms:ops            # redacted operator inspection for form and automation records
-bun run scaffold:form        # generate a typed DB-backed starter form
-bun run scaffold:page        # generate a plain SEO/Section-backed page
-bun run check:assets         # verify favicon / og-default / manifest defaults exist
-bun run check:security-headers # verify app security header policy and /admin CSP exceptions
-bun run check:accessibility  # source-level a11y guardrails
-bun run check:design-system  # validate design-system guardrails
-bun run check:performance    # inspect built JS/CSS/assets against performance.budget.json
-bun run check:init-site      # acceptance-test init:site on a temp copy
-bun run check:launch         # production placeholder/env launch gate
-bun run deploy:preflight     # structural deploy readiness for env, Caddy, Quadlet, worker
-bun run deploy:smoke         # URL-driven post-deploy health/discovery/header smoke
-bun run doctor               # read-only local/project diagnostic
-bun run init:site            # interactive/stdin compatibility initializer
-bun run automation:worker    # process pending automation outbox events (one batch)
-bun run automation:worker:daemon  # long-lived poll loop used by worker.container
-bun run backup:base          # WAL-G base backup (also fired by backup-base.timer)
-bun run backup:wal:check     # verify latest archived WAL is fresh in R2
-bun run backup:pitr:check    # verify base + WAL chain are intact for PITR
-bun run backup:restore:drill # non-destructive PITR restore drill (also scheduled weekly)
-bun run db:generate          # generate migration SQL from schema changes
-bun run db:migrate           # apply pending migrations
-bun run db:push              # push schema directly (dev only)
-bun run db:studio            # open Drizzle Studio
-bun run validate:fast        # inner-loop sanity: format, type, project/route/form contracts, unit tests
-bun run validate:core        # local-safe gate: full check suite + build + performance + unit tests; no local listener
-bun run validate             # alias of validate:core
-bun run validate:ci          # CI gate: validate:core + built Playwright/visual smoke
-bun run validate:launch      # release-grade: validate:core + init-site/launch/content-diff checks
+bun run db:generate
+bun run db:migrate
+bun run db:check
+bun run db:studio
 ```
 
-The validation lifecycle has four useful entry points: `validate:fast` while iterating, `validate:core`/`validate` before pushing, `validate:ci` for CI with built e2e and visual smoke, and `validate:launch` before tagging or shipping a release. For a copied site that is ready to deploy, add `bun run deploy:preflight`; after it is live, run `bun run deploy:smoke -- --url https://your-domain.example`. See [docs/template-maintenance.md](docs/template-maintenance.md) and [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
+Fleet migrations in production are run from `platform-infrastructure`, not from
+this website repo.
 
-## E2E environment variables
+## Automation
 
-`bun run test:e2e` starts the built Bun server on `127.0.0.1:45139` by default, then runs Playwright against `/healthz` before executing tests. The defaults are safe on a fresh clone with no local `.env`.
+The app writes minimized outbox rows transactionally. The production fleet worker
+is platform-owned and reads provider config from platform secrets per client.
 
-| Variable                  | Purpose                                                                 |
-| ------------------------- | ----------------------------------------------------------------------- |
-| `PLAYWRIGHT_PORT`         | Override the managed test server port. Defaults to `45139`.             |
-| `PLAYWRIGHT_BASE_URL`     | Run against an already-running or deployed site; skips local webServer. |
-| `PLAYWRIGHT_REUSE_SERVER` | Set to `1` to reuse an existing local server on the configured URL.     |
-| `PLAYWRIGHT_DATABASE_URL` | Optional DB URL for E2E. Defaults to an inert stub value.               |
-| `PLAYWRIGHT_SKIP_BUILD`   | Set to `1` only when `build/` already exists; used by `validate:ci`.    |
+`bun run automation:worker` remains as a one-shot local development tool only.
+Its optional provider env vars are still supported in `.env.example` under the
+local-dev section:
 
-`/readyz` is intentionally not part of default E2E because it verifies live Postgres connectivity. The DB health probe is covered by unit tests; add a separate integration job before testing `/readyz` end to end.
+- `AUTOMATION_PROVIDER`
+- `N8N_WEBHOOK_*`
+- `AUTOMATION_WEBHOOK_*`
 
-## Secrets management
-
-This template uses **SOPS + age** as the default secrets workflow.
-
-| File                   | Role                                                           |
-| ---------------------- | -------------------------------------------------------------- |
-| `.env.example`         | Public contract — lists required variable names without values |
-| `secrets.example.yaml` | Example shape for `secrets.yaml` with fake values              |
-| `.sops.yaml.example`   | Example SOPS encryption config to copy per project             |
-| `secrets.yaml`         | Encrypted source of truth — committed only after encryption    |
-| `.env`                 | Rendered local/runtime file — **never committed**              |
-
-```bash
-bun run secrets:check   # verify no plaintext secrets are tracked
-bun run secrets:render  # decrypt secrets.yaml → .env (requires SOPS + age installed)
-```
-
-Full guide: [docs/deployment/secrets.md](docs/deployment/secrets.md)  
-Decision: [ADR-013](docs/planning/adrs/ADR-013-sops-age-secrets-management.md)
-
-## Generated files are not committed
-
-The following are **never** committed to this repo:
-
-| Path             | Why                                                              |
-| ---------------- | ---------------------------------------------------------------- |
-| `node_modules/`  | Installed by `bun install`                                       |
-| `.svelte-kit/`   | Generated by SvelteKit at dev/sync time                          |
-| `build/`         | Production bundle — regenerated on every deploy                  |
-| `.env`, `.env.*` | May contain secrets — use `.env.example` for safe defaults       |
-| `bun.lockb`      | Legacy binary lockfile — this repo uses `bun.lock` (text format) |
-
-**Exception — image `.webp` files in `static/uploads/`:** Generated `.webp` siblings are committed alongside their source images. The prebuild script is idempotent; committing both means the site works without a prebuild on every checkout. See [ADR-009](docs/planning/adrs/ADR-009-image-pipeline.md) and [docs/design-system/images.md](docs/design-system/images.md).
-
-## Styleguide
-
-Visit `/styleguide` in development to see all design system primitives rendered live.
-
-## Examples
-
-`src/routes/examples/` holds copyable page archetypes — homepage, about, services + detail, pricing, blog landing, contact pattern, FAQ, testimonials, CTA, and a legal/privacy skeleton. Visit `/examples` in dev. Every example is `noindex, nofollow`; copy what you need into a real route and remove the override.
-
-Full guide (including the copy-into-real-route checklist): [docs/examples/README.md](docs/examples/README.md)
+Production website deploys do not require automation provider secrets.
 
 ## Deployment
 
-The template ships a complete container + reverse-proxy deployment path:
+`deploy:apply` is a migration-aware web image swap:
 
-| Artifact                           | Purpose                                                                     |
-| ---------------------------------- | --------------------------------------------------------------------------- |
-| `.dockerignore`                    | Keeps secrets, git metadata, dev deps, and generated output out of builds   |
-| `Containerfile`                    | Multi-stage Bun image (builder + lean runtime, non-root, HEALTHCHECK)       |
-| `Containerfile.node.example`       | Reference-only recipe for adapter-node swap (not maintained, not CI-tested) |
-| `deploy/Containerfile.postgres`    | Custom Postgres 18 + WAL-G image for the bundled PITR backup path           |
-| `deploy/quadlets/web.container`    | Systemd user unit via Podman Quadlet                                        |
-| `deploy/quadlets/web.network`      | Project-local Podman network                                                |
-| `deploy/quadlets/postgres.*`       | Bundled Postgres+WAL-G container and persistent volume                      |
-| `deploy/quadlets/worker.container` | Long-lived per-site automation outbox worker (replaces the systemd timer)   |
-| `deploy/systemd/backup-base.*`     | Daily WAL-G base backup timer/service                                       |
-| `deploy/systemd/backup-check.*`    | 6-hour PITR freshness check timer/service                                   |
-| `deploy/systemd/backup.*`          | Legacy nightly pg_dump timer (convenience export, not the reliability path) |
-| `deploy/Caddyfile.example`         | Caddy reverse proxy with TLS, HSTS, compression, `health_uri`               |
-| `deploy/env.example`               | Runtime env reference (distinct from SOPS secrets)                          |
-| `.github/workflows/ci.yml`         | Validate / image build / launch gating; Trivy CRITICAL blocking; GHCR push  |
+1. run deploy preflight
+2. ask the platform CLI whether migrations are current
+3. pull the new GHCR web image
+4. update `Image=` in `web.container`
+5. reload/restart `web.service`
+6. poll `/readyz`
+7. run `deploy:smoke`
+8. record release evidence locally
 
-Step-by-step bootstrap, rolling deploy, and rollback-by-SHA: [docs/deployment/runbook.md](docs/deployment/runbook.md). Production runtime contract: [ADR-018](docs/planning/adrs/ADR-018-production-runtime-and-deployment-contract.md).
+During Phase 1 of the shared-infra redirect, the migration gate soft-skips if the
+platform repo is not present and prints:
 
-## Optional modules
+`[deploy:apply] platform-infrastructure CLI not found at PLATFORM_REPO_PATH — migration gate skipped. Confirm migrations applied manually before deploy.`
 
-The full optional module registry lives at **[docs/modules/README.md](docs/modules/README.md)**. Every module is dormant by default — no runtime cost unless activated.
+After the platform migration CLI lands, that soft skip becomes a hard gate.
 
-### Active seams (configured but inert until env vars are set)
+## Key Docs
 
-| Module                       | Activation                                                                                                                                                                                         |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contact form                 | Already live at `/contact`; saves to `contact_submissions`. Local/dev may log email to stdout when Postmark is absent. See [docs/design-system/forms-guide.md](docs/design-system/forms-guide.md). |
-| Postmark email               | Set `POSTMARK_SERVER_TOKEN`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL`; required for production launch by ADR-024 unless explicitly waived.                                                     |
-| External automation provider | Set `AUTOMATION_PROVIDER=n8n` or `webhook` with the matching webhook URL and secret. n8n is external per ADR-027, not bundled. See [docs/automations/README.md](docs/automations/README.md).       |
-| Privacy pruning              | Run `bun run privacy:prune` for dry-run counts and `bun run privacy:prune -- --apply` from scheduled maintenance. See [docs/privacy/data-retention.md](docs/privacy/data-retention.md).            |
-| Analytics + GTM              | Set `PUBLIC_ANALYTICS_ENABLED=true`, `PUBLIC_GTM_ID=GTM-XXXXXXX`. See [docs/analytics/README.md](docs/analytics/README.md).                                                                        |
-| Cookie consent               | Import `ConsentBanner.svelte` from `src/lib/privacy/` into root layout. Consent seam already installed. See [docs/modules/cookie-consent.md](docs/modules/cookie-consent.md).                      |
+| Area              | Doc                                                                |
+| ----------------- | ------------------------------------------------------------------ |
+| Getting started   | [docs/getting-started.md](docs/getting-started.md)                 |
+| Deployment        | [docs/deployment/README.md](docs/deployment/README.md)             |
+| Secrets           | [docs/deployment/secrets.md](docs/deployment/secrets.md)           |
+| Database          | [docs/database/README.md](docs/database/README.md)                 |
+| Automations       | [docs/automations/README.md](docs/automations/README.md)           |
+| Architecture      | [docs/operations/architecture.md](docs/operations/architecture.md) |
+| Forms             | [docs/forms/README.md](docs/forms/README.md)                       |
+| Design system     | [docs/design-system/README.md](docs/design-system/README.md)       |
+| Documentation map | [docs/documentation-map.md](docs/documentation-map.md)             |
 
-### Not installed — add per project
+## Maintenance Notes
 
-| Module               | When to use                                            | Docs                                                       |
-| -------------------- | ------------------------------------------------------ | ---------------------------------------------------------- |
-| Better Auth          | User accounts, member areas, gated pages, admin portal | [docs/modules/better-auth.md](docs/modules/better-auth.md) |
-| Search (Pagefind)    | 10+ pages/articles; users need to find content         | [docs/modules/pagefind.md](docs/modules/pagefind.md)       |
-| R2 image storage     | Large media library, CDN delivery, or multi-instance   | [docs/modules/r2-images.md](docs/modules/r2-images.md)     |
-| PWA / service worker | App-like offline experience explicitly required        | [ADR-020](docs/planning/adrs/ADR-020-pwa-no-by-default.md) |
-
-## Observability
-
-The template ships one opinionated observability baseline that every site
-inherits: friendly error page, `/healthz` and `/readyz` probes, structured
-logs with request IDs, durable automation diagnostics, and journald-captured
-Caddy access logs. Optional extensions (Sentry, OpenTelemetry, dashboards) are
-documented but not installed by default — they are activated per project when
-there is a concrete need.
-
-| Guide                                                                        | Purpose                                                      |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [docs/observability/README.md](docs/observability/README.md)                 | Baseline + the optional extensions and when to activate them |
-| [docs/observability/error-handling.md](docs/observability/error-handling.md) | Errors, logging, request IDs, safe messages                  |
-| [docs/observability/n8n-workflows.md](docs/observability/n8n-workflows.md)   | n8n naming, payload shape, failure policy                    |
-| [docs/observability/runbook.md](docs/observability/runbook.md)               | Practical operator runbook for common failures               |
-
-## CMS content safety
-
-```bash
-bun run check:cms          # validate static/admin/config.yml
-bun run check:content      # validate Markdown/YAML content files
-bun run check:content-diff # detect destructive content changes in git diff
-```
-
-CMS writes are treated as untrusted until validated. The scripts catch blank required fields, bad date formats, `toml-frontmatter`, optional datetime fields, and destructive rewrites before they reach deploy. See [docs/cms/README.md](docs/cms/README.md) for the full content safety documentation.
-
-## Template changelog
-
-[CHANGELOG.md](CHANGELOG.md) tracks security-, operations-, and contract-relevant changes to the template. Because the template is clone-and-customize (not upstream-managed), downstream projects pull improvements selectively — the changelog is the cheat sheet for deciding what to cherry-pick.
-
-## Agent operating rules
-
-- [AGENTS.md](AGENTS.md) — rules for AI coding agents (includes observability and CMS safety rules)
-- [CLAUDE.md.template](CLAUDE.md.template) — template for per-project `CLAUDE.md`
-- [CLAUDE.example.md](CLAUDE.example.md) — filled-in reference copy showing what a finished `CLAUDE.md` looks like
-- [docs/design-system/llm-css-rules.md](docs/design-system/llm-css-rules.md) — paste-ready CSS rules for AI agents
-
-## What is deliberately not in this template
-
-- Tailwind CSS
-- shadcn or any pre-built component library
-- A dashboard or app-shell layout
-- `html, body { overflow: hidden }` — normal document scrolling is the default
-- Disabled user zoom — website accessibility requires zoom to work
+- Package management is Bun only: `bun install`, `bun add`, `bun run`.
+- Production secrets are owned by `platform-infrastructure`; website
+  `secrets.yaml` is dev-only if used at all.
+- Do not reintroduce per-site production Postgres, worker daemon, backup/PITR,
+  restore, or network Quadlets in this repo.
+- See [ADR-031](docs/planning/adrs/ADR-031-shared-infrastructure-cell.md) for
+  the shared infrastructure decision.

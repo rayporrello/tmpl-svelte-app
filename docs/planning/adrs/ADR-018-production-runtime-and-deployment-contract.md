@@ -4,6 +4,12 @@
 **Date:** 2026-04-27  
 **Checkpoint:** Batch A1
 
+**2026-05-08 update:** [ADR-031](ADR-031-shared-infrastructure-cell.md)
+supersedes the parts of this ADR that assumed per-site production Postgres,
+worker, backup, or restore artifacts. The Bun web runtime, Containerfile,
+Quadlet web unit, Caddy reverse proxy, `/healthz`, and `/readyz` contracts
+remain accepted.
+
 ---
 
 ## Decision
@@ -135,15 +141,13 @@ If `svelte-adapter-bun` becomes unmaintained, breaks on a new Bun version, or fa
 - Distributed rate limiting — not in template scope; document Cloudflare WAF or `mholt/caddy-ratelimit` per project (snippet in `Caddyfile.example`)
 - Lighthouse CI gating — deferred per YAGNI; manual `bunx unlighthouse <staging-url>` pre-launch is sufficient
 
-**Resolved (no longer deferred):**
+**Resolved / superseded:**
 
 - `/readyz` with Postgres connectivity probe — shipped (`src/routes/readyz/+server.ts`)
-- Backup automation — shipped (turnkey: `scripts/backup-{db,uploads,push,all,verify}.sh` + `deploy/systemd/backup.{service,timer}`; see `docs/operations/backups.md`)
 - Dead-letter table for failed automation events — shipped (`automation_dead_letters`)
 - SIGTERM / graceful shutdown — shipped (`serve.js` wrapper; see Graceful Shutdown above)
 - Production-only runtime dependencies — shipped (`Containerfile` installs with `bun install --production --frozen-lockfile`)
-- Optional bundled Postgres deployment — shipped (`deploy/quadlets/postgres.{container,volume}`)
-- Automation worker production timer — shipped (`deploy/systemd/automation-worker.{service,timer}`)
+- Production Postgres, worker, backup, and restore artifacts — superseded by ADR-031 and moved to `platform-infrastructure`
 
 ---
 

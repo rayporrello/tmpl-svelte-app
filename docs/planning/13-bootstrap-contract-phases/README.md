@@ -1,3 +1,5 @@
+<!-- 2026-05-08: Historical planning note. Shared-infrastructure cleanup supersedes per-site production Postgres/worker/backup/restore assumptions; see docs/planning/adrs/ADR-031-shared-infrastructure-cell.md. -->
+
 # Bootstrap Contract — Phase Prompts
 
 > Historical note: these phase prompts are implementation history. Do not feed
