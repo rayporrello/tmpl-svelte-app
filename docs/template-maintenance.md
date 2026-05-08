@@ -25,7 +25,6 @@ bun run images:optimize          # run the image prebuild pipeline manually (ide
 bun run test                     # Vitest unit tests
 bun run test:e2e                 # Playwright + axe e2e smoke tests (builds first; runs against bun ./build/index.js)
 bun run check:bootstrap          # bootstrap dry-run + mock-provisioner harness
-bun run check:bootstrap:podman   # optional/manual real-Podman bootstrap smoke
 bun run check:db                 # live Postgres connectivity check
 bun run project:check            # validate site.project.json and generated-file drift
 bun run routes:check             # validate explicit route policy coverage
