@@ -26,7 +26,6 @@
 		"doctor": "bun scripts/doctor.ts",
 		"health:live": "bun run scripts/health-live.ts",
 		"check:bootstrap": "bun scripts/check-bootstrap.ts",
-		"check:bootstrap:podman": "BOOTSTRAP_PODMAN=1 bun scripts/check-bootstrap-podman.ts",
 		"check:db": "bun run scripts/check-db-health.ts",
 		"check:seo": "bun run scripts/check-seo.ts",
 		"seo:check": "bun run check:seo",
