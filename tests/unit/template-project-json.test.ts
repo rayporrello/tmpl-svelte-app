@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { inTemplateState } from '../helpers/template-state';
 import { materializeTemplateProjectJson } from '../../scripts/bootstrap';
 
 let tempDirs: string[] = [];
@@ -41,7 +42,7 @@ function tempProject(): string {
 }
 
 describe('.template/project.json fingerprint', () => {
-	it('commits the initial null fingerprint shape', () => {
+	it.skipIf(!inTemplateState)('commits the initial null fingerprint shape', () => {
 		const fingerprint = readJson(
 			fileURLToPath(new URL('../../.template/project.json', import.meta.url))
 		);
