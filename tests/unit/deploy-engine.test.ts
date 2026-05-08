@@ -199,6 +199,33 @@ describe('deploy engine', () => {
 		);
 	});
 
+	it('uses Bun cwd syntax for the web-data-platform migration gate command', async () => {
+		const webDataPlatformDir = join(tempDir, 'web-data-platform');
+		mkdirSync(webDataPlatformDir, { recursive: true });
+		writeFileSync(join(webDataPlatformDir, 'package.json'), JSON.stringify({ private: true }));
+
+		const results = await applyDeploy(plan(), {
+			dryRun: true,
+			rootDir,
+			env: { ...process.env, WEB_DATA_PLATFORM_PATH: webDataPlatformDir },
+			runner: fakeRunner(),
+			preflight: passingPreflight(),
+		});
+
+		expect(results).toContainEqual(
+			expect.objectContaining({
+				id: 'DEPLOY-MIGRATE-DRY-RUN-001',
+				detail: expect.stringContaining('bun run --cwd'),
+			})
+		);
+		expect(results).toContainEqual(
+			expect.objectContaining({
+				id: 'DEPLOY-MIGRATE-DRY-RUN-001',
+				detail: expect.stringContaining('web:fleet-migration-status'),
+			})
+		);
+	});
+
 	it('applies a live deploy, records the release, and appends a passing smoke event', async () => {
 		const runner = fakeRunner();
 
@@ -282,7 +309,7 @@ describe('deploy engine', () => {
 			severity: 'fail',
 			remediation: expect.arrayContaining([
 				'bun run rollback --status',
-				expect.stringContaining('platform-infrastructure restore runbook'),
+				expect.stringContaining('web-data-platform restore runbook'),
 			]),
 		});
 	});

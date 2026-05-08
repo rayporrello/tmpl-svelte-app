@@ -4,11 +4,11 @@ This template still uses SOPS + age, but production secret ownership changed.
 
 ## Source Of Truth
 
-| Scope               | File                                   | Purpose                                                              |
-| ------------------- | -------------------------------------- | -------------------------------------------------------------------- |
-| Platform production | `platform-infrastructure/secrets.yaml` | Source of truth for shared cluster and all client production secrets |
-| Website development | `secrets.yaml` in this repo, optional  | Dev-only convenience if a clone needs encrypted local values         |
-| Runtime render      | `~/secrets/<slug>.prod.env`            | Plaintext per-client env rendered by platform scripts                |
+| Scope                        | File                                  | Purpose                                                              |
+| ---------------------------- | ------------------------------------- | -------------------------------------------------------------------- |
+| web-data-platform production | `web-data-platform/secrets.yaml`      | Source of truth for shared cluster and all client production secrets |
+| Website development          | `secrets.yaml` in this repo, optional | Dev-only convenience if a clone needs encrypted local values         |
+| Runtime render               | `~/secrets/<slug>.prod.env`           | Plaintext per-client env rendered by platform scripts                |
 
 Production website clones no longer carry production secrets.
 
@@ -50,7 +50,7 @@ They are not production deploy/preflight requirements in this repo.
   template without an explicit project request.
 - Add new website runtime env vars to `src/lib/server/env.ts`,
   `.env.example`, and `deploy/env.example`.
-- Add production secret categories to the platform repo docs and examples.
+- Add production secret categories to the web-data-platform repo docs and examples.
 
 See [ADR-013](../planning/adrs/ADR-013-sops-age-secrets-management.md) and
 [ADR-031](../planning/adrs/ADR-031-shared-infrastructure-cell.md).

@@ -36,7 +36,7 @@ tombstones retained for history. `ADR-026` was already withdrawn.
 ## Moved Out
 
 Production Postgres, worker daemon, backup/PITR, restore, and platform network
-docs now belong in `platform-infrastructure`.
+docs now belong in `web-data-platform`.
 
 Historical planning directories such as `docs/planning/passes/` and
 `docs/planning/13-bootstrap-contract-phases/` are not current implementation

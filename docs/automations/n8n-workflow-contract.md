@@ -6,12 +6,12 @@ platform fleet worker. n8n is external to the website repo.
 ## Ownership
 
 - Website repo: writes source rows and minimized outbox rows.
-- Platform repo: reads client provider config, runs the fleet worker, and sends
+- web-data-platform repo: reads client provider config, runs the fleet worker, and sends
   HTTP deliveries.
 - n8n: receives authenticated events and fans them out to Slack, email, CRM, or
   other systems.
 
-Production webhook URL and secret live in `platform-infrastructure/secrets.yaml`.
+Production webhook URL and secret live in `web-data-platform/secrets.yaml`.
 Local one-shot worker tests may still use `.env` values in a website clone.
 
 ## Request
@@ -55,7 +55,7 @@ The form action is unaffected by n8n outages because the source row and outbox
 row already committed. The fleet worker retries transient failures with backoff
 and dead-letters exhausted events in the client's own database.
 
-Inspect dead letters through the platform repo's fleet tooling.
+Inspect dead letters through the web-data-platform repo's fleet tooling.
 
 ## PII
 

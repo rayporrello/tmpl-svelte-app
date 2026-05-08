@@ -30,9 +30,9 @@ in production:
 | Topic                                               | Current decision                                             | Trigger to scope                                                                                         |
 | --------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
 | **Auto-rollback on smoke failure**                  | Deferred by ADR-028; smoke prints failures for the operator. | Operators repeatedly run manual rollback immediately after deploy smoke fails, with no diagnosis needed. |
-| **Fleet view**                                      | Delivered as a platform-infrastructure concern by ADR-031.   | Platform repo owns cross-client worker, migration, backup, restore, and dead-letter views.               |
+| **Fleet view**                                      | Delivered as a web-data-platform concern by ADR-031.         | web-data-platform repo owns cross-client worker, migration, backup, restore, and dead-letter views.      |
 | **`deploy:apply` plan/apply split**                 | Deferred by ADR-028; one command owns deploy orchestration.  | Deploy approvals need a durable dry-run artifact, or CI/CD wants separate planning and execution steps.  |
-| **Dedicated backup channel in website health view** | Removed from the website repo by ADR-031.                    | Platform repo owns backup and restore health; website health stays web-service focused.                  |
+| **Dedicated backup channel in website health view** | Removed from the website repo by ADR-031.                    | web-data-platform repo owns backup and restore health; website health stays web-service focused.         |
 
 ### Application-shape topics
 
@@ -61,7 +61,7 @@ in production:
 ## Decided (closed)
 
 - **Phase 5 — runtime data** — Postgres + Drizzle + `/readyz` + typed automation outbox (`enqueueLeadCreated` / compatibility alias `emitLeadCreated`) + HMAC signing + `automation_dead_letters` all shipped. See [11-template-build-backlog.md](11-template-build-backlog.md) Phase 5 section.
-- **Shared infrastructure cell** — accepted in [ADR-031](adrs/ADR-031-shared-infrastructure-cell.md). Fleet view, production DB provisioning, backups, restore, and worker operations are platform repo responsibilities.
+- **Shared infrastructure cell** — accepted in [ADR-031](adrs/ADR-031-shared-infrastructure-cell.md). Fleet view, production DB provisioning, backups, restore, and worker operations are web-data-platform repo responsibilities.
 - **PWA / service worker (no by default)** — [ADR-020](adrs/ADR-020-pwa-no-by-default.md). Manifest + icons stay; no service worker.
 - **Production hardening (audit pass)** — DB pool config, SIGTERM wrapper (`serve.js`), HSTS dual-write, contact form honeypot, Speculation Rules, `bun audit` advisory step, Caddy rate-limit snippet docs. Recorded in PR #11; see ADR-018 §"Graceful shutdown" and ADR-019 §"App vs edge header ownership".
 

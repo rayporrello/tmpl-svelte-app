@@ -1,8 +1,8 @@
 # deploy/Caddyfile.example — per-site Caddy reverse proxy snippet
 #
 # Replace example.com with the real domain before use.
-# Host-level Caddy is operated by platform-infrastructure. This file is the
-# per-site block/snippet that points at this site's loopback-published web port.
+# Host-level Caddy is outside this website repo. This file is the per-site
+# block/snippet that points at this site's loopback-published web port.
 # See docs/deployment/runbook.md for the website-side deployment procedure.
 # /admin/* is operator-only. Generate HEALTH_ADMIN_PASSWORD_HASH via
 # `caddy hash-password` and store it in secrets.yaml. The cleartext password

@@ -6,7 +6,7 @@ Operating rules for AI agents (Claude, Codex, Cursor, etc.) working in this repo
 
 ## Where production lives
 
-This repo owns the SvelteKit website template and local development workflow. Production Postgres, fleet automation workers, backups, restores, and rendered production secrets live in the separate `platform-infrastructure` repo. Website clones join the platform-owned `web-platform.network` and receive production env files rendered by that repo.
+This repo owns the SvelteKit website template and local development workflow. Production Postgres, fleet automation workers, backups, restores, and rendered production secrets live in the separate `web-data-platform` repo. Website clones join the shared website data `web-platform.network` and receive production env files rendered by that repo.
 
 ---
 
@@ -257,7 +257,7 @@ Full reference: [docs/privacy/data-retention.md](docs/privacy/data-retention.md)
 
 - Keep retention defaults in `src/lib/server/privacy/retention.ts` and update the privacy docs in the same change
 - Run `bun run privacy:prune` as a dry-run before using `bun run privacy:prune -- --apply`
-- Coordinate production pruning with the platform repo's backup/maintenance window
+- Coordinate production pruning with the web-data-platform repo's backup/maintenance window
 - Keep `automation_dead_letters` free of full webhook payloads; store only event type, nullable event reference, error text, and timestamps
 
 ### Never
@@ -758,4 +758,4 @@ Verify against [docs/planning/08-quality-gates.md](docs/planning/08-quality-gate
 - All form controls pass the forms gates
 - CMS fields in `config.yml` match `types.ts` interfaces
 - No n8n package in `package.json`
-- Local-dev automation provider vars remain documented in `.env.example`; production provider config is platform-owned
+- Local-dev automation provider vars remain documented in `.env.example`; production provider config is shared website data

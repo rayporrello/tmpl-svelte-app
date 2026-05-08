@@ -15,7 +15,7 @@ live clients yet.
 Use two repos:
 
 - `tmpl-svelte-app`: per-client SvelteKit website template, cleaned in place.
-- `platform-infrastructure`: shared production infrastructure for the website
+- `web-data-platform`: shared production infrastructure for the website
   fleet.
 
 Use one shared Postgres cluster with one database and one role per client. Use
@@ -32,10 +32,10 @@ one shared fleet worker. Use one Podman bridge network named
 
 ## Secrets
 
-Production secrets are owned by `platform-infrastructure/secrets.yaml`.
+Production secrets are owned by `web-data-platform/secrets.yaml`.
 Website `secrets.yaml` is dev-only if it exists.
 
-The platform repo renders:
+The web-data-platform repo renders:
 
 - `~/secrets/web-platform-cluster.env`
 - `~/secrets/<slug>.prod.env`

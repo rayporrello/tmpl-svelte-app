@@ -1,7 +1,7 @@
 /**
  * Canonical Quadlet set for the website-only production artifact.
  * Shared Postgres, fleet worker, backups, and the platform network are owned
- * by the separate platform-infrastructure repo.
+ * by the separate web-data-platform repo.
  *
  * Consumers:
  * - pass 05 rollback CLI imports ROLLBACK_QUADLETS.

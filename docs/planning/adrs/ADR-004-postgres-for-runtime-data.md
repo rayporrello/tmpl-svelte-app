@@ -25,7 +25,7 @@ Postgres is the default runtime data path for this template. SQLite is not offer
 - All projects built from this template require a Postgres database. Editorial-only sites are not a special case.
 - Projects get a production-grade database from day one, without a later migration away from SQLite.
 - `DATABASE_URL` must be set before the app can serve any request. CI uses a stub value; no live DB is required for the validate pipeline.
-- Production backup and restore automation is owned by `platform-infrastructure` per ADR-031.
+- Production backup and restore automation is owned by `web-data-platform` per ADR-031.
 
 ## Implementation Notes
 

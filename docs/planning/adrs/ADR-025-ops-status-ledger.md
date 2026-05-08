@@ -13,7 +13,7 @@ The website repo keeps a small local ops ledger for web deploy evidence:
 - recent health events
 
 Backup and restore facts no longer live in this repo's ledger because those
-operations moved to `platform-infrastructure`.
+operations moved to `web-data-platform`.
 
 ## Ledger Paths
 
@@ -25,7 +25,7 @@ events.ndjson
 ```
 
 Platform state and fleet-wide backup/restore evidence are separate and owned by
-the platform repo.
+the web-data-platform repo.
 
 ## Consequences
 

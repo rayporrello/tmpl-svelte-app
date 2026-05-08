@@ -11,7 +11,7 @@ Every project spawned from this template includes these by default.
 - **Superforms + Valibot** — the standard form behavior library for any form with submission behavior. Already shipped as dependencies; the live `src/routes/contact/` route demonstrates the wiring. The CSS layer (`forms.css`) works independently for display-only forms.
 - **Sveltia CMS / file-based content conventions** — Git-backed editorial content via Markdown/JSON; Sveltia admin at `/admin`.
 - **SEO, accessibility, semantic HTML, and image baseline** — meta tags, Open Graph, structured data stubs, accessible markup conventions, and image handling patterns.
-- **Web-only Podman Quadlet + Caddy snippet** — the website repo ships the web container and per-site Caddy snippet; shared production infrastructure lives in `platform-infrastructure`.
+- **Web-only Podman Quadlet + Caddy snippet** — the website repo ships the web container and per-site Caddy snippet; shared production infrastructure lives in `web-data-platform`.
 - **Agent operating rules** — `AGENTS.md` and `CLAUDE.md.template` ship with the template.
 - **Validation expectations** — clear definition of what "working" means for this template and each module.
 
@@ -21,7 +21,7 @@ These capabilities are part of the template but off by default. Activating them 
 
 | Module            | What it provides                              | Activation                                       |
 | ----------------- | --------------------------------------------- | ------------------------------------------------ |
-| n8n               | External automation workflows                 | Configure provider in platform secrets           |
+| n8n               | External automation workflows                 | Configure provider in web-data-platform secrets  |
 | Postmark / email  | Transactional email delivery                  | Add credentials; provider switches automatically |
 | Better Auth       | Auth, sessions, member areas, admin           | Add auth config + enable protected routes        |
 | Pagefind search   | Static content search                         | Install/index per project                        |
@@ -46,7 +46,7 @@ These decisions are intentionally left to the future project, not locked in the 
 These are explicitly out of scope. Pressure to include them should be resisted.
 
 - **Kubernetes or multi-server orchestration** — this template targets a single Podman host. Multi-server concerns belong in infrastructure tooling, not the app template.
-- **Managed cloud database as default** — no AWS RDS, Supabase, PlanetScale, or Vercel Postgres. Production data is self-hosted Postgres operated by `platform-infrastructure`, with one database and one role per client.
+- **Managed cloud database as default** — no AWS RDS, Supabase, PlanetScale, or Vercel Postgres. Production data is self-hosted Postgres operated by `web-data-platform`, with one database and one role per client.
 - **SQLite as the default data path** — Postgres + Drizzle is the default runtime data layer; SQLite is not a fallback here.
 - **WordPress / plugin architecture** — this template replaces that model entirely.
 - **React, Next.js, or Tailwind as the default stack** — SvelteKit and hand-authored CSS are the chosen directions. Do not add Tailwind as a default dependency.

@@ -5,7 +5,7 @@
  * Run one batch (CI / manual replay):
  *   bun run automation:worker
  *
- * Production fleet delivery is owned by platform-infrastructure. This script
+ * Production fleet delivery is owned by web-data-platform. This script
  * stays as a one-shot local-dev tool for a single website clone.
  */
 

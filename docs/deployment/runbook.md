@@ -1,7 +1,7 @@
 # Deployment Runbook
 
 This website repo deploys the web container only. Shared Postgres, fleet worker,
-production secrets, backups, and restore live in `platform-infrastructure`.
+production secrets, backups, and restore live in `web-data-platform`.
 
 ## Inputs
 
@@ -41,14 +41,14 @@ bun run deploy:smoke -- --url https://example.com
 
 ## Migration Gate
 
-Migrations are applied by the platform repo:
+Migrations are applied by the web-data-platform repo:
 
 ```bash
-bun run -C ../platform-infrastructure platform:run-fleet-migrations -- --client=<slug>
+bun run --cwd ../web-data-platform web:run-fleet-migrations -- --client=<slug>
 ```
 
 During Phase 1 only, the website deploy CLI warns and proceeds if the platform
-CLI is not present. After the platform migration CLI lands, deployments must
+CLI is not present. After the web-data-platform migration CLI lands, deployments must
 hard-fail when migrations are pending.
 
 ## Rollback
@@ -62,5 +62,5 @@ systemctl --user daemon-reload
 systemctl --user restart <slug>-web.service
 ```
 
-If database state must move backward, use the platform restore runbook. This
+If database state must move backward, use the web-data-platform restore runbook. This
 repo does not own cluster restore.

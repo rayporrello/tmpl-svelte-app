@@ -71,7 +71,7 @@ the full contact payload. The form always succeeds once the DB transaction compl
 
 Set `AUTOMATION_PROVIDER=webhook` with `AUTOMATION_WEBHOOK_URL` and
 `AUTOMATION_WEBHOOK_SECRET` for Make, Zapier, or a custom receiver. Production
-provider config is platform-owned.
+provider config is shared website data.
 
 See [docs/automations/README.md](../automations/README.md) for provider setup.
 See [docs/privacy/data-retention.md](../privacy/data-retention.md) for retention defaults.

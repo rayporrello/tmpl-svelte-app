@@ -2,7 +2,7 @@
 
 Sites built from this template deploy as web-only SvelteKit containers on a
 rootless Podman host with host-installed Caddy. Shared production infrastructure
-is operated from `platform-infrastructure`.
+is operated from `web-data-platform`.
 
 ## Artifacts In This Repo
 
@@ -28,9 +28,9 @@ The web container:
 - joins `web-platform.network`
 - reaches Postgres at `web-platform-postgres`
 - publishes a unique loopback port for host Caddy
-- reads env from `~/secrets/<slug>.prod.env`, rendered by the platform repo
+- reads env from `~/secrets/<slug>.prod.env`, rendered by the web-data-platform repo
 
-The platform repo owns:
+The web-data-platform repo owns:
 
 - `web-platform.network`
 - shared Postgres and WAL/archive policy
@@ -47,10 +47,10 @@ bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha>
 bun run deploy:smoke -- --url https://your-domain.example
 ```
 
-`deploy:apply` asks the platform CLI whether Drizzle migrations are current
-before swapping the image. During Phase 1 only, a missing platform repo produces
+`deploy:apply` asks the web-data-platform CLI whether Drizzle migrations are current
+before swapping the image. During Phase 1 only, a missing web-data-platform repo produces
 a warning and skips the migration gate so the website cleanup can land before
-the platform CLI exists.
+the web-data-platform CLI exists.
 
 ## Related
 

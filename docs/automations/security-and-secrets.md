@@ -1,6 +1,6 @@
 # Automation Security And Secrets
 
-Production automation provider secrets are owned by `platform-infrastructure`.
+Production automation provider secrets are owned by `web-data-platform`.
 The website repo keeps only local-dev provider env support for one-shot worker
 testing.
 
@@ -46,4 +46,4 @@ without outbound delivery.
 - Never log provider secrets.
 - Never store raw provider payloads in `automation_dead_letters`.
 - Never call providers from user-facing form actions.
-- Production provider rotation happens in the platform repo, not here.
+- Production provider rotation happens in the web-data-platform repo, not here.

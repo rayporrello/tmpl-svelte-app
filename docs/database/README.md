@@ -1,11 +1,11 @@
 # Database
 
 Postgres + Drizzle remains the default data layer. The isolation boundary is now
-database-per-client inside the platform-owned shared cluster.
+database-per-client inside the shared website data shared cluster.
 
 ## Runtime Contract
 
-Production `DATABASE_URL` is rendered by `platform-infrastructure` and points at
+Production `DATABASE_URL` is rendered by `web-data-platform` and points at
 the shared network hostname:
 
 ```env
@@ -48,13 +48,13 @@ bun run privacy:prune
 
 ## Production Migrations
 
-Fleet migrations are run from the platform repo:
+Fleet migrations are run from the web-data-platform repo:
 
 ```bash
-bun run -C ../platform-infrastructure platform:run-fleet-migrations -- --client=<slug>
+bun run --cwd ../web-data-platform web:run-fleet-migrations -- --client=<slug>
 ```
 
-`deploy:apply` verifies migration status through the platform CLI before
+`deploy:apply` verifies migration status through the web-data-platform CLI before
 swapping the web image. The website repo records release evidence locally but
 does not maintain a separate migration ledger; Drizzle's own
 `drizzle.__drizzle_migrations` table remains source of truth.

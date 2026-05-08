@@ -20,7 +20,7 @@
 > **2026-05-08 update.** ADR-031 further simplified the deployment shape:
 > the website repo now ships only `web.container`; production Postgres,
 > worker, network, backup, and restore artifacts moved to
-> `platform-infrastructure`.
+> `web-data-platform`.
 
 ## Context
 

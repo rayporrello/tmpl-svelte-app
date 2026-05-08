@@ -99,7 +99,7 @@ changing how server actions log.
 When to add: every production site, basically. The template does not bundle
 one because the choice is preference: UptimeRobot (free), Better Uptime,
 Healthchecks.io, Cronitor, etc. Point any of them at `https://<domain>/healthz`.
-Platform backup/restore pings are configured from `platform-infrastructure`.
+Platform backup/restore pings are configured from `web-data-platform`.
 
 ### Metrics dashboards — Grafana / Prometheus
 

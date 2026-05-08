@@ -8,7 +8,7 @@ The launch roadmap now follows [ADR-031](adrs/ADR-031-shared-infrastructure-cell
 
 - Website repo: web app, content, forms, Drizzle schema, local bootstrap,
   web-only deploy artifacts.
-- Platform repo: shared network, shared Postgres, fleet worker, provisioning,
+- web-data-platform repo: shared network, shared Postgres, fleet worker, provisioning,
   production secrets rendering, fleet migrations, backups, restore, and Caddy
   site-block generation.
 
@@ -19,6 +19,6 @@ infrastructure, collapse Drizzle migrations to a baseline, and update docs/tests
 
 ## Next
 
-Build `platform-infrastructure` skeleton, registry, secrets rendering,
+Build `web-data-platform` skeleton, registry, secrets rendering,
 provisioning, fleet worker, shared cluster backup/restore, and migration
 orchestration.

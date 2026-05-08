@@ -20,10 +20,10 @@ Host Caddy
 
 ## Ownership Split
 
-| Owner         | Responsibilities                                                                                                          |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Website repo  | SvelteKit app, content, forms, schema, web image, web Quadlet                                                             |
-| Platform repo | Shared network, shared Postgres, DB/role provisioning, fleet worker, production secrets, backups, restore, Caddy includes |
+| Owner                  | Responsibilities                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Website repo           | SvelteKit app, content, forms, schema, web image, web Quadlet                                                             |
+| web-data-platform repo | Shared network, shared Postgres, DB/role provisioning, fleet worker, production secrets, backups, restore, Caddy includes |
 
 ## Database Isolation
 
@@ -48,11 +48,11 @@ No tenant column, no schema-per-client, and no app-layer multi-tenancy.
 ## Automation
 
 Web actions enqueue outbox rows. The fleet worker claims events per client,
-delivers with client-specific provider config from platform secrets, and keeps
+delivers with client-specific provider config from web-data-platform secrets, and keeps
 failures isolated to that client's DB.
 
 ## Backups And Restore
 
 Cluster backups, PITR checks, restore drills, and per-client export/handoff
-belong to `platform-infrastructure`. This website repo keeps only privacy
+belong to `web-data-platform`. This website repo keeps only privacy
 pruning and application-level data-retention code.

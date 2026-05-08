@@ -10,7 +10,7 @@ It is **not** a full SaaS platform scaffold. It is a database-backed website tem
 
 ## The Core Problem It Solves
 
-Starting a new web project from scratch means re-solving the same problems every time: web deployment configuration, CSS architecture, content conventions, SEO baseline, agent operating rules, and container setup. This template makes good website defaults permanent while shared production infrastructure lives in `platform-infrastructure`.
+Starting a new web project from scratch means re-solving the same problems every time: web deployment configuration, CSS architecture, content conventions, SEO baseline, agent operating rules, and container setup. This template makes good website defaults permanent while shared production infrastructure lives in `web-data-platform`.
 
 ## What the Template Provides
 
@@ -39,7 +39,7 @@ Starting a new web project from scratch means re-solving the same problems every
 
 - Contact form (Superforms + Valibot + EmailProvider seam + rate limiter at `src/routes/contact/`) — writes submissions to `contact_submissions`
 - Postmark transactional email provider (`src/lib/server/forms/providers/postmark.ts`) — activated by `POSTMARK_SERVER_TOKEN`
-- Provider-agnostic automation outbox contract — production provider config lives in the platform repo; local one-shot worker env remains available for development
+- Provider-agnostic automation outbox contract — production provider config lives in the web-data-platform repo; local one-shot worker env remains available for development
 - Analytics spine: GTM + GA4 + Cloudflare Web Analytics + server conversion events (set `PUBLIC_ANALYTICS_ENABLED=true` in production — see `docs/analytics/README.md`)
 
 **Deferred / per-project activation:**
@@ -68,7 +68,7 @@ When a new project starts:
 3. Edit `tokens.css` for brand colors / fonts / shape (see `brand.example.css`).
 4. Register routes in `src/lib/seo/routes.ts`.
 5. Activate dormant modules only when the project actually needs them.
-6. Deploy to a Podman/Caddy host — web Containerfile, web Quadlet, Caddy snippet, and runbook are already in the repo; shared infrastructure comes from `platform-infrastructure`.
+6. Deploy to a Podman/Caddy host — web Containerfile, web Quadlet, Caddy snippet, and runbook are already in the repo; shared infrastructure comes from `web-data-platform`.
 
 See [docs/getting-started.md](../getting-started.md) for the full step-by-step walkthrough.
 

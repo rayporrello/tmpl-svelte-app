@@ -23,7 +23,7 @@ backup/PITR, restore, or platform network artifacts.
 
 ## Production Contract
 
-Production websites connect to platform-owned shared infrastructure:
+Production websites connect to web-data-platform-owned shared infrastructure:
 
 - `web-platform.network`
 - `web-platform-postgres`

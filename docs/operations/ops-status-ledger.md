@@ -14,7 +14,7 @@ migration filenames associated with that web deploy. `events.ndjson` captures
 deploy, rollback, and smoke events.
 
 Backup, restore, PITR, and fleet-worker state moved to
-`platform-infrastructure`.
+`web-data-platform`.
 
 ## Location
 

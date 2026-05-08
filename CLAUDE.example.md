@@ -108,7 +108,7 @@ n8n runs on the same host as the site. Two workflows are active:
 - **acme-contact-routing** — consumes `automation_events` of type `contact.submitted`, sends a Postmark email to `hello@acme-studio.dev`, opens a deal in the studio's CRM.
 - **acme-content-publish** — opens a PR against `acme-org/acme-studio` when the studio publishes a new article from a third-party tool (Notion).
 
-Webhook URL and secret live in the platform repo's production secrets. Do not
+Webhook URL and secret live in the web-data-platform repo's production secrets. Do not
 commit real provider values to this website repo.
 
 ## Secrets and environment
@@ -116,7 +116,7 @@ commit real provider values to this website repo.
 This project uses **SOPS + age** for secrets management.
 
 - `secrets.yaml` — optional encrypted dev-only values for this website clone
-- `platform-infrastructure/secrets.yaml` — production source of truth
+- `web-data-platform/secrets.yaml` — production source of truth
 - `.env.example` — public contract for required variable names
 - `.env` — rendered local/runtime artifact; gitignored
 - `~/.config/sops/age/keys.txt` — private age identity; never committed
@@ -133,7 +133,7 @@ Standard secrets rules apply.
 - Container image: `ghcr.io/acme-org/acme-studio:${SHA}`
 - Caddy serves `acme-studio.dev` with TLS via `acme.zerossl.com`. The Caddyfile lives at `~/Caddyfile` on the prod host (templated from `deploy/Caddyfile.example`).
 - Quadlet unit: `~/.config/containers/systemd/acme-studio-web.container` (templated from `deploy/quadlets/web.container`).
-- Production database, fleet worker, backups, restore, and provider secrets are operated from `platform-infrastructure`.
+- Production database, fleet worker, backups, restore, and provider secrets are operated from `web-data-platform`.
 
 ## Project-specific rules
 
@@ -192,7 +192,7 @@ Tracked events: `contact_submitted`, `article_read`, `service_inquiry_started`. 
 - Client slug: `acme-studio`
 - DB host: `web-platform-postgres`
 - Loopback port: `3101`
-- Fleet worker and backups are platform-owned.
+- Fleet worker and backups are shared website data.
 
 ## What not to do
 

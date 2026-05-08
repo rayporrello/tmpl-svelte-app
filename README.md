@@ -3,7 +3,7 @@
 SvelteKit website template for client lead-gen sites. It ships the per-site app,
 content, forms, Drizzle schema, SEO/CMS/design-system tooling, and a web-only
 Podman deploy artifact. Production infrastructure is shared and operated from a
-separate `platform-infrastructure` repo.
+separate `web-data-platform` repo.
 
 Local development is unchanged: `./bootstrap` provisions a per-clone local
 Postgres container on a hashed loopback port and writes a working `.env`.
@@ -27,17 +27,17 @@ Postgres container on a hashed loopback port and writes a working `.env`.
 
 The template no longer ships production Postgres, production worker daemon,
 backup/PITR, restore, or site-local network artifacts. Those live in the shared
-platform repo.
+web-data-platform repo.
 
 ## Runtime Shape
 
 Production sites are separate SvelteKit clones, one per client. They share a
-platform-owned infrastructure cell:
+shared website data infrastructure cell:
 
 - one Podman bridge network: `web-platform.network`
 - one shared Postgres hostname: `web-platform-postgres`
 - one database and one role per client
-- one fleet worker operated by `platform-infrastructure`
+- one fleet worker operated by `web-data-platform`
 - one host Caddy install proxying each site through a unique loopback port
 
 This repo owns only the web container for a site. `deploy/quadlets/web.container`
@@ -72,7 +72,7 @@ and deploy-readiness checks.
 ## Database
 
 `DATABASE_URL` is required at runtime. In production it is rendered by the
-platform repo and points at `web-platform-postgres`:
+web-data-platform repo and points at `web-platform-postgres`:
 
 ```env
 CLIENT_SLUG=example-client
@@ -94,13 +94,13 @@ bun run db:check
 bun run db:studio
 ```
 
-Fleet migrations in production are run from `platform-infrastructure`, not from
+Fleet migrations in production are run from `web-data-platform`, not from
 this website repo.
 
 ## Automation
 
 The app writes minimized outbox rows transactionally. The production fleet worker
-is platform-owned and reads provider config from platform secrets per client.
+is shared website data and reads provider config from web-data-platform secrets per client.
 
 `bun run automation:worker` remains as a one-shot local development tool only.
 Its optional provider env vars are still supported in `.env.example` under the
@@ -117,7 +117,7 @@ Production website deploys do not require automation provider secrets.
 `deploy:apply` is a migration-aware web image swap:
 
 1. run deploy preflight
-2. ask the platform CLI whether migrations are current
+2. ask the web-data-platform CLI whether migrations are current
 3. pull the new GHCR web image
 4. update `Image=` in `web.container`
 5. reload/restart `web.service`
@@ -126,11 +126,11 @@ Production website deploys do not require automation provider secrets.
 8. record release evidence locally
 
 During Phase 1 of the shared-infra redirect, the migration gate soft-skips if the
-platform repo is not present and prints:
+web-data-platform repo is not present and prints:
 
-`[deploy:apply] platform-infrastructure CLI not found at PLATFORM_REPO_PATH — migration gate skipped. Confirm migrations applied manually before deploy.`
+`[deploy:apply] web-data-platform CLI not found at WEB_DATA_PLATFORM_PATH — migration gate skipped. Confirm migrations applied manually before deploy.`
 
-After the platform migration CLI lands, that soft skip becomes a hard gate.
+After the web-data-platform migration CLI lands, that soft skip becomes a hard gate.
 
 ## Key Docs
 
@@ -149,7 +149,7 @@ After the platform migration CLI lands, that soft skip becomes a hard gate.
 ## Maintenance Notes
 
 - Package management is Bun only: `bun install`, `bun add`, `bun run`.
-- Production secrets are owned by `platform-infrastructure`; website
+- Production secrets are owned by `web-data-platform`; website
   `secrets.yaml` is dev-only if used at all.
 - Do not reintroduce per-site production Postgres, worker daemon, backup/PITR,
   restore, or network Quadlets in this repo.

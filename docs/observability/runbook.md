@@ -156,7 +156,7 @@ values are necessary for the incident.
 
 **First checks:**
 
-1. Check the platform Postgres service from `platform-infrastructure`.
+1. Check the platform Postgres service from `web-data-platform`.
 2. Check disk space: `df -h` — Postgres fails silently if the data directory is full.
 3. Check connection limits: `psql -U <user> -c "SELECT count(*) FROM pg_stat_activity;"`
 
@@ -167,7 +167,7 @@ values are necessary for the incident.
 3. If connection pool is exhausted: restart the app container to reset connections.
 4. Check Postgres logs from the platform unit.
 
-**Escalation:** Data loss risk if Postgres is corrupted. Stop writes immediately and use the platform restore workflow.
+**Escalation:** Data loss risk if Postgres is corrupted. Stop writes immediately and use the web-data-platform restore workflow.
 
 ---
 
@@ -224,6 +224,6 @@ values are necessary for the incident.
 **Safe recovery steps:**
 
 1. Re-run the platform backup check and inspect errors.
-2. Test a restore through the platform restore drill.
+2. Test a restore through the web-data-platform restore drill.
 3. If backups have been failing silently for multiple days: treat as a P1 until the backup chain is restored.
 4. Document the gap and adjust the backup verification alert frequency.

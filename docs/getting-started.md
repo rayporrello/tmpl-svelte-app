@@ -15,7 +15,7 @@ still single-clone and self-contained.
 
 Production is different: this website repo now ships only the site web runtime.
 Shared Postgres, the fleet worker, production secrets rendering, backups, and
-restore are owned by the separate `platform-infrastructure` repo.
+restore are owned by the separate `web-data-platform` repo.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ restore are owned by the separate `platform-infrastructure` repo.
 - Git and a GitHub account
 - Podman for local bootstrap and production web containers
 - A Linux host with rootless Podman + host Caddy
-- The `platform-infrastructure` repo on the same host for production work
+- The `web-data-platform` repo on the same host for production work
 
 ## Create a Site
 
@@ -46,7 +46,7 @@ restore are owned by the separate `platform-infrastructure` repo.
    ```
 
 `site.project.json` is the durable manifest. `deployment.loopbackPort` is the
-production loopback port Caddy will proxy to for this site. The platform repo's
+production loopback port Caddy will proxy to for this site. The web-data-platform repo's
 client registry should reserve the same port.
 
 ## Local Development
@@ -71,7 +71,7 @@ bun run validate
 
 ## Production Handoff
 
-For production, the operator provisions the client from `platform-infrastructure`:
+For production, the operator provisions the client from `web-data-platform`:
 
 1. `provision-client --slug=<slug>` creates the DB, role, generated secrets, and
    registry entry.
@@ -101,7 +101,7 @@ bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha>
 ```
 
 During Phase 1 of the shared-infra redirect, `deploy:apply` warns and proceeds
-when the platform CLI is missing. Once the platform migration CLI lands, that
+when the web-data-platform CLI is missing. Once the web-data-platform migration CLI lands, that
 migration gate becomes hard-fail.
 
 ## What Not To Add Back

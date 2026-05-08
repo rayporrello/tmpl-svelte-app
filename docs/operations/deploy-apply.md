@@ -6,7 +6,7 @@
 
 1. run `deploy:preflight`
 2. resolve client slug from `CLIENT_SLUG` or `site.project.json`
-3. ask `platform-infrastructure` whether Drizzle migrations are current
+3. ask `web-data-platform` whether Drizzle migrations are current
 4. pull the new web image with Podman
 5. update `Image=` in `deploy/quadlets/web.container`
 6. run `systemctl --user daemon-reload`
@@ -17,15 +17,15 @@
 
 ## Phase 1 Soft Gate
 
-Until the platform CLI exists, a missing `PLATFORM_REPO_PATH` soft-skips the
+Until the web-data-platform CLI exists, a missing `WEB_DATA_PLATFORM_PATH` soft-skips the
 migration gate and emits:
 
 ```text
-[deploy:apply] platform-infrastructure CLI not found at PLATFORM_REPO_PATH — migration gate skipped. Confirm migrations applied manually before deploy.
+[deploy:apply] web-data-platform CLI not found at WEB_DATA_PLATFORM_PATH — migration gate skipped. Confirm migrations applied manually before deploy.
 ```
 
-This is temporary. The platform migration gate becomes hard once the platform
-repo implements `platform:fleet-migration-status`.
+This is temporary. The web-data-platform migration gate becomes hard once the
+web-data-platform repo implements `web:fleet-migration-status`.
 
 ## What It Does Not Do
 
@@ -38,4 +38,4 @@ repo implements `platform:fleet-migration-status`.
 ## Failure Recovery
 
 For web image failures, use `bun run rollback --to previous`. For database
-recovery, use the platform restore workflow.
+recovery, use the web-data-platform restore workflow.

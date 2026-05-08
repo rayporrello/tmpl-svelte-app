@@ -21,10 +21,10 @@ After=network-online.target
 Image=ghcr.io/<owner>/<name>:<sha>
 
 # Read runtime env vars from the rendered secrets file.
-# Production files are rendered by the platform-infrastructure repo.
+# Production files are rendered by the web-data-platform repo.
 EnvironmentFile=%h/secrets/<project>.prod.env
 
-# Join the platform-owned network so the app can reach shared Postgres at
+# Join the shared website data network so the app can reach shared Postgres at
 # web-platform-postgres:5432.
 Network=web-platform.network
 

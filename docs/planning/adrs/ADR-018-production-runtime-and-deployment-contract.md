@@ -147,7 +147,7 @@ If `svelte-adapter-bun` becomes unmaintained, breaks on a new Bun version, or fa
 - Dead-letter table for failed automation events — shipped (`automation_dead_letters`)
 - SIGTERM / graceful shutdown — shipped (`serve.js` wrapper; see Graceful Shutdown above)
 - Production-only runtime dependencies — shipped (`Containerfile` installs with `bun install --production --frozen-lockfile`)
-- Production Postgres, worker, backup, and restore artifacts — superseded by ADR-031 and moved to `platform-infrastructure`
+- Production Postgres, worker, backup, and restore artifacts — superseded by ADR-031 and moved to `web-data-platform`
 
 ---
 

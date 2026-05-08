@@ -28,7 +28,7 @@ Production provider config and daemon delivery moved out of this repo:
 - fleet-worker concurrency and polling
 - dead-letter fleet views
 
-The platform worker reads provider config from platform secrets per client and
+The web-data-platform worker reads provider config from web-data-platform secrets per client and
 sends each delivery with an idempotency key shaped like
 `<slug>:<eventId>:<eventType>`.
 
@@ -49,7 +49,7 @@ Optional local provider env vars remain supported:
   `AUTOMATION_WEBHOOK_AUTH_MODE`, `AUTOMATION_WEBHOOK_AUTH_HEADER`
 
 These are local-dev values in this repo. Production values live in
-`platform-infrastructure/secrets.yaml`.
+`web-data-platform/secrets.yaml`.
 
 ## Dead Letters
 

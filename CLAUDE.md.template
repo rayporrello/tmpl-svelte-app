@@ -216,7 +216,7 @@ Secrets workflow: `bun run secrets:render` / `bun run secrets:check`
 
 - [Forms: schema is at `src/lib/forms/contact.schema.ts`; server action at `src/routes/contact/+page.server.ts`]
 - [The `/blog` route loads from Sveltia CMS; do not hardcode posts]
-- [Forms write outbox rows; production provider config lives in the platform repo]
+- [Forms write outbox rows; production provider config lives in the web-data-platform repo]
 
 ## Images
 
@@ -319,13 +319,13 @@ Runtime PII retention defaults live in `src/lib/server/privacy/retention.ts`.
 
 - Keep `automation_dead_letters` free of full webhook payloads.
 - Run `bun run privacy:prune` as a dry-run before `bun run privacy:prune -- --apply`.
-- Coordinate production pruning with the platform repo's backup/maintenance window; do not auto-run pruning from app startup.
+- Coordinate production pruning with the web-data-platform repo's backup/maintenance window; do not auto-run pruning from app startup.
 - Do not delete pending/processing automation events unless an operator passes `--include-stale-pending-days=N`.
 
 ## Shared platform operations
 
 Production Postgres, fleet worker, backups, restore, and production secrets are
-owned by `platform-infrastructure`, not this website repo.
+owned by `web-data-platform`, not this website repo.
 
 Website deploys use:
 

@@ -58,8 +58,8 @@ export interface ApplyDeployOptions {
 	smokeBaseUrl?: string;
 }
 
-const PLATFORM_CLI_MISSING_WARNING =
-	'[deploy:apply] platform-infrastructure CLI not found at PLATFORM_REPO_PATH — migration gate skipped. Confirm migrations applied manually before deploy.';
+const WEB_DATA_PLATFORM_CLI_MISSING_WARNING =
+	'[deploy:apply] web-data-platform CLI not found at WEB_DATA_PLATFORM_PATH — migration gate skipped. Confirm migrations applied manually before deploy.';
 
 type DrizzleJournal = {
 	entries?: Array<{ tag?: unknown }>;
@@ -246,7 +246,7 @@ function rollbackRemediation(migrationSafety: MigrationSafety): string[] {
 	if (migrationSafety === 'rollback-safe') return ['bun run rollback --to previous'];
 	return [
 		'bun run rollback --status',
-		'NEXT: This release is rollback-blocked. Use the platform-infrastructure restore runbook if the database must move back.',
+		'NEXT: This release is rollback-blocked. Use the web-data-platform restore runbook if the database must move back.',
 	];
 }
 
@@ -277,29 +277,29 @@ function clientSlugFrom(rootDir: string, env: NodeJS.ProcessEnv): string {
 	return 'unknown-client';
 }
 
-function platformRepoPath(rootDir: string, env: NodeJS.ProcessEnv): string {
-	const configured = env.PLATFORM_REPO_PATH?.trim();
+function webDataPlatformPath(rootDir: string, env: NodeJS.ProcessEnv): string {
+	const configured = env.WEB_DATA_PLATFORM_PATH?.trim();
 	if (configured) return absoluteOrRelativeToRoot(rootDir, configured);
-	return resolve(rootDir, '..', 'platform-infrastructure');
+	return resolve(rootDir, '..', 'web-data-platform');
 }
 
-function platformCliAvailable(path: string): boolean {
+function webDataPlatformCliAvailable(path: string): boolean {
 	return existsSync(join(path, 'package.json'));
 }
 
-async function verifyMigrationsWithPlatform(opts: {
+async function verifyMigrationsWithWebDataPlatform(opts: {
 	rootDir: string;
 	env: NodeJS.ProcessEnv;
 	runner: DeployRunner;
 	dryRun: boolean;
 }): Promise<OpsResult> {
-	const platformPath = platformRepoPath(opts.rootDir, opts.env);
+	const dataPlatformPath = webDataPlatformPath(opts.rootDir, opts.env);
 	const client = clientSlugFrom(opts.rootDir, opts.env);
-	if (!platformCliAvailable(platformPath)) {
+	if (!webDataPlatformCliAvailable(dataPlatformPath)) {
 		return warn('DEPLOY-MIGRATE-001', 'Migration gate skipped', {
-			detail: PLATFORM_CLI_MISSING_WARNING,
+			detail: WEB_DATA_PLATFORM_CLI_MISSING_WARNING,
 			remediation: [
-				'NEXT: Confirm platform migrations have been applied manually before deploying this web image.',
+				'NEXT: Confirm web-data-platform migrations have been applied manually before deploying this web image.',
 			],
 			runbook: 'docs/operations/deploy-apply.md',
 		});
@@ -308,31 +308,35 @@ async function verifyMigrationsWithPlatform(opts: {
 	const command = [
 		'bun',
 		'run',
-		'-C',
-		platformPath,
-		'platform:fleet-migration-status',
+		'--cwd',
+		dataPlatformPath,
+		'web:fleet-migration-status',
 		'--',
 		`--client=${client}`,
 		`--repo=${opts.rootDir}`,
 	];
 	if (opts.dryRun) {
-		return info('DEPLOY-MIGRATE-DRY-RUN-001', 'Would verify migrations through platform CLI', {
-			detail: command.join(' '),
-		});
+		return info(
+			'DEPLOY-MIGRATE-DRY-RUN-001',
+			'Would verify migrations through web-data-platform CLI',
+			{
+				detail: command.join(' '),
+			}
+		);
 	}
 
 	const status = await opts.runner.exec(command);
 	if (status.exitCode !== 0) {
-		return fail('DEPLOY-MIGRATE-001', 'Platform migration gate failed', {
+		return fail('DEPLOY-MIGRATE-001', 'web-data-platform migration gate failed', {
 			detail: commandOutputDetail(status),
 			remediation: [
-				`bun run -C ${platformPath} platform:run-fleet-migrations -- --client=${client}`,
+				`bun run --cwd ${dataPlatformPath} web:run-fleet-migrations -- --client=${client}`,
 			],
 			runbook: 'docs/operations/deploy-apply.md',
 		});
 	}
 
-	return pass('DEPLOY-MIGRATE-001', 'Platform migration gate passed', {
+	return pass('DEPLOY-MIGRATE-001', 'web-data-platform migration gate passed', {
 		detail: commandOutputDetail(status),
 	});
 }
@@ -437,7 +441,7 @@ export async function applyDeploy(
 	if (hasFail(preflight)) return preflight;
 	results.push(pass('DEPLOY-PREFLIGHT-001', 'Preflight passed'));
 
-	const migrationGate = await verifyMigrationsWithPlatform({ rootDir, env, runner, dryRun });
+	const migrationGate = await verifyMigrationsWithWebDataPlatform({ rootDir, env, runner, dryRun });
 	results.push(migrationGate);
 	if (migrationGate.severity === 'fail') return results;
 

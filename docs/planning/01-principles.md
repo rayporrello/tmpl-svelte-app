@@ -7,7 +7,7 @@ These principles are the guardrails for all architectural and implementation dec
 Never assume the server will remember anything. The website runtime for any project spawned from this template must be reconstructible from the git repository plus platform-rendered secrets and platform-managed database backups.
 
 - Website-owned server configuration (web Quadlet, Caddy snippet, env contract) is committed to the repo.
-- Shared network, Postgres, fleet worker, backups, and restore are committed to `platform-infrastructure`.
+- Shared network, Postgres, fleet worker, backups, and restore are committed to `web-data-platform`.
 - If the server is destroyed, a fresh website deploy plus platform restore returns the site to full operation.
 
 ## 2. Dev and Prod Strict Separation
@@ -45,10 +45,10 @@ Activating a module should require uncommenting or enabling a defined seam — n
 
 ## 4. Platform Backups Are Foundational, Not Afterthoughts
 
-Data security is solved at the platform level. Every production website client gets a database backup and restore path through `platform-infrastructure` — not something to wire up per clone.
+Data security is solved at the platform level. Every production website client gets a database backup and restore path through `web-data-platform` — not something to wire up per clone.
 
 - The website repo keeps privacy pruning and retention rules.
-- The platform repo owns cluster backups, restore drills, and per-client exports.
+- The web-data-platform repo owns cluster backups, restore drills, and per-client exports.
 - Website code must not reintroduce per-site backup scripts or timers.
 
 ## 5. AI-Native Readability
