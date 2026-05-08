@@ -19,7 +19,6 @@ site:acme:lead:capture
 site:acme:contact:notify-owner
 site:acme:cms:rebuild-on-content-change
 site:acme:report:weekly-summary
-site:acme:backup:verify-nightly
 site:acme:auth:user-welcome
 ```
 
@@ -134,7 +133,7 @@ automation:worker` deliver and retry.
   shared instance leaks credentials, workflow definitions, and execution
   history across clients.
 - **Treat n8n as production infrastructure** once it handles leads, customers, publishing, revenue, or important content.
-- **Back up n8n's internal database** as part of the regular backup plan once workflows are in production. (n8n shares the per-client Postgres instance, so the standard PITR backup covers both site data and n8n state atomically.)
+- **Back up n8n's internal state** as part of the platform operations plan once workflows are in production. The website repo does not own n8n storage or backup tooling.
 
 ---
 

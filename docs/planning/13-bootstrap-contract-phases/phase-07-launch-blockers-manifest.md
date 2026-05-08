@@ -1,3 +1,5 @@
+<!-- 2026-05-08: Historical planning note. Shared-infrastructure cleanup supersedes per-site production Postgres/worker/backup/restore assumptions; see docs/planning/adrs/ADR-031-shared-infrastructure-cell.md. -->
+
 # Phase 7 — Launch-Blockers Manifest Filled In
 
 > Plan reference: §6 Phase 7, §9 (Launch-blockers manifest), §8 (Error

@@ -37,20 +37,6 @@ describe('automation worker helpers', () => {
 		expect(() => parseWorkerArgs(['--stale-after-seconds=abc'])).toThrow(/positive integer/);
 	});
 
-	it('parses --daemon and --poll-interval-seconds', () => {
-		const options = parseWorkerArgs(['--daemon', '--poll-interval-seconds=15']);
-
-		expect(options.daemon).toBe(true);
-		expect(options.pollIntervalSeconds).toBe(15);
-	});
-
-	it('defaults daemon mode off and poll interval to 30s', () => {
-		const options = parseWorkerArgs([]);
-
-		expect(options.daemon).toBe(false);
-		expect(options.pollIntervalSeconds).toBe(30);
-	});
-
 	it('marks smoke outbox rows skipped without provider delivery', async () => {
 		const queries: string[] = [];
 		const sql = ((strings: TemplateStringsArray) => {

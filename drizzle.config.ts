@@ -1,10 +1,8 @@
 import { defineConfig } from 'drizzle-kit';
 
-const url = process.env.DATABASE_DIRECT_URL || process.env.DATABASE_URL;
+const url = process.env.DATABASE_URL;
 if (!url) {
-	throw new Error(
-		'[drizzle] DATABASE_DIRECT_URL (host/operator URL) or DATABASE_URL is required. Use DATABASE_DIRECT_URL for production migrations.'
-	);
+	throw new Error('[drizzle] DATABASE_URL is required.');
 }
 
 export default defineConfig({

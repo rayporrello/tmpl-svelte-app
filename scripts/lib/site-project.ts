@@ -24,6 +24,7 @@ export type SiteProjectManifest = {
 	deployment: {
 		unitName: string;
 		containerImage: string;
+		loopbackPort: number;
 	};
 	cms: {
 		backendRepo: string;
@@ -90,20 +91,7 @@ export const PROJECT_GENERATED_FILES = [
 	'.env.example',
 	'deploy/env.example',
 	'deploy/Caddyfile.example',
-	'deploy/Containerfile.postgres',
 	'deploy/quadlets/web.container',
-	'deploy/quadlets/web.network',
-	'deploy/quadlets/postgres.container',
-	'deploy/quadlets/postgres.volume',
-	'deploy/quadlets/worker.container',
-	'deploy/systemd/backup.service',
-	'deploy/systemd/backup.timer',
-	'deploy/systemd/backup-base.service',
-	'deploy/systemd/backup-base.timer',
-	'deploy/systemd/backup-check.service',
-	'deploy/systemd/backup-check.timer',
-	'deploy/systemd/restore-drill.service',
-	'deploy/systemd/restore-drill.timer',
 ] as const;
 
 export const PROJECT_REGION_FILES = ['README.md', 'src/app.html'] as const;
@@ -201,6 +189,16 @@ export function validateProjectManifest(input: unknown): {
 	) {
 		errors.push('deployment.containerImage must include project.githubOwner/project.githubRepo.');
 	}
+	const rawLoopbackPort = getPath(input, 'deployment.loopbackPort');
+	const loopbackPort =
+		typeof rawLoopbackPort === 'number'
+			? rawLoopbackPort
+			: typeof rawLoopbackPort === 'string'
+				? Number(rawLoopbackPort)
+				: NaN;
+	if (!Number.isInteger(loopbackPort) || loopbackPort < 1024 || loopbackPort > 65535) {
+		errors.push('deployment.loopbackPort must be an integer between 1024 and 65535.');
+	}
 
 	if (errors.length > 0) return { manifest: null, errors };
 
@@ -226,6 +224,7 @@ export function validateProjectManifest(input: unknown): {
 			deployment: {
 				unitName: values['deployment.unitName'],
 				containerImage: values['deployment.containerImage'],
+				loopbackPort,
 			},
 			cms: {
 				backendRepo: cmsRepo,
@@ -290,6 +289,7 @@ export function manifestFromAnswers(answers: InitSiteAnswers): SiteProjectManife
 		deployment: {
 			unitName: `${answers.project}-web`,
 			containerImage: `ghcr.io/${ownerRepo}:<sha>`,
+			loopbackPort: 3000,
 		},
 		cms: {
 			backendRepo: ownerRepo,
@@ -367,33 +367,16 @@ function rewriteEnvExample(content: string, manifest: SiteProjectManifest): stri
 	out = out.replace(/^ORIGIN=.*/mu, `ORIGIN=${manifest.site.productionUrl}`);
 	out = out.replace(/^PUBLIC_SITE_URL=.*/mu, `PUBLIC_SITE_URL=${manifest.site.productionUrl}`);
 	out = out.replace(/<project>/gu, manifest.project.projectSlug);
+	out = out.replace(/^CLIENT_SLUG=.*/mu, `CLIENT_SLUG=${manifest.project.projectSlug}`);
 	out = out.replace(
 		/^DATABASE_URL=.*/mu,
-		`DATABASE_URL=postgres://${dbSlug}_app_user:replace-me@${manifest.project.projectSlug}-postgres:5432/${dbSlug}_app`
+		`DATABASE_URL=postgres://${dbSlug}_app_user:replace-me@web-platform-postgres:5432/${dbSlug}_app`
 	);
-	out = out.replace(
-		/^DATABASE_DIRECT_URL=.*/mu,
-		`DATABASE_DIRECT_URL=postgres://${dbSlug}_app_user:replace-me@127.0.0.1:5432/${dbSlug}_app`
-	);
-	out = out.replace(/^POSTGRES_DB=.*/mu, `POSTGRES_DB=${dbSlug}_app`);
-	out = out.replace(/^POSTGRES_USER=.*/mu, `POSTGRES_USER=${dbSlug}_app_user`);
 	return out;
 }
 
 function rewriteDeployEnvExample(content: string, manifest: SiteProjectManifest): string {
-	let out = rewriteEnvExample(content, manifest);
-	const dbSlug = manifest.project.projectSlug.replace(/-/g, '_');
-	out = out.replace(
-		/^DATABASE_URL=.*/mu,
-		`DATABASE_URL=postgres://${dbSlug}_app_user:replace-me@${manifest.project.projectSlug}-postgres:5432/${dbSlug}_app`
-	);
-	out = out.replace(
-		/^DATABASE_DIRECT_URL=.*/mu,
-		`DATABASE_DIRECT_URL=postgres://${dbSlug}_app_user:replace-me@127.0.0.1:5432/${dbSlug}_app`
-	);
-	out = out.replace(/^POSTGRES_DB=.*/mu, `POSTGRES_DB=${dbSlug}_app`);
-	out = out.replace(/^POSTGRES_USER=.*/mu, `POSTGRES_USER=${dbSlug}_app_user`);
-	return out;
+	return rewriteEnvExample(content, manifest);
 }
 
 function rewriteCaddyfile(content: string, manifest: SiteProjectManifest): string {
@@ -427,9 +410,10 @@ function rewriteQuadlet(content: string, manifest: SiteProjectManifest): string 
 		/^(EnvironmentFile=%h\/secrets\/)([^.]+)(\.prod\.env)$/mu,
 		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
 	);
+	out = out.replace(/^Network=.+$/mu, 'Network=web-platform.network');
 	out = out.replace(
-		/^(Network=)([^.]+)(\.network)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
+		/^PublishPort=127\.0\.0\.1:\d+:3000$/mu,
+		`PublishPort=127.0.0.1:${manifest.deployment.loopbackPort}:3000`
 	);
 	out = out.replace(
 		/^(HostName=)(.+)$/mu,
@@ -442,176 +426,6 @@ function rewriteQuadlet(content: string, manifest: SiteProjectManifest): string 
 	return out;
 }
 
-function rewriteQuadletNetwork(content: string, manifest: SiteProjectManifest): string {
-	let out = content;
-	out = out.replace(/<project>/gu, manifest.project.projectSlug);
-	out = out.replace(
-		/^(Description=Project network — )(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	return out;
-}
-
-function rewritePostgresQuadlet(content: string, manifest: SiteProjectManifest): string {
-	let out = content
-		.replace(/<owner>/gu, manifest.project.githubOwner)
-		.replace(/<project>/gu, manifest.project.projectSlug);
-	out = out.replace(
-		/^(Description=(?:Postgres database|Postgres 18 \+ WAL-G) — )(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	out = out.replace(
-		/^(Network=)([^.]+)(\.network)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	out = out.replace(
-		/^(HostName=)(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}-postgres`
-	);
-	out = out.replace(
-		/^(Volume=)([^:]+)(:\/var\/lib\/postgresql\/data)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}-postgres-data${suffix}`
-	);
-	return out;
-}
-
-function rewritePostgresVolume(content: string, manifest: SiteProjectManifest): string {
-	let out = content.replace(/<project>/gu, manifest.project.projectSlug);
-	out = out.replace(
-		/^(Description=Postgres data volume — )(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(VolumeName=)(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}-postgres-data`
-	);
-	return out;
-}
-
-function rewriteBackupSystemd(content: string, manifest: SiteProjectManifest): string {
-	let out = content;
-	out = out.replace(/<project>/gu, manifest.project.projectSlug);
-	out = out.replace(
-		/^(Description=Nightly backup .+? — )(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(WorkingDirectory=%h\/)([^\s]+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	out = out.replace(
-		/^(Unit=)([^\s]+?)(-backup\.service)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	return out;
-}
-
-function rewriteWorkerQuadlet(content: string, manifest: SiteProjectManifest): string {
-	let out = content
-		.replace(/<owner>/gu, manifest.project.githubOwner)
-		.replace(/<name>/gu, manifest.project.githubRepo)
-		.replace(/<project>/gu, manifest.project.projectSlug);
-	out = out.replace(
-		/^(Description=Automation outbox worker — )(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	return out;
-}
-
-function rewriteContainerfilePostgres(content: string, manifest: SiteProjectManifest): string {
-	// Containerfile.postgres carries the WAL-G + PG version pins (deliberate,
-	// global) plus a few comments that reference the project slug. The build
-	// itself is generic per-client; init:site only sweeps the comments so the
-	// placeholder check passes after init.
-	return content
-		.replace(/<owner>/gu, manifest.project.githubOwner)
-		.replace(/<name>/gu, manifest.project.githubRepo)
-		.replace(/<project>/gu, manifest.project.projectSlug);
-}
-
-function rewriteBackupBaseSystemd(content: string, manifest: SiteProjectManifest): string {
-	let out = content.replace(/<project>/gu, manifest.project.projectSlug);
-	out = out.replace(
-		/^(Description=WAL-G base backup(?: timer)? — )(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(WorkingDirectory=%h\/)([^\s]+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(ExecStart=%h\/)([^\s/]+)(\/scripts\/.+)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	out = out.replace(
-		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	out = out.replace(
-		/^(Unit=)([^\s]+?)(-backup-base\.service)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	return out;
-}
-
-function rewriteBackupCheckSystemd(content: string, manifest: SiteProjectManifest): string {
-	let out = content.replace(/<project>/gu, manifest.project.projectSlug);
-	out = out.replace(
-		/^(Description=PITR freshness check(?: timer)? — )(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(WorkingDirectory=%h\/)([^\s]+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(ExecStart=%h\/)([^\s/]+)(\/scripts\/.+)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	out = out.replace(
-		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	out = out.replace(
-		/^(Unit=)([^\s]+?)(-backup-check\.service)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	return out;
-}
-
-function rewriteRestoreDrillSystemd(content: string, manifest: SiteProjectManifest): string {
-	let out = content.replace(/<project>/gu, manifest.project.projectSlug);
-	out = out.replace(
-		/^(Description=Weekly non-destructive restore drill(?: timer)? — )(.+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(WorkingDirectory=%h\/)([^\s]+)$/mu,
-		(_, prefix) => `${prefix}${manifest.project.projectSlug}`
-	);
-	out = out.replace(
-		/^(EnvironmentFile=%h\/secrets\/)([^\s]+?)(\.prod\.env)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	out = out.replace(
-		/^(Unit=)([^\s]+?)(-restore-drill\.service)$/mu,
-		(_, prefix, _old, suffix) => `${prefix}${manifest.project.projectSlug}${suffix}`
-	);
-	return out;
-}
-
 const REWRITERS: Record<string, (content: string, manifest: SiteProjectManifest) => string> = {
 	'package.json': rewritePackageJson,
 	'src/lib/config/site.ts': rewriteSiteTs,
@@ -620,20 +434,7 @@ const REWRITERS: Record<string, (content: string, manifest: SiteProjectManifest)
 	'.env.example': rewriteEnvExample,
 	'deploy/env.example': rewriteDeployEnvExample,
 	'deploy/Caddyfile.example': rewriteCaddyfile,
-	'deploy/Containerfile.postgres': rewriteContainerfilePostgres,
 	'deploy/quadlets/web.container': rewriteQuadlet,
-	'deploy/quadlets/web.network': rewriteQuadletNetwork,
-	'deploy/quadlets/postgres.container': rewritePostgresQuadlet,
-	'deploy/quadlets/postgres.volume': rewritePostgresVolume,
-	'deploy/quadlets/worker.container': rewriteWorkerQuadlet,
-	'deploy/systemd/backup.service': rewriteBackupSystemd,
-	'deploy/systemd/backup.timer': rewriteBackupSystemd,
-	'deploy/systemd/backup-base.service': rewriteBackupBaseSystemd,
-	'deploy/systemd/backup-base.timer': rewriteBackupBaseSystemd,
-	'deploy/systemd/backup-check.service': rewriteBackupCheckSystemd,
-	'deploy/systemd/backup-check.timer': rewriteBackupCheckSystemd,
-	'deploy/systemd/restore-drill.service': rewriteRestoreDrillSystemd,
-	'deploy/systemd/restore-drill.timer': rewriteRestoreDrillSystemd,
 	'README.md': rewriteReadme,
 	'src/app.html': rewriteAppHtml,
 };

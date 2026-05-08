@@ -213,18 +213,7 @@ jobs:
               .env.example|\
               deploy/env.example|\
               deploy/Caddyfile.example|\
-              deploy/Containerfile.postgres|\
-              deploy/quadlets/web.container|\
-              deploy/quadlets/web.network|\
-              deploy/quadlets/postgres.container|\
-              deploy/quadlets/postgres.volume|\
-              deploy/quadlets/worker.container|\
-              deploy/systemd/backup.service|\
-              deploy/systemd/backup.timer|\
-              deploy/systemd/backup-base.service|\
-              deploy/systemd/backup-base.timer|\
-              deploy/systemd/backup-check.service|\
-              deploy/systemd/backup-check.timer)
+              deploy/quadlets/web.container)
                 SHOULD_RUN=true
                 ;;
             esac
@@ -360,80 +349,6 @@ jobs:
         run: |
           docker push "${{ env.IMAGE_NAME }}:${{ github.sha }}"
           docker push "${{ env.IMAGE_NAME }}:${{ steps.short.outputs.sha }}"
-
-  # ── postgres image ────────────────────────────────────────────────────────────
-  # Builds the per-project Postgres+WAL-G image from deploy/Containerfile.postgres.
-  # Tagged ghcr.io/<owner>/<repo>-postgres:<sha>; the Quadlet at
-  # deploy/quadlets/postgres.container references it by SHA. Trivy CRITICAL
-  # gates here too; if WAL-G or the upstream Postgres base ever ship a
-  # CRITICAL CVE, the deploy is blocked.
-
-  postgres-image:
-    name: Build + Scan + Push (postgres)
-    needs: validate
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set short SHA
-        id: short
-        run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build postgres image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: .
-          file: deploy/Containerfile.postgres
-          load: true
-          tags: |
-            ${{ env.IMAGE_NAME }}-postgres:${{ github.sha }}
-            ${{ env.IMAGE_NAME }}-postgres:${{ steps.short.outputs.sha }}
-          cache-from: type=gha,scope=postgres
-          cache-to: type=gha,mode=max,scope=postgres
-
-      - name: Trivy scan — CRITICAL (blocking)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}-postgres:${{ github.sha }}
-          format: table
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: CRITICAL
-          trivyignores: .trivyignore
-
-      - name: Trivy scan — HIGH (reporting only until v1.0.0)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}-postgres:${{ github.sha }}
-          format: table
-          exit-code: '0'
-          ignore-unfixed: true
-          severity: HIGH
-          trivyignores: .trivyignore
-        continue-on-error: true
-
-      - name: WAL-G version smoke
-        run: |
-          docker run --rm \
-            "${{ env.IMAGE_NAME }}-postgres:${{ github.sha }}" \
-            wal-g --version
-
-      - name: Push postgres image to GHCR
-        run: |
-          docker push "${{ env.IMAGE_NAME }}-postgres:${{ github.sha }}"
-          docker push "${{ env.IMAGE_NAME }}-postgres:${{ steps.short.outputs.sha }}"
 
   # ── launch ────────────────────────────────────────────────────────────────────
   # Runs only on tag pushes. Verifies no placeholder values remain.

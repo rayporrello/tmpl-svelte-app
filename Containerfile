@@ -50,8 +50,8 @@ FROM oven/bun:${BUN_VERSION}-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 # IN_CONTAINER lets the app reject DATABASE_URL pointing at 127.0.0.1/localhost
-# at boot — containers must reach Postgres via the container hostname (e.g.
-# <project>-postgres). DATABASE_DIRECT_URL stays loopback for host-side tooling.
+# at boot. Production web containers join web-platform.network and reach the
+# shared platform cluster at web-platform-postgres.
 ENV IN_CONTAINER=1
 
 # Non-root user for rootless operation

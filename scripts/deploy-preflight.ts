@@ -5,13 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import { readEnv, type EnvMap } from './lib/env-file';
 import { evaluateLaunchBlockers } from './lib/launch-blockers';
-import { sanitizeProjectSlug } from './lib/postgres-dev';
 import { run as defaultRunner, type RunResult } from './lib/run';
 import { REQUIRED_PRIVATE_ENV_VARS, REQUIRED_PUBLIC_ENV_VARS } from '../src/lib/server/env';
-import {
-	readAutomationProviderConfig,
-	validateAutomationProviderConfig,
-} from '../src/lib/server/automation/providers';
 import {
 	fail as opsFail,
 	info as opsInfo,
@@ -81,7 +76,6 @@ const PROD_ENV_PATH_ENV_KEYS = [
 	'LAUNCH_PROD_ENV_FILE',
 	'PRODUCTION_ENV_FILE',
 ];
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1']);
 const FORBIDDEN_PROD_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
 function remediation(hint: string): string[] {
@@ -121,12 +115,14 @@ function projectSlug(rootDir: string): string {
 		const project = manifest.project;
 		if (project && typeof project === 'object') {
 			const value = (project as Record<string, unknown>).projectSlug;
-			if (typeof value === 'string' && value.trim()) return sanitizeProjectSlug(value);
+			if (typeof value === 'string' && value.trim()) return value.trim();
 		}
 	} catch {
 		// Fall back to package.json for partial fixtures and older projects.
 	}
-	return sanitizeProjectSlug(readPackageName(rootDir));
+	return readPackageName(rootDir)
+		.replace(/[^a-z0-9-]/giu, '-')
+		.toLowerCase();
 }
 
 function stringProperty(source: string, field: string): string | null {
@@ -313,8 +309,7 @@ export async function checkDatabaseUrlShape(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
 	const envReference = readProdEnv(context);
-	const slug = projectSlug(context.rootDir);
-	const label = 'Production DATABASE_URL targets bundled Postgres';
+	const label = 'Production DATABASE_URL targets shared platform Postgres';
 	if (!envReference.ok) {
 		return fail(
 			'PREFLIGHT-DB-001',
@@ -330,7 +325,7 @@ export async function checkDatabaseUrlShape(
 			'PREFLIGHT-DB-001',
 			label,
 			'DATABASE_URL is missing.',
-			'NEXT: Set DATABASE_URL to postgres://...@<project>-postgres:5432/<project>_app.'
+			'NEXT: Set DATABASE_URL to postgres://...@web-platform-postgres:5432/<client>_app.'
 		);
 	}
 
@@ -354,19 +349,27 @@ export async function checkDatabaseUrlShape(
 			'NEXT: Use the production Postgres URL.'
 		);
 	}
-	if (parsed.hostname !== `${slug}-postgres`) {
+	if (!parsed.hostname) {
+		return fail(
+			'PREFLIGHT-DB-001',
+			label,
+			'DATABASE_URL is missing a host.',
+			'NEXT: Use the shared platform Postgres hostname web-platform-postgres.'
+		);
+	}
+	if (hostIsForbidden(parsed.hostname)) {
 		return fail(
 			'PREFLIGHT-DB-001',
 			label,
 			`DATABASE_URL points to ${parsed.hostname}.`,
-			`NEXT: Use the internal Podman-network host ${slug}-postgres for web and worker containers.`
+			'NEXT: Use the shared platform Postgres hostname web-platform-postgres for production web containers.'
 		);
 	}
 	return pass(
 		'PREFLIGHT-DB-001',
 		label,
-		`DATABASE_URL uses the internal ${slug}-postgres host.`,
-		'NEXT: Keep DATABASE_DIRECT_URL for host migrations/backups/restores.'
+		`DATABASE_URL uses host ${parsed.hostname}.`,
+		'NEXT: Platform-owned scripts run migrations before website deploys.'
 	);
 }
 
@@ -464,10 +467,20 @@ export async function checkQuadletProject(
 	const slug = projectSlug(context.rootDir);
 	const content = readFileSync(path, 'utf8');
 	const image = parseImageReference(content);
+	const siteProject = readJson(join(context.rootDir, 'site.project.json'));
+	const deployment = siteProject.deployment;
+	const loopbackPort =
+		deployment && typeof deployment === 'object'
+			? (deployment as Record<string, unknown>).loopbackPort
+			: null;
+	const expectedPort =
+		typeof loopbackPort === 'number' || typeof loopbackPort === 'string'
+			? String(loopbackPort)
+			: '3000';
 	const expectedLines = [
 		`EnvironmentFile=%h/secrets/${slug}.prod.env`,
-		`Network=${slug}.network`,
-		'PublishPort=127.0.0.1:3000:3000',
+		'Network=web-platform.network',
+		`PublishPort=127.0.0.1:${expectedPort}:3000`,
 		`HostName=${slug}-web`,
 		'StopTimeout=15',
 	];
@@ -501,82 +514,26 @@ export async function checkQuadletProject(
 	);
 }
 
-export async function checkQuadletNetwork(
-	context: DeployPreflightContext
-): Promise<DeployPreflightResult> {
-	const label = 'Project network Quadlet is coherent';
-	const slug = projectSlug(context.rootDir);
-	const path = join(context.rootDir, 'deploy/quadlets/web.network');
-	if (!existsSync(path)) {
-		return fail(
-			'PREFLIGHT-QUADLET-002',
-			label,
-			'deploy/quadlets/web.network is missing.',
-			'NEXT: Restore deploy/quadlets/web.network or add the project network unit.'
-		);
-	}
-
-	const content = readFileSync(path, 'utf8');
-	if (content.includes('<project>')) {
-		return fail(
-			'PREFLIGHT-QUADLET-002',
-			label,
-			'deploy/quadlets/web.network still contains <project> placeholders.',
-			'NEXT: Run bun run init:site or replace <project> with the project slug.'
-		);
-	}
-	if (!content.includes(`[Network]`)) {
-		return fail(
-			'PREFLIGHT-QUADLET-002',
-			label,
-			'deploy/quadlets/web.network is missing a [Network] section.',
-			'NEXT: Restore the project-local Podman network unit.'
-		);
-	}
-
-	const webPath = join(context.rootDir, 'deploy/quadlets/web.container');
-	const postgresPath = join(context.rootDir, 'deploy/quadlets/postgres.container');
-	const webContent = existsSync(webPath) ? readFileSync(webPath, 'utf8') : '';
-	const postgresContent = existsSync(postgresPath) ? readFileSync(postgresPath, 'utf8') : '';
-	const expectedNetworkLine = `Network=${slug}.network`;
-	const missing = [
-		!webContent
-			? 'deploy/quadlets/web.container is missing.'
-			: !webContent.includes(expectedNetworkLine)
-				? 'deploy/quadlets/web.container does not join the project network.'
-				: null,
-		postgresContent && !postgresContent.includes(expectedNetworkLine)
-			? 'deploy/quadlets/postgres.container does not join the project network.'
-			: null,
-	].filter((item): item is string => item !== null);
-
-	if (missing.length) {
-		return fail(
-			'PREFLIGHT-QUADLET-002',
-			label,
-			missing.join(' '),
-			'NEXT: Keep web and bundled Postgres on the same <project>.network.'
-		);
-	}
-
-	return pass(
-		'PREFLIGHT-QUADLET-002',
-		label,
-		`web.network exists and containers join ${slug}.network.`,
-		'NEXT: Copy it to ~/.config/containers/systemd/<project>.network on the host.'
-	);
-}
-
 export async function checkRuntimeReachability(
 	context: DeployPreflightContext
 ): Promise<DeployPreflightResult> {
 	const label = 'Host Caddy reaches web through loopback publish';
+	const siteProject = readJson(join(context.rootDir, 'site.project.json'));
+	const deployment = siteProject.deployment;
+	const loopbackPort =
+		deployment && typeof deployment === 'object'
+			? (deployment as Record<string, unknown>).loopbackPort
+			: null;
+	const expectedPort =
+		typeof loopbackPort === 'number' || typeof loopbackPort === 'string'
+			? String(loopbackPort)
+			: '3000';
 	const problems = [
 		...missingFileOrLines(context.rootDir, 'deploy/quadlets/web.container', [
-			'PublishPort=127.0.0.1:3000:3000',
+			`PublishPort=127.0.0.1:${expectedPort}:3000`,
 		]),
 		...missingFileOrLines(context.rootDir, 'deploy/Caddyfile.example', [
-			'reverse_proxy 127.0.0.1:3000',
+			`reverse_proxy 127.0.0.1:${expectedPort}`,
 		]),
 	];
 
@@ -592,7 +549,7 @@ export async function checkRuntimeReachability(
 	return pass(
 		'PREFLIGHT-RUNTIME-001',
 		label,
-		'web.container publishes 127.0.0.1:3000 and Caddy proxies to the same loopback port.',
+		`web.container publishes 127.0.0.1:${expectedPort} and Caddy proxies to the same loopback port.`,
 		'NEXT: If you change one port for a multi-site host, change the other in the same deploy.'
 	);
 }
@@ -604,7 +561,9 @@ export async function checkEnvExamples(
 	const required = [
 		...REQUIRED_PUBLIC_ENV_VARS,
 		...REQUIRED_PRIVATE_ENV_VARS,
-		'DATABASE_DIRECT_URL',
+		'CLIENT_SLUG',
+		'DATABASE_POOL_MAX',
+		'DATABASE_STATEMENT_TIMEOUT_MS',
 	];
 	const files = ['.env.example', 'deploy/env.example'];
 	const problems: string[] = [];
@@ -635,266 +594,6 @@ export async function checkEnvExamples(
 		label,
 		`${required.join(', ')} are present in .env.example and deploy/env.example.`,
 		'NEXT: Add new required env vars to both example files in the same change.'
-	);
-}
-
-export async function checkPostgresArtifacts(
-	context: DeployPreflightContext
-): Promise<DeployPreflightResult> {
-	const label = 'Bundled Postgres Quadlet artifacts are wired';
-	const slug = projectSlug(context.rootDir);
-	const problems = [
-		...missingFileOrLines(context.rootDir, 'deploy/quadlets/postgres.container', [
-			// Image must point at the project-built Postgres+WAL-G image, not
-			// a stock postgres:* tag. The template ships postgres:18-bookworm
-			// + WAL-G via deploy/Containerfile.postgres.
-			`Image=ghcr.io/`,
-			`-postgres:`,
-			`EnvironmentFile=%h/secrets/${slug}.prod.env`,
-			`Network=${slug}.network`,
-			`HostName=${slug}-postgres`,
-			'PublishPort=127.0.0.1:5432:5432',
-			`Volume=${slug}-postgres-data:/var/lib/postgresql/data`,
-			'HealthCmd=pg_isready',
-			// archive_command must be wired so WAL streams to R2.
-			'archive_mode=on',
-			'archive_command',
-			'wal-g wal-push',
-		]),
-		...missingFileOrLines(context.rootDir, 'deploy/quadlets/postgres.volume', [
-			`VolumeName=${slug}-postgres-data`,
-		]),
-		...missingFileOrLines(context.rootDir, 'deploy/Containerfile.postgres', [
-			'FROM docker.io/library/postgres:',
-			'WAL_G_VERSION',
-			'wal-g --version',
-		]),
-	];
-
-	if (problems.length) {
-		return fail(
-			'PREFLIGHT-POSTGRES-001',
-			label,
-			problems.join(' '),
-			'NEXT: Restore deploy/quadlets/postgres.{container,volume}, deploy/Containerfile.postgres, or update them for this project.'
-		);
-	}
-
-	return pass(
-		'PREFLIGHT-POSTGRES-001',
-		label,
-		`Postgres container, WAL-G image, and volume artifacts are present for ${slug}.`,
-		'NEXT: Install them with the web and worker Quadlets for every production project.'
-	);
-}
-
-export async function checkPostgresEnvShape(
-	context: DeployPreflightContext
-): Promise<DeployPreflightResult> {
-	const label = 'Bundled Postgres env values are present';
-	const envReference = readProdEnv(context);
-	if (!envReference.ok) {
-		return fail(
-			'PREFLIGHT-POSTGRES-002',
-			label,
-			envReference.detail,
-			'NEXT: Add DATABASE_URL to the production env file before checking bundled Postgres env values.'
-		);
-	}
-
-	const slug = projectSlug(context.rootDir);
-	const databaseUrl = envReference.env.DATABASE_URL?.trim();
-	if (!databaseUrl) {
-		return fail(
-			'PREFLIGHT-POSTGRES-002',
-			label,
-			'DATABASE_URL is missing.',
-			'NEXT: Set DATABASE_URL to postgres://...@<project>-postgres:5432/<project>_app.'
-		);
-	}
-
-	let parsedDatabaseUrl: URL;
-	try {
-		parsedDatabaseUrl = new URL(databaseUrl);
-	} catch {
-		return fail(
-			'PREFLIGHT-POSTGRES-002',
-			label,
-			'DATABASE_URL is not parseable.',
-			'NEXT: Use postgres://user:password@host:port/database.'
-		);
-	}
-
-	if (parsedDatabaseUrl.hostname !== `${slug}-postgres`) {
-		return fail(
-			'PREFLIGHT-POSTGRES-002',
-			label,
-			`DATABASE_URL targets ${parsedDatabaseUrl.hostname}; expected ${slug}-postgres.`,
-			'NEXT: DATABASE_URL is the internal app/worker URL on the project Podman network.'
-		);
-	}
-
-	const requiredKeys = [
-		'DATABASE_DIRECT_URL',
-		'POSTGRES_DB',
-		'POSTGRES_USER',
-		'POSTGRES_PASSWORD',
-	] as const;
-	const missing = requiredKeys.filter((key) => !envReference.env[key]?.trim());
-	if (missing.length) {
-		return fail(
-			'PREFLIGHT-POSTGRES-002',
-			label,
-			`DATABASE_URL targets bundled Postgres but ${missing.join(', ')} ${
-				missing.length === 1 ? 'is' : 'are'
-			} missing.`,
-			'NEXT: Add the bundled Postgres env values shown in deploy/env.example.'
-		);
-	}
-
-	const expectedDbSlug = slug.replace(/-/g, '_');
-	const expectedDatabase = `${expectedDbSlug}_app`;
-	const expectedUser = `${expectedDbSlug}_app_user`;
-	const runtimeDatabase = decodeURIComponent(parsedDatabaseUrl.pathname.replace(/^\/+/u, ''));
-	if (
-		runtimeDatabase !== expectedDatabase ||
-		decodeURIComponent(parsedDatabaseUrl.username) !== expectedUser ||
-		envReference.env.POSTGRES_DB !== expectedDatabase ||
-		envReference.env.POSTGRES_USER !== expectedUser
-	) {
-		return fail(
-			'PREFLIGHT-POSTGRES-002',
-			label,
-			`Expected app database/role ${expectedDatabase}/${expectedUser}; found DATABASE_URL user/db ${decodeURIComponent(
-				parsedDatabaseUrl.username
-			)}/${runtimeDatabase} and POSTGRES_DB/USER ${envReference.env.POSTGRES_DB}/${envReference.env.POSTGRES_USER}.`,
-			'NEXT: Use the generated per-project app database and role names; hyphens in the project slug become underscores in Postgres identifiers.'
-		);
-	}
-
-	let directUrl: URL;
-	try {
-		directUrl = new URL(envReference.env.DATABASE_DIRECT_URL ?? '');
-	} catch {
-		return fail(
-			'PREFLIGHT-POSTGRES-002',
-			label,
-			'DATABASE_DIRECT_URL is not parseable.',
-			'NEXT: Use postgres://user:password@127.0.0.1:5432/database for the bundled Postgres host tools path.'
-		);
-	}
-
-	if (!LOOPBACK_HOSTS.has(directUrl.hostname)) {
-		return fail(
-			'PREFLIGHT-POSTGRES-002',
-			label,
-			`DATABASE_DIRECT_URL points to ${directUrl.hostname}.`,
-			'NEXT: Point DATABASE_DIRECT_URL at the loopback-published Postgres port for host-side migrations and backups.'
-		);
-	}
-
-	return pass(
-		'PREFLIGHT-POSTGRES-002',
-		label,
-		`DATABASE_URL uses ${slug}-postgres and host tools use ${directUrl.hostname}.`,
-		'NEXT: Run bun run db:migrate explicitly before starting or restarting the web service.'
-	);
-}
-
-export async function checkAutomationWorkerArtifact(
-	context: DeployPreflightContext
-): Promise<DeployPreflightResult> {
-	const label = 'Automation worker container is wired';
-	const slug = projectSlug(context.rootDir);
-	const problems = [
-		...missingFileOrLines(context.rootDir, 'deploy/quadlets/worker.container', [
-			'Image=ghcr.io/',
-			'Exec=bun run scripts/automation-worker.ts -- --daemon',
-			`EnvironmentFile=%h/secrets/${slug}.prod.env`,
-			`Network=${slug}.network`,
-			`HostName=${slug}-worker`,
-			'Restart=on-failure',
-		]),
-	];
-
-	if (problems.length) {
-		return fail(
-			'PREFLIGHT-WORKER-001',
-			label,
-			problems.join(' '),
-			'NEXT: Restore deploy/quadlets/worker.container or update it for this project.'
-		);
-	}
-
-	return pass(
-		'PREFLIGHT-WORKER-001',
-		label,
-		`Automation worker Quadlet container is present for ${slug}.`,
-		'NEXT: Install it as ~/.config/containers/systemd/<project>-worker.container alongside web and postgres.'
-	);
-}
-
-export async function checkBackupPitrConfig(
-	context: DeployPreflightContext
-): Promise<DeployPreflightResult> {
-	const label = 'PITR backup config is present for bundled Postgres';
-	const envReference = readProdEnv(context);
-	if (!envReference.ok) {
-		return fail(
-			'PREFLIGHT-BACKUP-PITR-001',
-			label,
-			envReference.detail,
-			'NEXT: Add the production env file before checking PITR config.'
-		);
-	}
-
-	const slug = projectSlug(context.rootDir);
-
-	const requiredKeys = [
-		'R2_ACCESS_KEY_ID',
-		'R2_SECRET_ACCESS_KEY',
-		'R2_ENDPOINT',
-		'R2_BUCKET',
-		'R2_PREFIX',
-		'PITR_RETENTION_DAYS',
-	];
-	const missing = requiredKeys.filter((key) => !envReference.env[key]?.trim());
-	if (missing.length) {
-		return fail(
-			'PREFLIGHT-BACKUP-PITR-001',
-			label,
-			`Bundled Postgres path requires R2 credentials but ${missing.join(', ')} ${
-				missing.length === 1 ? 'is' : 'are'
-			} missing.`,
-			'NEXT: Configure the R2_* values in the production env file. See docs/operations/backups.md.'
-		);
-	}
-
-	const baseTimerProblems = missingFileOrLines(
-		context.rootDir,
-		'deploy/systemd/backup-base.timer',
-		[`Unit=${slug}-backup-base.service`]
-	);
-	const checkTimerProblems = missingFileOrLines(
-		context.rootDir,
-		'deploy/systemd/backup-check.timer',
-		[`Unit=${slug}-backup-check.service`]
-	);
-
-	if (baseTimerProblems.length || checkTimerProblems.length) {
-		return fail(
-			'PREFLIGHT-BACKUP-PITR-001',
-			label,
-			[...baseTimerProblems, ...checkTimerProblems].join(' '),
-			'NEXT: Restore deploy/systemd/backup-base.{service,timer} and backup-check.{service,timer}.'
-		);
-	}
-
-	return pass(
-		'PREFLIGHT-BACKUP-PITR-001',
-		label,
-		`R2 credentials are set and backup-base/backup-check timers are wired for ${slug}.`,
-		'NEXT: Run bun run backup:pitr:check on the host to verify the chain end-to-end.'
 	);
 }
 
@@ -936,110 +635,6 @@ export async function checkGhcrImageShape(
 		label,
 		`GHCR image is ghcr.io/${image.owner}/${image.name}.`,
 		'NEXT: Confirm CI pushes this image before deployment.'
-	);
-}
-
-export async function checkAutomationProviderConfig(
-	context: DeployPreflightContext
-): Promise<DeployPreflightResult> {
-	const label = 'Automation provider has the config it needs';
-	const envReference = readProdEnv(context);
-	if (!envReference.ok) {
-		return fail(
-			'PREFLIGHT-AUTOMATION-001',
-			label,
-			envReference.detail,
-			'NEXT: Add the production env file before checking automation config.'
-		);
-	}
-
-	const config = readAutomationProviderConfig(envReference.env as NodeJS.ProcessEnv);
-	const problems = validateAutomationProviderConfig(config);
-
-	if (problems.length > 0) {
-		const detail =
-			config.provider === 'n8n' || config.provider === 'webhook'
-				? `AUTOMATION_PROVIDER=${config.provider} but ${problems.map((p) => p.message).join(' ')}`
-				: problems.map((p) => p.message).join(' ');
-		const hint =
-			config.provider === 'console'
-				? 'NEXT: For production, use AUTOMATION_PROVIDER=n8n with N8N_WEBHOOK_URL/SECRET, or set AUTOMATION_PROVIDER=noop to explicitly disable automation.'
-				: `NEXT: Set the missing ${config.provider.toUpperCase()} env values, or set AUTOMATION_PROVIDER=noop if this site has no automation.`;
-		return fail('PREFLIGHT-AUTOMATION-001', label, detail, hint);
-	}
-
-	if (config.provider === 'noop') {
-		return pass(
-			'PREFLIGHT-AUTOMATION-001',
-			label,
-			'AUTOMATION_PROVIDER=noop — automation is explicitly disabled for this site.',
-			'NEXT: Switch to AUTOMATION_PROVIDER=n8n (with N8N_WEBHOOK_URL/SECRET) when this site adopts automation.'
-		);
-	}
-
-	if (config.provider === 'console') {
-		// validateAutomationProviderConfig already returned a problem above; the
-		// early return narrows the union for TypeScript before the auth-mode access.
-		return pass(
-			'PREFLIGHT-AUTOMATION-001',
-			label,
-			'AUTOMATION_PROVIDER=console — dev-only mode.',
-			'NEXT: Use AUTOMATION_PROVIDER=noop in production for explicit no-automation.'
-		);
-	}
-
-	const auth =
-		config.authMode === 'hmac' ? 'HMAC body signing' : `Header auth (${config.authHeader})`;
-	return pass(
-		'PREFLIGHT-AUTOMATION-001',
-		label,
-		`AUTOMATION_PROVIDER=${config.provider} is fully configured (${auth}).`,
-		'NEXT: Confirm the matching n8n / receiver workflow accepts this auth mode.'
-	);
-}
-
-export async function checkBackupConfigured(
-	context: DeployPreflightContext
-): Promise<DeployPreflightResult> {
-	const label = 'Backups are configured or explicitly waived';
-	const envReference = readProdEnv(context);
-	const processEnv = context.env ?? process.env;
-	if (processEnv.BACKUP_WAIVED === 'true') {
-		return pass(
-			'PREFLIGHT-BACKUP-001',
-			label,
-			'BACKUP_WAIVED=true is set for this deploy.',
-			'NEXT: Record the backup waiver in the launch notes.'
-		);
-	}
-	if (!envReference.ok)
-		return fail(
-			'PREFLIGHT-BACKUP-001',
-			label,
-			envReference.detail,
-			'NEXT: Configure BACKUP_REMOTE or set BACKUP_WAIVED=true for this deploy.'
-		);
-	if (envReference.env.BACKUP_WAIVED === 'true') {
-		return pass(
-			'PREFLIGHT-BACKUP-001',
-			label,
-			'BACKUP_WAIVED=true is set in production env.',
-			'NEXT: Record the backup waiver in the launch notes.'
-		);
-	}
-	if (!envReference.env.BACKUP_REMOTE?.trim()) {
-		return fail(
-			'PREFLIGHT-BACKUP-001',
-			label,
-			'BACKUP_REMOTE is missing.',
-			'NEXT: Configure BACKUP_REMOTE or set BACKUP_WAIVED=true for this deploy.'
-		);
-	}
-	return pass(
-		'PREFLIGHT-BACKUP-001',
-		label,
-		'BACKUP_REMOTE is configured.',
-		'NEXT: Run bun run backup:check before the first production deploy.'
 	);
 }
 
@@ -1087,48 +682,13 @@ export const DEPLOY_PREFLIGHT_CHECKS: CheckDefinition[] = [
 	},
 	{ id: 'PREFLIGHT-CADDY-001', label: 'Caddyfile domain is replaced', run: checkCaddyfileDomain },
 	{ id: 'PREFLIGHT-QUADLET-001', label: 'Quadlet names align', run: checkQuadletProject },
-	{ id: 'PREFLIGHT-QUADLET-002', label: 'Project network aligns', run: checkQuadletNetwork },
 	{
 		id: 'PREFLIGHT-RUNTIME-001',
 		label: 'Loopback runtime reachability aligns',
 		run: checkRuntimeReachability,
 	},
 	{ id: 'PREFLIGHT-ENV-003', label: 'Env examples include required names', run: checkEnvExamples },
-	{
-		id: 'PREFLIGHT-POSTGRES-001',
-		label: 'Bundled Postgres artifacts align',
-		run: checkPostgresArtifacts,
-	},
-	{
-		id: 'PREFLIGHT-POSTGRES-002',
-		label: 'Bundled Postgres env aligns',
-		run: checkPostgresEnvShape,
-		dependsOnEnv: true,
-	},
-	{
-		id: 'PREFLIGHT-WORKER-001',
-		label: 'Automation worker artifact aligns',
-		run: checkAutomationWorkerArtifact,
-	},
-	{
-		id: 'PREFLIGHT-AUTOMATION-001',
-		label: 'Automation provider config is complete',
-		run: checkAutomationProviderConfig,
-		dependsOnEnv: true,
-	},
 	{ id: 'PREFLIGHT-GHCR-001', label: 'GHCR image name aligns', run: checkGhcrImageShape },
-	{
-		id: 'PREFLIGHT-BACKUP-PITR-001',
-		label: 'PITR backup config is present',
-		run: checkBackupPitrConfig,
-		dependsOnEnv: true,
-	},
-	{
-		id: 'PREFLIGHT-BACKUP-001',
-		label: 'Backups configured or waived',
-		run: checkBackupConfigured,
-		dependsOnEnv: true,
-	},
 	{
 		id: 'PREFLIGHT-LAUNCH-001',
 		label: 'Required launch blockers pass',

@@ -1,102 +1,41 @@
-# Deploy Apply
+# deploy:apply
 
-`deploy:apply` is the attended production deploy orchestrator for one host. It
-runs the same sequence operators used to do by hand: preflight, migrations,
-Quadlet image rewrite, `systemctl` reload/restart, readiness polling, release
-recording, and smoke checks.
+`deploy:apply` performs a web image swap with a migration gate.
 
-When `SMOKE_TEST_SECRET` and `POSTMARK_API_TEST` are configured, the smoke step
-includes the authenticated E2E contact-form chain described in
-[`smoke.md`](smoke.md). Failures follow the same remediation below: inspect the
-failed `OpsResult`, then roll back or roll forward deliberately.
+## Steps
 
-## When To Run
+1. run `deploy:preflight`
+2. resolve client slug from `CLIENT_SLUG` or `site.project.json`
+3. ask `platform-infrastructure` whether Drizzle migrations are current
+4. pull the new web image with Podman
+5. update `Image=` in `deploy/quadlets/web.container`
+6. run `systemctl --user daemon-reload`
+7. restart `web.service`
+8. poll `/readyz`
+9. run `deploy:smoke`
+10. record release evidence in the local ops ledger
 
-Run it on the production host from the checked-out project directory after CI
-has built and pushed the target image to GHCR:
+## Phase 1 Soft Gate
 
-```bash
-bun run deploy:apply -- \
-  --image=ghcr.io/<owner>/<repo>:<sha> \
-  --sha=<sha> \
-  --safety=rollback-safe
+Until the platform CLI exists, a missing `PLATFORM_REPO_PATH` soft-skips the
+migration gate and emits:
+
+```text
+[deploy:apply] platform-infrastructure CLI not found at PLATFORM_REPO_PATH — migration gate skipped. Confirm migrations applied manually before deploy.
 ```
 
-Use `--dry-run` before a risky deploy or whenever you want to review the
-Quadlet and migration plan without changing files or state.
+This is temporary. The platform migration gate becomes hard once the platform
+repo implements `platform:fleet-migration-status`.
 
-## Required Flags
+## What It Does Not Do
 
-| Flag       | Meaning                                                                    |
-| ---------- | -------------------------------------------------------------------------- |
-| `--image`  | Full image ref to write into the locked Quadlet set. Pin an immutable tag. |
-| `--sha`    | Git commit SHA represented by the image. Stored in the release ledger.     |
-| `--safety` | Operator-declared migration safety: `rollback-safe` or `rollback-blocked`. |
+- run migrations directly
+- manage Postgres
+- restart a worker
+- run backups or restore drills
+- edit Caddy site blocks
 
-There is no default for `--safety`. Missing it is a hard failure because the
-operator must consciously classify the release.
+## Failure Recovery
 
-## Migration Safety
-
-Use `--safety=rollback-safe` only when the previous image can still run against
-the post-migration schema. In practice, that means expand-only migrations:
-nullable columns, new tables, new indexes, new views, new functions, or new
-types.
-
-Use `--safety=rollback-blocked` for destructive or compatibility-breaking
-changes such as drops, renames, type narrowing, new required columns without a
-default, or constraints that old code cannot satisfy.
-
-The binding rules are in
-[`ADR-028`](../planning/adrs/ADR-028-deploy-apply-semantics.md).
-
-## What Happens On Smoke Failure
-
-The release is recorded after units restart and readiness passes, before smoke
-runs. If smoke fails, the ledger still reflects what is deployed, and a smoke
-event is appended separately.
-
-For `rollback-safe` releases, the CLI prints:
-
-```bash
-bun run rollback --to previous
-```
-
-For `rollback-blocked` releases, the CLI points you at rollback status and PITR
-restore docs:
-
-```bash
-bun run rollback --status
-```
-
-The CLI does not auto-rollback. The operator chooses rollback, roll-forward, or
-PITR based on the failure.
-
-## Why Deploy Executes But Rollback Prints
-
-`deploy:apply` executes migrations and `systemctl` because its value is the
-single attended sequence from image to verified release. Rollback is different:
-it edits the web and worker Quadlet image lines, then prints the commands for
-the operator to run deliberately during an incident.
-
-This asymmetry is intentional and documented in
-[`ADR-028`](../planning/adrs/ADR-028-deploy-apply-semantics.md) and
-[`rollback.md`](rollback.md).
-
-## Dry Run
-
-Dry run computes the plan and repeats preflight, but it does not run
-migrations, write Quadlets, call `systemctl`, record a release, or append
-events.
-
-```bash
-bun run deploy:apply -- \
-  --image=ghcr.io/<owner>/<repo>:<sha> \
-  --sha=<sha> \
-  --safety=rollback-blocked \
-  --dry-run \
-  --no-color
-```
-
-Use the output to verify the target image, migration list, and Quadlet paths
-before removing `--dry-run`.
+For web image failures, use `bun run rollback --to previous`. For database
+recovery, use the platform restore workflow.

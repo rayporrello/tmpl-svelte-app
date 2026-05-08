@@ -1,6 +1,6 @@
 # ADR-026: Per-site Quadlet manifest in site.project.json
 
-- Status: **Withdrawn — superseded by [ADR-027](./ADR-027-lead-gen-bundle-excludes-n8n.md)**
+- Status: **Withdrawn — superseded by [ADR-027](./ADR-027-lead-gen-bundle-excludes-n8n.md) and [ADR-031](./ADR-031-shared-infrastructure-cell.md)**
 - Date: 2026-05-06
 - Withdrawn: 2026-05-06
 - Related: ADR-024 (lead-gen website appliance contract), ADR-025
@@ -16,6 +16,11 @@
 > complexity. ADR-027 removes bundled n8n and locks the Quadlet set
 > as a constants module. The reasoning in this ADR is preserved as
 > a record of the considered alternative.
+>
+> **2026-05-08 update.** ADR-031 further simplified the deployment shape:
+> the website repo now ships only `web.container`; production Postgres,
+> worker, network, backup, and restore artifacts moved to
+> `platform-infrastructure`.
 
 ## Context
 

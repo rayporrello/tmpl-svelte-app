@@ -28,7 +28,7 @@ function writeBootstrappedState(rootDir: string): void {
 				createdAt: '2026-05-01T00:00:00.000Z',
 				createdContainer: 'ready-site-postgres',
 				createdContainerPort: 55432,
-				createdEnvKeys: ['DATABASE_URL', 'DATABASE_DIRECT_URL'],
+				createdEnvKeys: ['DATABASE_URL'],
 				bootstrapContractVersion: 1,
 			},
 			null,
@@ -37,11 +37,9 @@ function writeBootstrappedState(rootDir: string): void {
 	);
 	writeFileSync(
 		join(rootDir, '.env'),
-		[
-			'DATABASE_URL=postgres://ready_site_app_user:secret@127.0.0.1:55432/ready_site_app',
-			'DATABASE_DIRECT_URL=postgres://ready_site_app_user:secret@127.0.0.1:55432/ready_site_app',
-			'',
-		].join('\n')
+		['DATABASE_URL=postgres://ready_site_app_user:secret@127.0.0.1:55432/ready_site_app', ''].join(
+			'\n'
+		)
 	);
 }
 

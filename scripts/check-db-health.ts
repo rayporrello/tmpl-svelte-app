@@ -83,12 +83,12 @@ function parseDatabaseUrl(value: string): DatabaseTarget {
 function readDatabaseTarget(options: CheckDbHealthOptions): DatabaseTarget {
 	const cwd = options.cwd ?? process.cwd();
 	const env = options.env ?? process.env;
-	const existing = env.DATABASE_DIRECT_URL?.trim() || env.DATABASE_URL?.trim();
+	const existing = env.DATABASE_URL?.trim();
 
 	if (existing) return parseDatabaseUrl(existing);
 
 	const fileEnv = readEnv(join(cwd, '.env'));
-	const fromFile = fileEnv.DATABASE_DIRECT_URL?.trim() || fileEnv.DATABASE_URL?.trim();
+	const fromFile = fileEnv.DATABASE_URL?.trim();
 
 	if (!fromFile) {
 		throw new BootstrapScriptError(

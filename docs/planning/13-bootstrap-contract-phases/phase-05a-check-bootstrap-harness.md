@@ -1,3 +1,5 @@
+<!-- 2026-05-08: Historical planning note. Shared-infrastructure cleanup supersedes per-site production Postgres/worker/backup/restore assumptions; see docs/planning/adrs/ADR-031-shared-infrastructure-cell.md. -->
+
 # Phase 5a — `check:bootstrap` Test Harness
 
 > Plan reference: §6 Phase 5, §4 rule 11 (mock-provisioner mode).

@@ -111,12 +111,6 @@ describe('rollback engine', () => {
 					newImage: prior.image,
 					unitName: 'web.service',
 				},
-				{
-					path: join(quadletsDir, 'worker.container'),
-					oldImage: current.image,
-					newImage: prior.image,
-					unitName: 'worker.service',
-				},
 			],
 		});
 		expect(result.results[0]?.severity).toBe('info');
@@ -137,10 +131,7 @@ describe('rollback engine', () => {
 		expect(await collectEvents()).not.toContainEqual(expect.objectContaining({ type: 'rollback' }));
 		expect(result.at(-1)).toMatchObject({
 			severity: 'info',
-			remediation: [
-				'systemctl --user daemon-reload',
-				'systemctl --user restart web.service worker.service',
-			],
+			remediation: ['systemctl --user daemon-reload', 'systemctl --user restart web.service'],
 		});
 	});
 
@@ -163,7 +154,7 @@ describe('rollback engine', () => {
 				type: 'rollback',
 				from_release: current,
 				to_release: prior,
-				quadlet_paths: [join(quadletsDir, 'web.container'), join(quadletsDir, 'worker.container')],
+				quadlet_paths: [join(quadletsDir, 'web.container')],
 			})
 		);
 	});

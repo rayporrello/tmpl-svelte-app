@@ -76,13 +76,7 @@ type PostgresStepResult = {
 const TEMPLATE_PACKAGE_NAME = 'tmpl-svelte-app';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = resolve(SCRIPT_DIR, '..');
-const REQUIRED_ENV_KEYS = [
-	'DATABASE_URL',
-	'DATABASE_DIRECT_URL',
-	'ORIGIN',
-	'PUBLIC_SITE_URL',
-	'SESSION_SECRET',
-] as const;
+const REQUIRED_ENV_KEYS = ['DATABASE_URL', 'ORIGIN', 'PUBLIC_SITE_URL', 'SESSION_SECRET'] as const;
 const MOCK_POSTGRES_PORT = 55432;
 const MOCK_POSTGRES_PASSWORD = 'mock-local-password';
 
@@ -486,8 +480,6 @@ function materializeEnv(
 		if (!plan.missingKeys.includes(key)) continue;
 		if (key === 'DATABASE_URL') {
 			if (databaseUrl) additions.DATABASE_URL = databaseUrl;
-		} else if (key === 'DATABASE_DIRECT_URL') {
-			if (databaseUrl) additions.DATABASE_DIRECT_URL = databaseUrl;
 		} else {
 			additions[key] = plan.defaults[key];
 		}

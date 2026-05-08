@@ -10,7 +10,7 @@ It is **not** a full SaaS platform scaffold. It is a database-backed website tem
 
 ## The Core Problem It Solves
 
-Starting a new web project from scratch means re-solving the same problems every time: deployment configuration, CSS architecture, content conventions, SEO baseline, agent operating rules, and container setup. This template makes good defaults permanent so future projects inherit them rather than reinvent them.
+Starting a new web project from scratch means re-solving the same problems every time: web deployment configuration, CSS architecture, content conventions, SEO baseline, agent operating rules, and container setup. This template makes good website defaults permanent while shared production infrastructure lives in `platform-infrastructure`.
 
 ## What the Template Provides
 
@@ -28,7 +28,7 @@ Starting a new web project from scratch means re-solving the same problems every
 - Observability spine (friendly error page with request ID, `/healthz`, `/readyz`, structured logging, safe error normalization)
 - Security baseline (Valibot env schemas, per-route CSP, minimal HTTP security headers)
 - CMS content safety (`check:cms`, `check:content`, `check:content-diff`)
-- Production runtime contract (Containerfile, Quadlet templates, Caddyfile example, deploy runbook)
+- Production runtime contract (Containerfile, web Quadlet, Caddyfile snippet, deploy runbook)
 - CI (validate / image / launch with Trivy CRITICAL gating, smoke tests, GHCR push)
 - Tests (Vitest unit + Playwright + axe e2e)
 - Ergonomics (Lefthook pre-commit, ESLint flat config, Prettier, interactive `init:site`)
@@ -39,7 +39,7 @@ Starting a new web project from scratch means re-solving the same problems every
 
 - Contact form (Superforms + Valibot + EmailProvider seam + rate limiter at `src/routes/contact/`) — writes submissions to `contact_submissions`
 - Postmark transactional email provider (`src/lib/server/forms/providers/postmark.ts`) — activated by `POSTMARK_SERVER_TOKEN`
-- Provider-agnostic automation env contract (`AUTOMATION_PROVIDER`, generic webhook vars, and n8n provider vars) — writes outbound event state to `automation_events`
+- Provider-agnostic automation outbox contract — production provider config lives in the platform repo; local one-shot worker env remains available for development
 - Analytics spine: GTM + GA4 + Cloudflare Web Analytics + server conversion events (set `PUBLIC_ANALYTICS_ENABLED=true` in production — see `docs/analytics/README.md`)
 
 **Deferred / per-project activation:**
@@ -68,7 +68,7 @@ When a new project starts:
 3. Edit `tokens.css` for brand colors / fonts / shape (see `brand.example.css`).
 4. Register routes in `src/lib/seo/routes.ts`.
 5. Activate dormant modules only when the project actually needs them.
-6. Deploy to a Podman/Caddy host — Containerfile, Quadlets, Caddyfile, and runbook are already in the repo.
+6. Deploy to a Podman/Caddy host — web Containerfile, web Quadlet, Caddy snippet, and runbook are already in the repo; shared infrastructure comes from `platform-infrastructure`.
 
 See [docs/getting-started.md](../getting-started.md) for the full step-by-step walkthrough.
 
@@ -76,7 +76,7 @@ See [docs/getting-started.md](../getting-started.md) for the full step-by-step w
 
 This template is successful if:
 
-- A new project never has to write a Caddyfile, container definition, or backup script from scratch.
+- A new project never has to write the website Caddy snippet or container definition from scratch; platform infrastructure is provisioned once for the fleet.
 - The CSS and content conventions are already in place and ready to extend.
 - Agent operating rules are already wired so AI-assisted work is safe and consistent from day one.
 - Optional modules (n8n, auth, search, consent UI, R2) can be activated without structural rework.

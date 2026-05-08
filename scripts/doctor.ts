@@ -19,7 +19,6 @@ import {
 import { checkBun, detectContainerRuntime, gitWorkingTreeDirty } from './lib/preflight';
 import { sanitizeProjectSlug } from './lib/postgres-dev';
 import type { PrintStream } from './lib/print';
-import { isDrillStale, readLastDrill } from './lib/restore-drill-state';
 import { redactSecrets, run as runCommand, type RunOptions, type RunResult } from './lib/run';
 import { REQUIRED_PRIVATE_ENV_VARS, REQUIRED_PUBLIC_ENV_VARS } from '../src/lib/server/env';
 
@@ -334,10 +333,6 @@ function databaseUrlFrom(envFile: EnvMap | null, env: NodeJS.ProcessEnv): string
 	return envFile?.DATABASE_URL?.trim() || env.DATABASE_URL?.trim() || null;
 }
 
-function directDatabaseUrlFrom(envFile: EnvMap | null, env: NodeJS.ProcessEnv): string | null {
-	return envFile?.DATABASE_DIRECT_URL?.trim() || env.DATABASE_DIRECT_URL?.trim() || null;
-}
-
 async function environmentSection(
 	rootDir: string,
 	env: NodeJS.ProcessEnv,
@@ -437,7 +432,6 @@ function configurationSection(
 	checks.push(envCheck);
 
 	const databaseUrl = databaseUrlFrom(envFile, env);
-	const directDatabaseUrl = directDatabaseUrlFrom(envFile, env);
 	if (!databaseUrl) {
 		checks.push(
 			fail(
@@ -460,37 +454,6 @@ function configurationSection(
 				'DATABASE_URL must use postgres://user:pw@host:port/db',
 				'required',
 				'Fix DATABASE_URL in .env.'
-			)
-		);
-	}
-
-	if (!directDatabaseUrl) {
-		checks.push(
-			warn(
-				'doctor-direct-db-url',
-				'DATABASE_DIRECT_URL is set',
-				'DATABASE_DIRECT_URL is missing from .env and process env',
-				'recommended',
-				'Set DATABASE_DIRECT_URL for host-side migrations, backups, restores, and Drizzle Studio.'
-			)
-		);
-	} else if (parseDatabaseUrl(directDatabaseUrl)) {
-		checks.push(
-			pass(
-				'doctor-direct-db-url',
-				'DATABASE_DIRECT_URL is set',
-				'DATABASE_DIRECT_URL uses a Postgres URL',
-				'recommended'
-			)
-		);
-	} else {
-		checks.push(
-			warn(
-				'doctor-direct-db-url',
-				'DATABASE_DIRECT_URL is set',
-				'DATABASE_DIRECT_URL must use postgres://user:pw@host:port/db',
-				'recommended',
-				'Fix DATABASE_DIRECT_URL in .env.'
 			)
 		);
 	}
@@ -597,21 +560,18 @@ function runtimeContractSection(
 	const slug = readProjectSlug(rootDir);
 	const safeSlug = slug.replace(/-/g, '_');
 	const expected = {
-		network: `${slug}.network`,
+		network: 'web-platform.network',
 		web: `${slug}-web`,
-		postgres: `${slug}-postgres`,
-		worker: `${slug}-worker`,
-		postgresVolume: `${slug}-postgres-data`,
+		postgres: 'web-platform-postgres',
 		appDatabase: `${safeSlug}_app`,
 		appRole: `${safeSlug}_app_user`,
-		backupPrefix: `${slug}/postgres`,
 		secretsPath: `~/secrets/${slug}.prod.env`,
 	};
 	checks.push(
 		pass(
 			'doctor-project-slug',
 			'Project runtime names are deterministic',
-			`slug=${slug}; web=${expected.web}; postgres=${expected.postgres}; worker=${expected.worker}; network=${expected.network}; app db/role=${expected.appDatabase}/${expected.appRole}; secrets=${expected.secretsPath}`,
+			`slug=${slug}; web=${expected.web}; postgres=${expected.postgres}; network=${expected.network}; app db/role=${expected.appDatabase}/${expected.appRole}; secrets=${expected.secretsPath}`,
 			'required'
 		)
 	);
@@ -622,7 +582,7 @@ function runtimeContractSection(
 		checks.push(
 			pass(
 				'doctor-runtime-db-url',
-				'DATABASE_URL uses project-network Postgres',
+				'DATABASE_URL uses shared platform Postgres',
 				`DATABASE_URL host is ${expected.postgres}`,
 				'recommended'
 			)
@@ -631,66 +591,12 @@ function runtimeContractSection(
 		checks.push(
 			warn(
 				'doctor-runtime-db-url',
-				'DATABASE_URL uses project-network Postgres',
+				'DATABASE_URL uses shared platform Postgres',
 				parsedRuntime
 					? `DATABASE_URL host is ${parsedRuntime.hostname}; expected ${expected.postgres}`
 					: 'DATABASE_URL is missing or unparseable',
 				'recommended',
-				`Use ${expected.postgres} inside web and worker containers; use DATABASE_DIRECT_URL for host access.`
-			)
-		);
-	}
-
-	const directUrl = directDatabaseUrlFrom(envFile, env);
-	const parsedDirect = directUrl ? parseDatabaseUrl(directUrl) : null;
-	if (parsedDirect && ['127.0.0.1', 'localhost'].includes(parsedDirect.hostname)) {
-		checks.push(
-			pass(
-				'doctor-direct-db-host',
-				'DATABASE_DIRECT_URL uses host access',
-				`DATABASE_DIRECT_URL host is ${parsedDirect.hostname}`,
-				'recommended'
-			)
-		);
-	} else {
-		checks.push(
-			warn(
-				'doctor-direct-db-host',
-				'DATABASE_DIRECT_URL uses host access',
-				parsedDirect
-					? `DATABASE_DIRECT_URL host is ${parsedDirect.hostname}`
-					: 'DATABASE_DIRECT_URL is missing or unparseable',
-				'recommended',
-				'Point DATABASE_DIRECT_URL at the loopback-published Postgres port for migrations/backups/restores.'
-			)
-		);
-	}
-
-	const backupEnv = [
-		'R2_ACCESS_KEY_ID',
-		'R2_SECRET_ACCESS_KEY',
-		'R2_ENDPOINT',
-		'R2_BUCKET',
-		'R2_PREFIX',
-	];
-	const missingBackup = backupEnv.filter((key) => !(envFile?.[key]?.trim() || env[key]?.trim()));
-	if (missingBackup.length) {
-		checks.push(
-			warn(
-				'doctor-backup-env',
-				'PITR backup env is present',
-				`Missing: ${missingBackup.join(', ')}; expected R2_PREFIX like ${expected.backupPrefix}`,
-				'recommended',
-				'Configure WAL-G/R2 values before production deploy.'
-			)
-		);
-	} else {
-		checks.push(
-			pass(
-				'doctor-backup-env',
-				'PITR backup env is present',
-				'R2/WAL-G env names are set',
-				'recommended'
+				`Use ${expected.postgres} inside production web containers.`
 			)
 		);
 	}
@@ -931,57 +837,6 @@ async function launchBlockersSection(
 	return { id: 'launch-blockers', label: 'Launch Blockers', checks };
 }
 
-function restoreDrillSection(): DoctorSection {
-	const lastDrill = readLastDrill();
-	if (!lastDrill) {
-		return {
-			id: 'restore-drill',
-			label: 'Restore Drill',
-			checks: [
-				warn(
-					'DOCTOR-DRILL-001',
-					'Restore-drill ledger channel exists',
-					'restore-drill.json is missing; drill has never run',
-					'recommended',
-					'Drill has never run; first run is scheduled by the timer or operator can run `bun run backup:restore:drill` manually.'
-				),
-			],
-		};
-	}
-
-	const checks: DoctorCheck[] = [
-		pass(
-			'DOCTOR-DRILL-001',
-			'Restore-drill ledger channel exists',
-			`last_attempt_at=${lastDrill.attemptedAt}; last_success_at=${lastDrill.succeededAt ?? 'never'}`,
-			'recommended'
-		),
-	];
-
-	if (isDrillStale()) {
-		checks.push(
-			warn(
-				'DOCTOR-DRILL-002',
-				'Last restore drill is fresh',
-				`last_attempt_at=${lastDrill.attemptedAt}; last_success_at=${lastDrill.succeededAt ?? 'never'}`,
-				'recommended',
-				'Run `bun run backup:restore:drill` and inspect docs/operations/restore-drill.md if it fails.'
-			)
-		);
-	} else {
-		checks.push(
-			pass(
-				'DOCTOR-DRILL-002',
-				'Last restore drill is fresh',
-				`last_attempt_at=${lastDrill.attemptedAt}; last_success_at=${lastDrill.succeededAt}`,
-				'recommended'
-			)
-		);
-	}
-
-	return { id: 'restore-drill', label: 'Restore Drill', checks };
-}
-
 function deploymentArtifactsSection(rootDir: string): DoctorSection {
 	const checks: DoctorCheck[] = [];
 	const deployDir = join(rootDir, 'deploy');
@@ -1002,20 +857,9 @@ function deploymentArtifactsSection(rootDir: string): DoctorSection {
 
 	const requiredFiles = [
 		'Containerfile',
-		'deploy/Containerfile.postgres',
 		'deploy/env.example',
 		'deploy/Caddyfile.example',
 		'deploy/quadlets/web.container',
-		'deploy/quadlets/web.network',
-		'deploy/quadlets/postgres.container',
-		'deploy/quadlets/postgres.volume',
-		'deploy/quadlets/worker.container',
-		'deploy/systemd/backup-base.service',
-		'deploy/systemd/backup-base.timer',
-		'deploy/systemd/backup-check.service',
-		'deploy/systemd/backup-check.timer',
-		'deploy/systemd/restore-drill.service',
-		'deploy/systemd/restore-drill.timer',
 	];
 	const missing = requiredFiles.filter((path) => !existsSync(join(rootDir, path)));
 	if (missing.length) {
@@ -1165,7 +1009,6 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 	);
 	const validation = await validationForecastSection(rootDir, env, runner);
 	const launchBlockers = await launchBlockersSection(rootDir, env, envSource);
-	const restoreDrill = restoreDrillSection();
 	const deployment = deploymentArtifactsSection(rootDir);
 	const nextCommands = nextCommandsSection();
 	const liveHealthLedger = readLedgerFacts({ eventsLimit: 10 });
@@ -1174,8 +1017,6 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 			{
 				currentRelease: liveHealthLedger.facts.currentRelease,
 				previousRelease: liveHealthLedger.facts.previousRelease,
-				backup: liveHealthLedger.facts.backup,
-				drill: liveHealthLedger.facts.drill,
 				recentEvents: liveHealthLedger.facts.recentEvents,
 			},
 			liveHealthLedger.results
@@ -1190,7 +1031,6 @@ export async function runDoctor(options: RunDoctorOptions = {}): Promise<DoctorR
 		runtime,
 		validation,
 		launchBlockers,
-		restoreDrill,
 		deployment,
 		nextCommands,
 	];

@@ -4,17 +4,17 @@ These principles are the guardrails for all architectural and implementation dec
 
 ## 1. Immutable Infrastructure First
 
-Never assume the server will remember anything. The entire running state of any project spawned from this template must be reconstructible from the git repository plus encrypted backups.
+Never assume the server will remember anything. The website runtime for any project spawned from this template must be reconstructible from the git repository plus platform-rendered secrets and platform-managed database backups.
 
-- All server configurations (Caddyfiles, Podman Quadlet definitions, environment variable maps) are committed to the repo.
-- No manual software installations on the host — everything runs in isolated containers.
-- If the server is destroyed, a fresh deploy from the repo plus restored backups returns the site to full operation.
+- Website-owned server configuration (web Quadlet, Caddy snippet, env contract) is committed to the repo.
+- Shared network, Postgres, fleet worker, backups, and restore are committed to `platform-infrastructure`.
+- If the server is destroyed, a fresh website deploy plus platform restore returns the site to full operation.
 
 ## 2. Dev and Prod Strict Separation
 
 We do not code in production. Ever.
 
-- The local/dev environment mirrors production using the same container architecture.
+- The local/dev environment mirrors the database-backed app behavior while using a per-clone local Postgres container.
 - Real data (production Postgres, live n8n workflows) is never touched during routine development.
 - Deployment is handled by the documented deploy process (container rebuild + systemd service restart), not by SSHing in and pulling code manually.
 
@@ -29,7 +29,7 @@ The template is unified, not bloated. Only what every project needs runs by defa
 - CSS token/design-system baseline (hand-authored custom properties and explicit CSS layers)
 - Sveltia / file-based content conventions
 - Postgres + Drizzle runtime data
-- Business form, outbox, and backup/restore seams
+- Business form, outbox, and platform backup/restore seams
 - SEO, accessibility, semantic HTML, and image baseline
 - Deployment-ready config and documentation
 - Agent-readable operating rules
@@ -43,13 +43,13 @@ The template is unified, not bloated. Only what every project needs runs by defa
 
 Activating a module should require uncommenting or enabling a defined seam — not structural rework.
 
-## 4. Backups Are Foundational, Not Afterthoughts
+## 4. Platform Backups Are Foundational, Not Afterthoughts
 
-Data security is solved at the template level. Every project that activates runtime data automatically has a backup path available — not something to wire up later.
+Data security is solved at the platform level. Every production website client gets a database backup and restore path through `platform-infrastructure` — not something to wire up per clone.
 
-- Backup scripts are part of the template.
-- Postgres dumps and media assets can be pushed off-host through rclone to R2, B2, S3, or another configured remote.
-- Backup automation is shipped: scripts, verification, and systemd timer examples are present; projects activate off-host push by setting backup env vars and host rclone config.
+- The website repo keeps privacy pruning and retention rules.
+- The platform repo owns cluster backups, restore drills, and per-client exports.
+- Website code must not reintroduce per-site backup scripts or timers.
 
 ## 5. AI-Native Readability
 

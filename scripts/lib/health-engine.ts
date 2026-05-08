@@ -12,17 +12,13 @@ import {
 import { fail, info, pass, warn, worstSeverity, type OpsResult } from './ops-result';
 import { readChannel, resolveStateDir, type OpsChannelSnapshot } from './ops-status';
 import { ALL_QUADLETS } from './quadlets';
-import { isBackupStale, readLastBackup, type BackupSnapshot } from './backup-state';
 import { getCurrentRelease, getPreviousRollbackSafeRelease, type Release } from './release-state';
-import { isDrillStale, readLastDrill, type RestoreDrillSnapshot } from './restore-drill-state';
 
 export type HealthSource = 'ledger' | 'live-host' | 'live-db';
 
 export interface HealthFacts {
 	currentRelease: Release | null;
 	previousRelease: Release | null;
-	backup: BackupSnapshot | null;
-	drill: RestoreDrillSnapshot | null;
 	recentEvents: Array<{ kind: string; at: string; summary: string }>;
 	systemdUnits?: Array<{ unit: string; active: boolean; sub: string; description?: string }>;
 	diskFree?: { mountPoint: string; bytesAvailable: number; bytesTotal: number };
@@ -226,12 +222,6 @@ function eventSummary(event: EventRecord): string {
 		const release = event.release as { id?: unknown; sha?: unknown };
 		return `release ${String(release.id ?? release.sha ?? 'unknown')} recorded`;
 	}
-	if (type === 'restore-drill') {
-		return `restore drill ${String(event.status ?? 'unknown')}`;
-	}
-	if (type === 'backup') {
-		return `backup ${String(event.kind ?? 'unknown')} ${String(event.status ?? 'unknown')}`;
-	}
 	if (type === 'deploy.smoke') {
 		return `deploy smoke ${String(event.smoke_status ?? 'unknown')}`;
 	}
@@ -284,25 +274,6 @@ function releaseChannelExists(): boolean {
 	return readChannel<OpsChannelSnapshot>('releases') !== null;
 }
 
-function drillDetail(drill: RestoreDrillSnapshot): string {
-	return [
-		`attempted_at=${drill.attemptedAt}`,
-		`succeeded_at=${drill.succeededAt ?? 'never'}`,
-		`target_time=${drill.targetTime}`,
-		`duration_ms=${drill.durationMs}`,
-	].join('\n');
-}
-
-function backupDetail(backup: BackupSnapshot): string {
-	return [
-		`attempted_at=${backup.attemptedAt}`,
-		`succeeded_at=${backup.succeededAt ?? 'never'}`,
-		`kind=${backup.kind}`,
-		`source=${backup.backupSource}`,
-		`duration_ms=${backup.durationMs}`,
-	].join('\n');
-}
-
 function sourceTimeoutResult(source: HealthSource, id: string, label: string): OpsResult {
 	return healthWarn(source, id, `${label} timed out`, {
 		detail: 'probe timed out after 5s',
@@ -349,17 +320,12 @@ function daysRemaining(expiresAt: string): number {
 }
 
 export function readLedgerFacts(opts: { eventsLimit?: number } = {}): {
-	facts: Pick<
-		HealthFacts,
-		'currentRelease' | 'previousRelease' | 'backup' | 'drill' | 'recentEvents'
-	>;
+	facts: Pick<HealthFacts, 'currentRelease' | 'previousRelease' | 'recentEvents'>;
 	results: OpsResult[];
 } {
 	const eventsLimit = opts.eventsLimit ?? 10;
 	let currentRelease: Release | null = null;
 	let previousRelease: Release | null = null;
-	let backup: BackupSnapshot | null = null;
-	let drill: RestoreDrillSnapshot | null = null;
 	let recentEvents: HealthFacts['recentEvents'] = [];
 	let releasesPresent = false;
 	const results: OpsResult[] = [];
@@ -368,8 +334,6 @@ export function readLedgerFacts(opts: { eventsLimit?: number } = {}): {
 		currentRelease = getCurrentRelease();
 		previousRelease = getPreviousRollbackSafeRelease();
 		releasesPresent = releaseChannelExists();
-		backup = readLastBackup();
-		drill = readLastDrill();
 		recentEvents = readRecentEvents(eventsLimit);
 	} catch (error) {
 		const ledgerError = error instanceof Error ? error.message : String(error);
@@ -417,83 +381,9 @@ export function readLedgerFacts(opts: { eventsLimit?: number } = {}): {
 		results.push(
 			healthInfo('ledger', 'HEALTH-RELEASE-002', 'No rollback-safe previous release recorded', {
 				remediation: [
-					'NEXT: This is expected before the second rollback-safe deploy; use restore docs if rollback is unavailable.',
+					'NEXT: This is expected before the second rollback-safe deploy; use the platform restore runbook if rollback is unavailable.',
 				],
-				runbook: 'docs/operations/restore.md',
-			})
-		);
-	}
-
-	if (!backup) {
-		results.push(
-			healthWarn('ledger', 'HEALTH-BACKUP-001', 'Backup has never run', {
-				detail: 'backup.json was not found in the ops-status ledger.',
-				remediation: ['NEXT: Run bun run backup:base or bun run backup:all.'],
-				runbook: 'docs/operations/backups.md',
-			})
-		);
-	} else if (backup.status === 'fail') {
-		results.push(
-			healthFail('ledger', 'HEALTH-BACKUP-001', 'Last backup failed', {
-				detail: backupDetail(backup),
-				remediation: ['NEXT: Inspect the backup job logs and rerun the backup after fixing it.'],
-				runbook: 'docs/operations/backups.md',
-			})
-		);
-	} else if (backup.status === 'warn' || backup.status === 'unknown') {
-		results.push(
-			healthWarn('ledger', 'HEALTH-BACKUP-001', 'Last backup completed with warnings', {
-				detail: backupDetail(backup),
-				remediation: ['NEXT: Inspect backup.json and the backup job output before relying on it.'],
-				runbook: 'docs/operations/backups.md',
-			})
-		);
-	} else if (isBackupStale()) {
-		results.push(
-			healthWarn('ledger', 'HEALTH-BACKUP-001', 'Last backup is stale', {
-				detail: backupDetail(backup),
-				remediation: ['NEXT: Run bun run backup:base or confirm the backup timer is enabled.'],
-				runbook: 'docs/operations/backups.md',
-			})
-		);
-	} else {
-		results.push(
-			healthPass('ledger', 'HEALTH-BACKUP-001', 'Last backup is fresh', {
-				detail: backupDetail(backup),
-				runbook: 'docs/operations/backups.md',
-			})
-		);
-	}
-
-	if (!drill) {
-		results.push(
-			healthWarn('ledger', 'HEALTH-DRILL-001', 'Restore drill has never run', {
-				detail: 'restore-drill.json was not found in the ops-status ledger.',
-				remediation: ['NEXT: Run bun run backup:restore:drill.'],
-				runbook: 'docs/operations/restore-drill.md',
-			})
-		);
-	} else if (drill.status === 'fail') {
-		results.push(
-			healthFail('ledger', 'HEALTH-DRILL-001', 'Last restore drill failed', {
-				detail: drillDetail(drill),
-				remediation: ['NEXT: Inspect the drill step evidence and rerun the drill after fixing it.'],
-				runbook: 'docs/operations/restore-drill.md',
-			})
-		);
-	} else if (isDrillStale()) {
-		results.push(
-			healthWarn('ledger', 'HEALTH-DRILL-001', 'Last restore drill is stale', {
-				detail: drillDetail(drill),
-				remediation: ['NEXT: Run bun run backup:restore:drill.'],
-				runbook: 'docs/operations/restore-drill.md',
-			})
-		);
-	} else {
-		results.push(
-			healthPass('ledger', 'HEALTH-DRILL-001', 'Last restore drill is fresh', {
-				detail: drillDetail(drill),
-				runbook: 'docs/operations/restore-drill.md',
+				runbook: 'docs/operations/rollback.md',
 			})
 		);
 	}
@@ -516,7 +406,7 @@ export function readLedgerFacts(opts: { eventsLimit?: number } = {}): {
 		);
 	}
 
-	return { facts: { currentRelease, previousRelease, backup, drill, recentEvents }, results };
+	return { facts: { currentRelease, previousRelease, recentEvents }, results };
 }
 
 export async function readHostLiveFacts(
@@ -584,9 +474,9 @@ export async function readHostLiveFacts(
 					? healthWarn('live-host', 'HEALTH-HOST-DISK-001', 'Disk free space is low', {
 							detail,
 							remediation: [
-								'NEXT: Free disk space or expand the volume before backups/deploys fail.',
+								'NEXT: Free disk space or expand the volume before deploys or platform maintenance fail.',
 							],
-							runbook: 'docs/operations/backups.md',
+							runbook: 'docs/deployment/runbook.md',
 						})
 					: healthPass('live-host', 'HEALTH-HOST-DISK-001', 'Disk free space is healthy', {
 							detail,
@@ -784,8 +674,6 @@ export function summarize(facts: HealthFacts, results: readonly OpsResult[] = []
 	const detail = [
 		`current_release=${facts.currentRelease?.id ?? 'none'}`,
 		`previous_release=${facts.previousRelease?.id ?? 'none'}`,
-		`backup=${facts.backup?.status ?? 'missing'}`,
-		`restore_drill=${facts.drill?.status ?? 'missing'}`,
 		`recent_events=${facts.recentEvents.length}`,
 		`systemd_units=${facts.systemdUnits?.length ?? 'not-probed'}`,
 		`outbox_depth=${facts.outboxDepth ?? 'not-probed'}`,

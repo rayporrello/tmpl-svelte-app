@@ -36,10 +36,9 @@ const publicSchema = v.object({
 
 const privateSchema = v.object({
 	DATABASE_URL: v.pipe(v.string(), v.minLength(1, 'DATABASE_URL must not be empty')),
-	DATABASE_DIRECT_URL: v.optional(v.string()),
-	POSTGRES_DB: v.optional(v.string()),
-	POSTGRES_USER: v.optional(v.string()),
-	POSTGRES_PASSWORD: v.optional(v.string()),
+	CLIENT_SLUG: v.optional(v.string()),
+	DATABASE_POOL_MAX: v.optional(positiveIntegerEnv('DATABASE_POOL_MAX')),
+	DATABASE_STATEMENT_TIMEOUT_MS: v.optional(positiveIntegerEnv('DATABASE_STATEMENT_TIMEOUT_MS')),
 	SESSION_SECRET: v.optional(v.string()),
 	SHUTDOWN_TIMEOUT_MS: v.optional(v.string()),
 	POSTMARK_SERVER_TOKEN: v.optional(v.string()),
@@ -73,20 +72,6 @@ const privateSchema = v.object({
 		v.union([v.literal(''), v.literal('header'), v.literal('hmac')])
 	),
 	N8N_WEBHOOK_AUTH_HEADER: v.optional(v.string()),
-	// Legacy self-hosted n8n bundle names remain parseable for older clones and
-	// rendered env files. The current template does not consume them.
-	N8N_ENABLED: v.optional(v.string()),
-	N8N_ENCRYPTION_KEY: v.optional(v.string()),
-	N8N_HOST: v.optional(v.string()),
-	N8N_PROTOCOL: v.optional(v.string()),
-	DB_POSTGRESDB_PASSWORD: v.optional(v.string()),
-	// PITR / WAL-G backup target (Cloudflare R2 by default).
-	R2_ACCESS_KEY_ID: v.optional(v.string()),
-	R2_SECRET_ACCESS_KEY: v.optional(v.string()),
-	R2_ENDPOINT: v.optional(v.string()),
-	R2_BUCKET: v.optional(v.string()),
-	R2_PREFIX: v.optional(v.string()),
-	PITR_RETENTION_DAYS: v.optional(v.string()),
 	// Forms — set to "true" to enable in-process rate limiting on form endpoints.
 	// This is a single-node guard; buckets reset on restart. See rate-limit.ts.
 	RATE_LIMIT_ENABLED: v.optional(v.string()),
@@ -129,10 +114,9 @@ export function initEnv(): void {
 
 	const privateResult = v.safeParse(privateSchema, {
 		DATABASE_URL: process.env.DATABASE_URL,
-		DATABASE_DIRECT_URL: process.env.DATABASE_DIRECT_URL,
-		POSTGRES_DB: process.env.POSTGRES_DB,
-		POSTGRES_USER: process.env.POSTGRES_USER,
-		POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
+		CLIENT_SLUG: process.env.CLIENT_SLUG,
+		DATABASE_POOL_MAX: process.env.DATABASE_POOL_MAX,
+		DATABASE_STATEMENT_TIMEOUT_MS: process.env.DATABASE_STATEMENT_TIMEOUT_MS,
 		SESSION_SECRET: process.env.SESSION_SECRET,
 		SHUTDOWN_TIMEOUT_MS: process.env.SHUTDOWN_TIMEOUT_MS,
 		POSTMARK_SERVER_TOKEN: process.env.POSTMARK_SERVER_TOKEN,
@@ -152,17 +136,6 @@ export function initEnv(): void {
 		N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET,
 		N8N_WEBHOOK_AUTH_MODE: process.env.N8N_WEBHOOK_AUTH_MODE,
 		N8N_WEBHOOK_AUTH_HEADER: process.env.N8N_WEBHOOK_AUTH_HEADER,
-		N8N_ENABLED: process.env.N8N_ENABLED,
-		N8N_ENCRYPTION_KEY: process.env.N8N_ENCRYPTION_KEY,
-		N8N_HOST: process.env.N8N_HOST,
-		N8N_PROTOCOL: process.env.N8N_PROTOCOL,
-		DB_POSTGRESDB_PASSWORD: process.env.DB_POSTGRESDB_PASSWORD,
-		R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
-		R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
-		R2_ENDPOINT: process.env.R2_ENDPOINT,
-		R2_BUCKET: process.env.R2_BUCKET,
-		R2_PREFIX: process.env.R2_PREFIX,
-		PITR_RETENTION_DAYS: process.env.PITR_RETENTION_DAYS,
 		RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
 		ANALYTICS_SERVER_EVENTS_ENABLED: process.env.ANALYTICS_SERVER_EVENTS_ENABLED,
 		GA4_MEASUREMENT_ID: process.env.GA4_MEASUREMENT_ID,
@@ -206,15 +179,12 @@ export function initEnv(): void {
 	}
 
 	// Container shape guard. Inside a container, DATABASE_URL must reach Postgres
-	// via the container hostname (e.g. <project>-postgres), not 127.0.0.1. The
-	// loopback variant is DATABASE_DIRECT_URL, which is for host-side tooling
-	// (migrations, backups, Drizzle Studio). Mixing the two is the most common
-	// production footgun this template can prevent at boot.
+	// through the shared platform network, not loopback on the web container.
 	if (process.env.IN_CONTAINER === '1') {
 		const containerError = checkContainerDatabaseUrl(process.env.DATABASE_URL ?? '');
 		if (containerError) {
 			throw new Error(
-				`[env] ${containerError}\n\nSee .env.example for the DATABASE_URL / DATABASE_DIRECT_URL contract.`
+				`[env] ${containerError}\n\nSee .env.example for the shared DATABASE_URL contract.`
 			);
 		}
 	}
@@ -239,7 +209,7 @@ export function checkContainerDatabaseUrl(databaseUrl: string): string | null {
 	}
 	const host = parsed.hostname.toLowerCase();
 	if (host === '127.0.0.1' || host === 'localhost' || host === '::1') {
-		return `DATABASE_URL host is "${parsed.hostname}" inside a container. Containers must reach Postgres via the container hostname (e.g. <project>-postgres). Use DATABASE_DIRECT_URL for host-side migrations, backups, and Drizzle Studio.`;
+		return `DATABASE_URL host is "${parsed.hostname}" inside a container. Production web containers must reach Postgres through the shared web-platform.network hostname, normally web-platform-postgres.`;
 	}
 	return null;
 }

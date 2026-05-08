@@ -12,8 +12,6 @@ export const _loadAdminHealthData = async (opts: { db?: DbHandle } = {}) => {
 	const merged: HealthFacts = {
 		currentRelease: ledger.facts.currentRelease,
 		previousRelease: ledger.facts.previousRelease,
-		backup: ledger.facts.backup,
-		drill: ledger.facts.drill,
 		recentEvents: ledger.facts.recentEvents,
 		...dbLive.facts,
 	};

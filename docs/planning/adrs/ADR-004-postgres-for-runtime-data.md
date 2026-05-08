@@ -25,7 +25,7 @@ Postgres is the default runtime data path for this template. SQLite is not offer
 - All projects built from this template require a Postgres database. Editorial-only sites are not a special case.
 - Projects get a production-grade database from day one, without a later migration away from SQLite.
 - `DATABASE_URL` must be set before the app can serve any request. CI uses a stub value; no live DB is required for the validate pipeline.
-- Backup automation is shipped as part of the template: `pg_dump`/uploads scripts, verification, optional rclone push, and systemd timer examples.
+- Production backup and restore automation is owned by `platform-infrastructure` per ADR-031.
 
 ## Implementation Notes
 
@@ -40,7 +40,7 @@ Postgres is the default runtime data path for this template. SQLite is not offer
 - Config: `drizzle.config.ts` at project root reads `DATABASE_URL` from environment.
 - The `postgres` superuser does not exist in this setup; the application uses a dedicated database user.
 - See [docs/database/README.md](../../docs/database/README.md) for the full setup guide.
-- See [docs/operations/backups.md](../../operations/backups.md) and [docs/operations/restore.md](../../operations/restore.md) for the backup/restore path.
+- See [docs/database/README.md](../../database/README.md) and [ADR-031](ADR-031-shared-infrastructure-cell.md) for the shared production database path.
 
 ## Revisit Triggers
 

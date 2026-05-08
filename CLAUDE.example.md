@@ -108,20 +108,22 @@ n8n runs on the same host as the site. Two workflows are active:
 - **acme-contact-routing** — consumes `automation_events` of type `contact.submitted`, sends a Postmark email to `hello@acme-studio.dev`, opens a deal in the studio's CRM.
 - **acme-content-publish** — opens a PR against `acme-org/acme-studio` when the studio publishes a new article from a third-party tool (Notion).
 
-Webhook URL and secret live in `secrets.yaml` (`N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`). Do not commit real values.
+Webhook URL and secret live in the platform repo's production secrets. Do not
+commit real provider values to this website repo.
 
 ## Secrets and environment
 
 This project uses **SOPS + age** for secrets management.
 
-- `secrets.yaml` — encrypted source of truth
+- `secrets.yaml` — optional encrypted dev-only values for this website clone
+- `platform-infrastructure/secrets.yaml` — production source of truth
 - `.env.example` — public contract for required variable names
 - `.env` — rendered local/runtime artifact; gitignored
 - `~/.config/sops/age/keys.txt` — private age identity; never committed
 
 Required env vars (from `.env.example`):
 
-- `DATABASE_URL`, `ORIGIN`, `PUBLIC_SITE_URL`, `POSTMARK_SERVER_TOKEN`, `CONTACT_FROM_EMAIL`, `CONTACT_TO_EMAIL`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `BACKUP_REMOTE`, `BACKUP_HEALTHCHECK_URL`
+- `DATABASE_URL`, `CLIENT_SLUG`, `ORIGIN`, `PUBLIC_SITE_URL`, `POSTMARK_SERVER_TOKEN`, `CONTACT_FROM_EMAIL`, `CONTACT_TO_EMAIL`
 
 Standard secrets rules apply.
 
@@ -130,8 +132,8 @@ Standard secrets rules apply.
 - Deployed to: `acme-prod-1` (Hetzner) via `git push main` → GitHub Actions → GHCR image → SSH `deploy.sh`
 - Container image: `ghcr.io/acme-org/acme-studio:${SHA}`
 - Caddy serves `acme-studio.dev` with TLS via `acme.zerossl.com`. The Caddyfile lives at `~/Caddyfile` on the prod host (templated from `deploy/Caddyfile.example`).
-- Quadlet unit: `~/.config/containers/systemd/acme-studio.container` (templated from `deploy/quadlets/web.container`).
-- Daily backup timer pushes `pg_dump` + `static/uploads/` tar to Cloudflare R2 (`r2:acme-studio-backups`).
+- Quadlet unit: `~/.config/containers/systemd/acme-studio-web.container` (templated from `deploy/quadlets/web.container`).
+- Production database, fleet worker, backups, restore, and provider secrets are operated from `platform-infrastructure`.
 
 ## Project-specific rules
 
@@ -185,11 +187,12 @@ Tracked events: `contact_submitted`, `article_read`, `service_inquiry_started`. 
 
 `bun run privacy:prune --apply` runs nightly via the systemd timer at `~/.config/systemd/user/acme-studio-prune.timer`.
 
-## Backups
+## Platform operations
 
-- `BACKUP_REMOTE=r2:acme-studio-backups` (Cloudflare R2)
-- `BACKUP_HEALTHCHECK_URL` configured for nightly liveness pings
-- Local backup retention: 7 days; remote retention: 90 days (lifecycle policy on the R2 bucket).
+- Client slug: `acme-studio`
+- DB host: `web-platform-postgres`
+- Loopback port: `3101`
+- Fleet worker and backups are platform-owned.
 
 ## What not to do
 

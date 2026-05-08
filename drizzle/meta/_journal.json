@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1777391718774,
-      "tag": "0000_blushing_imperial_guard",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1777423816006,
-      "tag": "0001_privacy_retention",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1777427416006,
-      "tag": "0002_automation_outbox",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1778112000000,
-      "tag": "0003_smoke_test_contact_rows",
+      "when": 1778198400000,
+      "tag": "0000_baseline",
       "breakpoints": true
     }
   ]

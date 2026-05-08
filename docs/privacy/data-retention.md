@@ -68,16 +68,15 @@ The command prints cutoff dates, matching counts, and deleted counts. It has no 
 
 ---
 
-## Backup ordering
+## Platform maintenance ordering
 
-Scheduled production maintenance should run pruning before creating a fresh database backup:
+Scheduled production maintenance should run pruning before the platform creates a fresh client backup or export:
 
 ```bash
 bun run privacy:prune -- --apply
-bun run backup:db
 ```
 
-The backup script does not auto-prune because retention is a project/operator decision. Existing backups may still contain rows that have since been deleted from the live database. Keep backup retention short enough to support recovery without preserving old PII longer than needed.
+The platform backup workflow does not auto-prune from this website repo because retention is a project/operator decision. Existing backups may still contain rows that have since been deleted from the live database. Keep backup retention short enough to support recovery without preserving old PII longer than needed.
 
 If a user deletion request is fulfilled in the live database, old backups should be treated as recovery-only copies until they age out. Do not restore a backup containing deleted personal data into production without re-applying the deletion or re-running the retention prune.
 
@@ -108,6 +107,6 @@ For a deletion request, use a documented manual process:
 3. Delete matching live rows from `contact_submissions`.
 4. Delete or review related `automation_events` rows by `submission_id` if the project stores that value in event payloads.
 5. Review `automation_dead_letters` by `event_id` if a related source event is known.
-6. Document whether backup copies will age out on the normal backup schedule.
+6. Document whether platform backup copies will age out on the normal backup schedule.
 
 Do not expose deletion as a public app endpoint in the base template. Small sites are better served by a careful operator-run process than by an unauthenticated or under-designed deletion API.

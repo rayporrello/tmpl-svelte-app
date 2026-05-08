@@ -156,18 +156,18 @@ values are necessary for the incident.
 
 **First checks:**
 
-1. Check Postgres container: `systemctl --user status <postgres-service>`
+1. Check the platform Postgres service from `platform-infrastructure`.
 2. Check disk space: `df -h` — Postgres fails silently if the data directory is full.
 3. Check connection limits: `psql -U <user> -c "SELECT count(*) FROM pg_stat_activity;"`
 
 **Safe recovery steps:**
 
-1. Restart Postgres if it crashed: `systemctl --user restart <postgres-service>`
-2. If disk is full: remove old backups or expand the volume. Do not delete active data files.
+1. Restart Postgres only through the platform runbook if it crashed.
+2. If disk is full: expand the volume or follow the platform cleanup runbook. Do not delete active data files.
 3. If connection pool is exhausted: restart the app container to reset connections.
-4. Check Postgres logs: `journalctl --user -u <postgres-service> -n 200`
+4. Check Postgres logs from the platform unit.
 
-**Escalation:** Data loss risk if Postgres is corrupted. Stop writes immediately, take a backup of the data directory, and restore from the most recent verified backup.
+**Escalation:** Data loss risk if Postgres is corrupted. Stop writes immediately and use the platform restore workflow.
 
 ---
 
@@ -211,19 +211,19 @@ values are necessary for the incident.
 
 ---
 
-## Backup verification failed
+## Platform backup verification failed
 
-**Symptoms:** Scheduled backup check did not complete, or a test restore failed.
+**Symptoms:** Platform backup check did not complete, or a test restore failed.
 
 **First checks:**
 
-1. Check the backup script output in cron logs or the verification workflow execution log.
-2. Verify the backup destination (R2, S3, local disk) is accessible and has space.
+1. Check the platform backup job output.
+2. Verify the backup destination is accessible and has space.
 3. Check whether the most recent backup file exists and has a non-zero size.
 
 **Safe recovery steps:**
 
-1. Re-run the backup script manually and check for errors.
-2. Test a restore to a temporary database to verify integrity.
+1. Re-run the platform backup check and inspect errors.
+2. Test a restore through the platform restore drill.
 3. If backups have been failing silently for multiple days: treat as a P1 until the backup chain is restored.
 4. Document the gap and adjust the backup verification alert frequency.

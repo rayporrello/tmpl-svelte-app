@@ -18,7 +18,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BootstrapScriptError } from '../../scripts/lib/errors';
 import type { OpsResult } from '../../scripts/lib/ops-result';
-import { recordDrill } from '../../scripts/lib/restore-drill-state';
 import { main, parseArgs, runDoctor, type RunDoctorOptions } from '../../scripts/doctor';
 
 const FIXTURE_ROOT = fileURLToPath(new URL('../fixtures/doctor', import.meta.url));
@@ -65,22 +64,6 @@ function memoryStream() {
 			return output;
 		},
 	};
-}
-
-function useTempOpsState(): void {
-	const stateDir = mkdtempSync(join(tmpdir(), 'doctor-ops-state-'));
-	tempDirs.push(stateDir);
-	process.env.OPS_STATE_DIR = stateDir;
-}
-
-function recordSuccessfulDrill(finishedAt: string): void {
-	recordDrill({
-		results: [{ id: 'DRILL-001', severity: 'pass', summary: 'Source container present.' }],
-		targetTime: '2026-05-07T02:00:00.000Z',
-		backupSource: 'WAL-G LATEST via ready-site-postgres',
-		startedAt: new Date(new Date(finishedAt).getTime() - 1000),
-		finishedAt: new Date(finishedAt),
-	});
 }
 
 function walkFiles(root: string, current = root): string[] {
@@ -230,51 +213,6 @@ describe('doctor script', () => {
 
 		expect(result.exitCode, JSON.stringify(result.results, null, 2)).toBe(0);
 		expect(result.results).not.toContainEqual(expect.objectContaining({ severity: 'fail' }));
-	});
-
-	it('reports fresh restore-drill ledger evidence', async () => {
-		useTempOpsState();
-		recordSuccessfulDrill(new Date().toISOString());
-
-		const result = await runDoctor({
-			rootDir: copyFixture('ready-to-launch'),
-			runner: makeRunner(),
-			runtimeProbe: passingRuntimeProbe,
-		});
-
-		expect(findCheck(result.results, 'DOCTOR-DRILL-001')).toMatchObject({
-			severity: 'pass',
-			summary: expect.stringContaining('Restore Drill:'),
-		});
-		expect(findCheck(result.results, 'DOCTOR-DRILL-002')).toMatchObject({
-			severity: 'pass',
-		});
-	});
-
-	it('warns when restore-drill ledger evidence is missing or stale', async () => {
-		useTempOpsState();
-		let result = await runDoctor({
-			rootDir: copyFixture('ready-to-launch'),
-			runner: makeRunner(),
-			runtimeProbe: passingRuntimeProbe,
-		});
-
-		expect(findCheck(result.results, 'DOCTOR-DRILL-001')).toMatchObject({
-			severity: 'warn',
-			detail: expect.stringContaining('restore-drill.json is missing'),
-		});
-
-		recordSuccessfulDrill('2026-04-01T03:00:00.000Z');
-		result = await runDoctor({
-			rootDir: copyFixture('ready-to-launch'),
-			runner: makeRunner(),
-			runtimeProbe: passingRuntimeProbe,
-		});
-
-		expect(findCheck(result.results, 'DOCTOR-DRILL-002')).toMatchObject({
-			severity: 'warn',
-			detail: expect.stringContaining('last_success_at=2026-04-01T03:00:00.000Z'),
-		});
 	});
 
 	it('identifies a broken .env as a specific failed check and exits nonzero', async () => {

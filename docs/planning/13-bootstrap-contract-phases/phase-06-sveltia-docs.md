@@ -1,3 +1,5 @@
+<!-- 2026-05-08: Historical planning note. Shared-infrastructure cleanup supersedes per-site production Postgres/worker/backup/restore assumptions; see docs/planning/adrs/ADR-031-shared-infrastructure-cell.md. -->
+
 # Phase 6 — Sveltia Local-Editing Docs + `local_backend` Removal
 
 > Plan reference: §2 (CMS local editing), §6 Phase 6.
