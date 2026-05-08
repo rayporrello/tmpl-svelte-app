@@ -77,6 +77,7 @@ The styleguide at `/styleguide` (dev only) shows live examples. Delete `src/rout
 Full rules: `docs/design-system/llm-css-rules.md` — paste that file's content below when working on CSS.
 
 Quick rules:
+
 - Edit `tokens.css` to change colors, fonts, spacing, and shape. That file is the brand file.
 - Architecture files (`reset.css`, `base.css`, `animations.css`, `utilities.css`, `forms.css`) must not be edited for project-specific work except in the marked `BRAND-SPECIFIC` section at the bottom of each file.
 - Reference semantic tokens (`var(--surface-raised)`) in component CSS — never raw oklch/hex values.
@@ -111,10 +112,10 @@ Full docs: [docs/cms/README.md](docs/cms/README.md) · Contract: [docs/cms/svelt
 
 ### Parser rules — critical, do not mix
 
-| File type | Parser | Notes |
-|-----------|--------|-------|
-| `content/pages/*.yml`, `content/team/*.yml`, `content/testimonials/*.yml` | **js-yaml** | Pure YAML, no `---` delimiters |
-| `content/articles/*.md` | **gray-matter** | Remap `.content` → `.body` explicitly |
+| File type                                                                 | Parser          | Notes                                 |
+| ------------------------------------------------------------------------- | --------------- | ------------------------------------- |
+| `content/pages/*.yml`, `content/team/*.yml`, `content/testimonials/*.yml` | **js-yaml**     | Pure YAML, no `---` delimiters        |
+| `content/articles/*.md`                                                   | **gray-matter** | Remap `.content` → `.body` explicitly |
 
 - Never use gray-matter for pure YAML files
 - Never use js-yaml for Markdown frontmatter files
@@ -158,6 +159,7 @@ This project uses the template's baseline observability spine. [Note any optiona
 - Graceful shutdown: `serve.js` wrapper handles SIGTERM/SIGINT; tune drain window with `SHUTDOWN_TIMEOUT_MS` (default 10000ms)
 
 **Agent rules:**
+
 - Do not log secrets, tokens, cookies, or raw form payloads.
 - Use `logger.error()` instead of `console.error()` for server-side errors.
 - Use `toSafeError()` before returning error details to the browser.
@@ -211,6 +213,7 @@ Secrets workflow: `bun run secrets:render` / `bun run secrets:check`
 ## Project-specific rules
 
 [Add anything an AI agent needs to know that is not covered by template defaults. Examples:]
+
 - [Forms: schema is at `src/lib/forms/contact.schema.ts`; server action at `src/routes/contact/+page.server.ts`]
 - [The `/blog` route loads from Sveltia CMS; do not hardcode posts]
 - [Forms submit to an n8n webhook at `N8N_WEBHOOK_URL` env var]
@@ -270,6 +273,7 @@ bun run check:content-diff  # check for destructive changes
 ```
 
 **Agent rules:**
+
 - Do not use `toml-frontmatter` for Markdown collections — use `frontmatter` (YAML).
 - Do not create optional `datetime` fields without adding to `OPTIONAL_DATETIME_ALLOWLIST`.
 - Required date fields must be ISO 8601 with timezone: `2026-04-27T12:00:00Z`.
@@ -289,6 +293,7 @@ Analytics is disabled by default. Enable in production only by setting env vars.
 - `PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN=...` — optional privacy-first sanity layer
 
 **Agent rules:**
+
 - Do not add a direct `gtag.js` GA4 snippet when GTM is active — GA4 is configured inside GTM.
 - Do not send PII (names, emails, message bodies) to any analytics event.
 - Do not track every click automatically — use helpers from `src/lib/analytics/events.ts` deliberately.
@@ -311,6 +316,7 @@ Full docs: [docs/privacy/data-retention.md](docs/privacy/data-retention.md)
 Runtime PII retention defaults live in `src/lib/server/privacy/retention.ts`.
 
 **Agent rules:**
+
 - Keep `automation_dead_letters` free of full webhook payloads.
 - Run `bun run privacy:prune` as a dry-run before `bun run privacy:prune -- --apply`.
 - Run pruning before scheduled production database backups, but do not auto-run pruning from backup scripts or app startup.
@@ -329,6 +335,7 @@ bun run backup:verify  # integrity + checksum check on most recent backup
 ```
 
 **Agent rules:**
+
 - Do not auto-prune inside backup scripts. The systemd service runs `privacy:prune --apply` before `backup:all` — keep that order.
 - Do not commit `backups/` (gitignored).
 - Do not put real `BACKUP_REMOTE` or `BACKUP_HEALTHCHECK_URL` values in `.env.example` — variable names only; real values go in `secrets.yaml`.
