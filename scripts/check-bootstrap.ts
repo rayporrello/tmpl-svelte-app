@@ -55,6 +55,7 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = resolve(SCRIPT_DIR, '..');
 const FIXTURE_ROOT = join(ROOT_DIR, 'tests/fixtures/bootstrap');
 const TEMP_PREFIX = 'check-bootstrap-';
+const TEMPLATE_PACKAGE_NAME = 'tmpl-svelte-app';
 const MOCK_PORT = 55432;
 const MOCK_SLUG = 'phase-five-smoke';
 const MOCK_CONTAINER = `${MOCK_SLUG}-postgres`;
@@ -605,8 +606,26 @@ function cleanupTempDirs(): void {
 	for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
 }
 
+function sourcePackageName(): string | null {
+	try {
+		const raw = readFileSync(join(ROOT_DIR, 'package.json'), 'utf8');
+		const parsed = JSON.parse(raw) as { name?: unknown };
+		return typeof parsed.name === 'string' ? parsed.name : null;
+	} catch {
+		return null;
+	}
+}
+
 async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
 	const selection = parseArgs(argv);
+	const pkgName = sourcePackageName();
+	if (pkgName !== TEMPLATE_PACKAGE_NAME) {
+		process.stdout.write(
+			`SKIP check:bootstrap — source package.json name is "${pkgName ?? '<unreadable>'}", not "${TEMPLATE_PACKAGE_NAME}".\n` +
+				'check:bootstrap is a template self-test; it only runs against an unmodified template repo.\n'
+		);
+		return 0;
+	}
 	try {
 		if (selection.dryRun) await runDryRunMode();
 		if (selection.mock) await runMockMode();
