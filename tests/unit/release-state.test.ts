@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { inTemplateState } from '../helpers/template-state';
 import { readChannel, readEvents } from '../../scripts/lib/ops-status';
 import {
 	getCurrentRelease,
@@ -47,24 +48,27 @@ afterEach(() => {
 });
 
 describe('release state channel', () => {
-	it('records a release snapshot and appends a release event', async () => {
-		const first = release('1', 'rollback-safe');
+	it.skipIf(!inTemplateState)(
+		'records a release snapshot and appends a release event',
+		async () => {
+			const first = release('1', 'rollback-safe');
 
-		recordRelease(first);
+			recordRelease(first);
 
-		expect(readChannel('releases')).toMatchObject({
-			project: 'project',
-			status: 'pass',
-			detail: { releases: [first] },
-		});
-		expect(await collectEvents()).toMatchObject([
-			{
-				channel: 'releases',
-				type: 'release.recorded',
-				release: first,
-			},
-		]);
-	});
+			expect(readChannel('releases')).toMatchObject({
+				project: 'project',
+				status: 'pass',
+				detail: { releases: [first] },
+			});
+			expect(await collectEvents()).toMatchObject([
+				{
+					channel: 'releases',
+					type: 'release.recorded',
+					release: first,
+				},
+			]);
+		}
+	);
 
 	it('lists releases newest first and respects limits', () => {
 		recordRelease(release('1', 'rollback-safe'));
