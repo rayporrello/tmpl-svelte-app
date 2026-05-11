@@ -125,12 +125,34 @@ Production website deploys do not require automation provider secrets.
 7. run `deploy:smoke`
 8. record release evidence locally
 
-During Phase 1 of the shared-infra redirect, the migration gate soft-skips if the
-web-data-platform repo is not present and prints:
+## Production Deployment
 
-`[deploy:apply] web-data-platform CLI not found at WEB_DATA_PLATFORM_PATH — migration gate skipped. Confirm migrations applied manually before deploy.`
+Production data infrastructure is shared and operated from
+`~/web-data-platform`. Set `WEB_DATA_PLATFORM_PATH` when the platform repo is not
+at the default sibling path used by deploy scripts:
 
-After the web-data-platform migration CLI lands, that soft skip becomes a hard gate.
+```bash
+export WEB_DATA_PLATFORM_PATH="$HOME/web-data-platform"
+```
+
+`deploy:apply` uses that path to run the platform migration gate before swapping
+the web image:
+
+```bash
+bun run --cwd "$WEB_DATA_PLATFORM_PATH" web:fleet-migration-status -- --client=<slug> --repo=<website-root>
+```
+
+The gate reads this repo's Drizzle journal, compares it with the client's shared
+Postgres database, refuses drift, verifies a recent backup before applying
+pending migrations, and exits non-zero when deploy must stop. The Phase 9 smoke
+test in `~/web-data-platform/tests/e2e-smoke.test.ts` is the contract test for
+this two-repo flow.
+
+This website template owns its Drizzle schema. The shared platform consumes the
+known runtime tables and grants needed for compatibility; see
+`~/web-data-platform/docs/decisions/ADR-012-fleet-worker-outbox-state-machine.md`
+and
+`~/web-data-platform/docs/decisions/ADR-017-public-schema-grants-for-website-compatibility.md`.
 
 ## Key Docs
 

@@ -57,7 +57,7 @@ the next things to customize. It is idempotent and safe to re-run.
 
 For local CMS editing in a Chromium browser, follow the
 Work-with-Local-Repository flow at
-[docs/cms/README.md](docs/cms/README.md#local-development--work-with-local-repository).
+[docs/cms/README.md](../../cms/README.md#local-development--work-with-local-repository).
 
 Before deploying:
 
@@ -65,7 +65,7 @@ Before deploying:
 bun run launch:check   # release-grade gate; alias of validate:launch
 ```
 
-See [docs/getting-started.md](docs/getting-started.md) for the full
+See [docs/getting-started.md](../../getting-started.md) for the full
 guide, including the manual setup path if you want to understand or
 override what bootstrap does.
 

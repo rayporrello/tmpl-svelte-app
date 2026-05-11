@@ -10,9 +10,9 @@ This directory contains one prompt file per phase of the Bootstrap Contract
 project. Each file is a self-contained brief intended to be loaded as a
 single prompt to Codex (or any other coding agent) inside VS Code.
 
-The locked spec is at [`../13-bootstrap-contract-project.md`](../13-bootstrap-contract-project.md).
-Phase prompts are short on rationale and long on instructions; for the why,
-read the spec.
+The original locked spec is represented here by the phase prompts and the
+[planning index](../README.md). Phase prompts are short on rationale and long on
+instructions; for the why, read the related planning docs.
 
 ## How to use a prompt
 

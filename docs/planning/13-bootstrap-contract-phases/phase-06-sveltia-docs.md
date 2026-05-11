@@ -73,7 +73,7 @@ fails to load or auth fails" with:
 ```markdown
 - For local-only editing without GitHub auth, follow the
   Work-with-Local-Repository flow in
-  [docs/cms/README.md](cms/README.md#local-development--work-with-local-repository).
+  [docs/cms/README.md](../../cms/README.md#local-development--work-with-local-repository).
   Open `/admin/index.html` in a Chromium-based browser, click
   **Work with Local Repository**, and select this project root.
 ```

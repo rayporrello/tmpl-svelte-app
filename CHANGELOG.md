@@ -1,31 +1,155 @@
-# Template changelog
+# Changelog
 
-This changelog tracks security-, operations-, and contract-relevant changes to
-the template itself. It is intentionally lightweight — entries are appended in
-reverse-chronological order, grouped by date, with enough detail that a project
-forked from an earlier snapshot can decide whether to cherry-pick a given
-change.
+All notable changes to `tmpl-svelte-app` are documented here.
 
-This is **not** a semver release log. The template is clone-and-customize, not
-upstream-managed; downstream projects pull improvements selectively rather than
-running a `template update` command.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+This template is clone-and-customize, so versions identify important source
+snapshots rather than a package upgrade stream. Detailed historical notes are
+kept after the versioned entries for older clones deciding what to cherry-pick.
 
-When to add an entry:
+## [v1.0.0] - 2026-05-11
 
-- Security default changes (HSTS, CSP, headers, secrets handling)
-- Runtime contract changes (env vars, adapter, container, deploy artifacts)
-- CI gate changes (Trivy thresholds, new required checks)
-- Backup or recovery posture changes
-- Bun, Postgres, or other pinned-tool version bumps
-- Removal or deprecation of a documented capability
+Phase 10: documentation finalization alongside `web-data-platform`.
 
-When to skip:
+### Added
 
-- Internal refactors with no observable contract change
-- Doc rewrites that do not change behavior
-- Test-only changes
+- Production deployment README section explaining the shared backend,
+  `WEB_DATA_PLATFORM_PATH`, the `deploy:apply` migration gate, and the Phase 9
+  two-repo smoke-test contract.
 
----
+### Changed
+
+- Clarified that this template owns its Drizzle schema while `web-data-platform`
+  consumes known runtime tables and grants for production compatibility.
+
+### Fixed
+
+- Removed stale README language about the migration gate being a temporary soft
+  skip.
+
+How to upgrade: pull the docs; no runtime action is required.
+
+## [v0.3.1] - 2026-05-08
+
+Repository naming alignment (`93b7f8e`).
+
+### Added
+
+- References to the final `web-data-platform` repo name.
+
+### Changed
+
+- Renamed remaining `platform-infrastructure` wording to
+  `web-data-platform`.
+
+### Fixed
+
+- Kept template docs aligned with the platform repo name used by operators.
+
+How to upgrade: update any local `WEB_DATA_PLATFORM_PATH` value that still
+points at the old repo name.
+
+## [v0.3.0] - 2026-05-08
+
+Architecture redirect to shared website infrastructure (`13bbaa3`).
+
+### Added
+
+- Shared `web-platform` production runtime model in README and operations docs.
+- Production deployment contract that calls the platform migration gate before
+  swapping web images.
+
+### Changed
+
+- Removed per-site production Postgres, worker daemon, backup/PITR, restore, and
+  site-local network ownership from the template.
+- Kept local development bootstrap unchanged with per-clone local Postgres.
+- Made `automation:worker` a one-shot local development tool.
+- Collapsed Drizzle migrations to a fresh baseline because no live client data
+  existed during the redirect.
+
+### Fixed
+
+- Aligned deploy, preflight, launch, doctor, health, CI, tests, docs, and ADRs
+  with the shared data-infrastructure model.
+
+How to upgrade: provision production data through `web-data-platform`; do not
+reintroduce per-site production Postgres or worker units in website clones.
+
+## [v0.2.0] - 2026-05-07
+
+Phase 1 cleanup: single launch-env contract (`c1efee1`).
+
+### Added
+
+- One production launch env contract for website clones.
+- Cleaner deploy/launch validation around the shared-infrastructure pivot.
+
+### Changed
+
+- Simplified production secrets and launch checks so later shared-backend work
+  had one contract to target.
+
+### Fixed
+
+- Reduced drift between local development, launch checks, and production deploy
+  assumptions.
+
+How to upgrade: rerun `bun run launch:check` and refresh any copied env examples
+from this template snapshot.
+
+## [v0.1.0] - 2026-05-07
+
+Recoverable website appliance baseline (`8aabab0`).
+
+### Added
+
+- SvelteKit lead-gen template with forms, content, SEO, CMS, analytics,
+  deployment, operations, and recovery docs.
+- Production web container shape and operator validation commands.
+
+### Changed
+
+- Established the template as a clone-and-customize website appliance rather
+  than an upstream package.
+
+### Fixed
+
+- Captured recovery and operational posture in docs before the shared-backend
+  redirect.
+
+How to upgrade: use this only as historical context for clones created before
+the shared-backend pivot.
+
+## Earlier Hardening Snapshots
+
+### Added
+
+- Pass 1 safety baseline (`b1c4ce7`): HSTS, Bun pinning,
+  `validate:fast`, and single-baseline observability.
+- Pass 2 reliability work (`94ce392`): n8n-first header auth defaults, stricter
+  production gates, and observability headers.
+- Pass 3 production data posture (`95959f5`): PITR backup strategy, worker
+  container, and optional per-client n8n bundle.
+- Pass 4 consistency sweep (`5e1e297`): documentation and artifact alignment
+  around ADR-022.
+- Bundled Postgres production strategy enforcement (`5e1fcbe`).
+
+### Changed
+
+- These snapshots were superseded by the 2026-05-08 shared-backend pivot, which
+  moved production Postgres, backup, restore, and worker ownership out of this
+  template.
+
+### Fixed
+
+- Preserved the history needed for older clones deciding whether to cherry-pick
+  pre-pivot hardening work.
+
+How to upgrade: prefer the shared-backend architecture from `v0.3.0` or newer
+for production website clones.
+
+## Detailed Historical Notes
 
 ## 2026-05-08 — Architecture redirect: shared infrastructure for client websites
 

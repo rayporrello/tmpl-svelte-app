@@ -114,11 +114,12 @@ the style of ADR-018 and ADR-020. Required sections:
   browser-based installer, (c) use SQLite for a lite path. All rejected
   with reasons; reference §12 of the planning doc.
 
-Cross-link from the project plan:
+Cross-link from [ADR-021](../adrs/ADR-021-local-bootstrap-contract.md) and the
+project plan:
 
 ```diff
 - ADR-021 (this project) — to be authored during Phase 4.
-+ ADR-021 (this project) — accepted; see [ADR-021](adrs/ADR-021-local-bootstrap-contract.md).
++ ADR-021 (this project) — accepted; see [ADR-021](../adrs/ADR-021-local-bootstrap-contract.md).
 ```
 
 ## Acceptance criteria

@@ -39,7 +39,6 @@ Postgres is the default runtime data path for this template. SQLite is not offer
 - Migration workflow: `bun run db:generate` creates SQL files; `bun run db:migrate` applies them.
 - Config: `drizzle.config.ts` at project root reads `DATABASE_URL` from environment.
 - The `postgres` superuser does not exist in this setup; the application uses a dedicated database user.
-- See [docs/database/README.md](../../docs/database/README.md) for the full setup guide.
 - See [docs/database/README.md](../../database/README.md) and [ADR-031](ADR-031-shared-infrastructure-cell.md) for the shared production database path.
 
 ## Revisit Triggers
