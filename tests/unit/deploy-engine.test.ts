@@ -213,6 +213,27 @@ describe('deploy engine', () => {
 		);
 	});
 
+	it('uses site.project.json deployment.unitName for the systemd service', async () => {
+		write(
+			'site.project.json',
+			JSON.stringify({
+				project: { projectSlug: 'deploy-engine' },
+				site: { productionUrl: 'https://deploy.example' },
+				deployment: { unitName: 'deploy-engine-web', loopbackPort: 3000 },
+			})
+		);
+
+		const result = await planDeploy({
+			image: 'ghcr.io/example/site:new',
+			sha: 'abc123',
+			migrationSafety: 'rollback-safe',
+			rootDir,
+			preflight: passingPreflight(),
+		});
+
+		expect(result.plan?.quadletUpdates[0]?.unitName).toBe('deploy-engine-web.service');
+	});
+
 	it('dry-runs without pulling, running systemctl, writing Quadlets, or ledger events', async () => {
 		const runner = fakeRunner();
 

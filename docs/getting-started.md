@@ -71,12 +71,15 @@ bun run validate
 
 ## Production Handoff
 
-For production, the operator provisions the client from `web-data-platform`:
+For production, the operator provisions the client from `web-data-platform` in
+two phases:
 
-1. `web:provision-client -- --slug=<slug>` creates the DB, role, generated
-   secrets, and registry entry.
-2. `web:render-client-env -- --slug=<slug>` writes
-   `~/secrets/<slug>.prod.env`.
+1. `launch:site -- --slug=<slug> --repo=<root> --domain=<domain>` does the
+   deterministic groundwork: client provisioning, env/Caddy rendering, grant
+   alignment, Quadlet install, and checklist creation in `clients.json`.
+2. Manual integrations update the checklist: DNS, Postmark server token,
+   fleet-worker provider config, and Postmark-reported DKIM/Return-Path
+   verification.
 3. `web:fleet-migration-status -- --client=<slug> --repo=<root>` applies this
    repo's Drizzle migrations to that client's DB.
 4. This repo's `deploy/quadlets/web.container` is installed with
@@ -98,12 +101,14 @@ bun run deploy:preflight
 Deploy is a web image swap:
 
 ```bash
-bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
+bun run launch:deploy -- --client=<slug> --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
 ```
 
-`deploy:apply` hard-fails when the web-data-platform migration CLI is missing or
-reports drift/failure. Use `--safety=rollback-blocked` instead when the previous
-web image cannot safely run against the post-migration schema.
+`launch:deploy` first checks `web-data-platform`'s persistent launch checklist,
+then delegates to `deploy:apply`. `deploy:apply` hard-fails when the
+web-data-platform migration CLI is missing or reports drift/failure. Use
+`--safety=rollback-blocked` instead when the previous web image cannot safely
+run against the post-migration schema.
 
 ## What Not To Add Back
 

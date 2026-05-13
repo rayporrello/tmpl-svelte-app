@@ -74,7 +74,16 @@ function hasFail(results: readonly OpsResult[]): boolean {
 	return results.some((result) => result.severity === 'fail');
 }
 
-function unitNameFor(quadletFilename: string): string {
+function unitNameFor(rootDir: string, quadletFilename: string): string {
+	const siteProject = readSiteProject(rootDir);
+	const deployment = siteProject.deployment;
+	const configuredUnit =
+		basename(quadletFilename) === 'web.container' && deployment && typeof deployment === 'object'
+			? (deployment as Record<string, unknown>).unitName
+			: null;
+	if (typeof configuredUnit === 'string' && configuredUnit.trim()) {
+		return `${configuredUnit.trim()}.service`;
+	}
 	return `${parse(basename(quadletFilename)).name}.service`;
 }
 
@@ -162,7 +171,7 @@ export async function planDeploy(opts: PlanDeployOptions): Promise<{
 				path,
 				oldImage: parseQuadletImage(path).imageRef,
 				newImage: opts.image,
-				unitName: unitNameFor(entry),
+				unitName: unitNameFor(rootDir, entry),
 			};
 		});
 	} catch (error) {

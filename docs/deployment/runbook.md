@@ -13,7 +13,8 @@ production secrets, backups, and restore live in `web-data-platform`.
 
 ## Install Web Quadlet
 
-Copy or render `deploy/quadlets/web.container` for the client. It must include:
+`web-data-platform` `launch:site` installs `deploy/quadlets/web.container` as
+the per-client Quadlet symlink. It must include:
 
 ```ini
 Network=web-platform.network
@@ -25,19 +26,18 @@ Then:
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now <slug>-web.service
 ```
 
 ## Deploy New Image
 
 ```bash
-bun run deploy:preflight
-bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
-bun run deploy:smoke -- --url https://example.com
+bun run launch:deploy -- --client=<slug> --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
 ```
 
-`deploy:apply` pulls the image, updates `Image=`, restarts `web.service`, polls
-`/readyz`, runs smoke, and records release evidence.
+`launch:deploy` checks the platform launch checklist, then delegates to
+`deploy:apply`. `deploy:apply` pulls the image, updates `Image=`, restarts the
+configured `<slug>-web.service`, polls `/readyz`, runs smoke, and records
+release evidence.
 
 ## Migration Gate
 

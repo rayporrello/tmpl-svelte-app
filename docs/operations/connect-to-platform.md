@@ -26,18 +26,21 @@ From `~/web-data-platform`:
 ```bash
 bun install --frozen-lockfile
 bun run web:check
-bun run web:provision-client -- --slug=<client-slug>
+bun run launch:site -- \
+  --slug=<client-slug> \
+  --repo=<website-root> \
+  --domain=<production-domain> \
+  --contact-to=<lead-recipient> \
+  --contact-from='Website <website@production-domain>'
 ```
 
-Edit `clients.json` for the new client:
+`launch:site` is the groundwork phase. It creates or verifies the platform
+client, keeps `active: false`, updates `clients.json` with the real domain and
+repo path, runs the website init/project/bootstrap checks, ensures database
+grants, renders env/Caddy files, installs the website Quadlet symlink, and runs
+`systemctl --user daemon-reload`.
 
-- set `productionDomain` to the real host name
-- set `repoPath` to the website checkout
-- confirm the allocated `loopbackPort`
-- keep `active: false` until the website is ready for the fleet worker
-
-Provisioning creates the database, app role, fleet-worker role, and SOPS secret
-entries. If an existing client needs grant repair after an upgrade, run:
+If an existing client needs grant repair after an upgrade, run:
 
 ```bash
 bun run web:ensure-grants -- --slug=<client-slug>
@@ -47,38 +50,59 @@ The migration gate also performs DB-only grant repair before and after applying
 migrations. The before pass is drift insurance; the after pass covers newly
 created tables and sequences.
 
-## 3. Render Runtime Files
+## 3. Complete Manual Integrations
 
 From `~/web-data-platform`:
 
 ```bash
-bun run web:render-client-env -- --slug=<client-slug>
-bun run web:render-caddy-sites -- --client=<client-slug> --output=<client-slug>.caddy
+bun run launch:checklist -- --client=<client-slug>
 ```
 
-Install the rendered env file at `~/secrets/<client-slug>.prod.env` and install
-the Caddy block into the host Caddy config. Run `caddy validate` before reload.
+Manual items gate the first deploy. Add DNS records in your DNS provider, create
+the Postmark server and sender/domain records, wait until Postmark reports DKIM
+and Return-Path verification, configure the website Postmark server token in
+`web-data-platform/secrets.yaml`, configure fleet-worker provider settings, and
+then mark only verified items done:
+
+```bash
+bun run launch:checklist -- --client=<client-slug> --set=dns_records_created:done
+bun run launch:checklist -- --client=<client-slug> --set=postmark_server_token_configured:done
+bun run launch:checklist -- --client=<client-slug> --set=fleet_provider_configured:done
+bun run launch:checklist -- --client=<client-slug> --set=postmark_dkim_verified:done
+bun run launch:checklist -- --client=<client-slug> --set=postmark_return_path_verified:done
+```
+
+If you update `secrets.yaml`, re-render runtime files:
+
+```bash
+bun run web:render-client-env -- --slug=<client-slug> --out ~/secrets/<client-slug>.prod.env
+bun run web:render-cluster-env -- --out ~/secrets/web-platform-cluster.env
+```
+
+Install the rendered Caddy block into the host Caddy config. Run
+`caddy validate` before reload.
 
 Website clones do not participate in `web:rotate-sops-recipient`. Platform
 production secrets live in `web-data-platform/secrets.yaml`; any clone-local
 `secrets.yaml` is dev-only and encrypted to that clone's own age recipient.
 
-## 4. Install And Deploy The Website
+## 4. First Deploy The Website
 
 From the website repo on the host:
 
 ```bash
 export WEB_DATA_PLATFORM_PATH="$HOME/web-data-platform"
-bun run deploy:preflight
-systemctl --user daemon-reload
-systemctl --user enable --now <client-slug>-web.service
-bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
-bun run deploy:smoke -- --url https://your-domain.example
+bun run launch:deploy -- --client=<client-slug> --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
 ```
 
 Use `--safety=rollback-blocked` instead when the previous web image cannot run
 against the post-migration schema. Use `--skip-migration-gate` only for an
 approved manual migration exception.
+
+`launch:deploy` checks the platform checklist before delegating to
+`deploy:apply`. `deploy:apply` runs the migration gate, swaps the image,
+restarts the configured `<client-slug>-web.service`, waits for `/readyz`, and
+runs `deploy:smoke`.
 
 ## 5. Activate Operations
 
@@ -98,3 +122,10 @@ curl -fsS http://127.0.0.1:9100/healthz
 curl -fsS http://127.0.0.1:9100/readyz
 podman inspect web-platform-fleet-worker --format '{{.State.Health.Status}}'
 ```
+
+## Next Phase
+
+The planned follow-up is `web:test-contact-delivery` in `web-data-platform`.
+That command should prove the full public form -> database -> outbox -> fleet
+worker -> Postmark acceptance path with one smoke contact. The plan lives in
+`web-data-platform/docs/runbooks/contact-delivery-test.md`.

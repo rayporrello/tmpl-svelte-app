@@ -59,6 +59,7 @@
 		"validate:ci": "bun run validate:core && bun run test:e2e:built",
 		"validate:launch": "bun run validate:core && bun run check:init-site && bun run check:launch && bun run check:content-diff",
 		"launch:check": "bun run validate:launch",
+		"launch:deploy": "bun run scripts/launch-deploy.ts",
 		"deploy:preflight": "bun scripts/deploy-preflight.ts",
 		"deploy:smoke": "bun scripts/deploy-smoke.ts",
 		"deploy:apply": "bun run scripts/deploy-apply.ts",
