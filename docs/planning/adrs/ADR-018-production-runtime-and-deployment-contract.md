@@ -10,10 +10,11 @@ worker, backup, or restore artifacts. The Bun web runtime, Containerfile,
 Quadlet web unit, Caddy reverse proxy, `/healthz`, and `/readyz` contracts
 remain accepted.
 
-**2026-05-13 update:** The shutdown wrapper now marks the app as draining,
-causing `/healthz` to return 503 with `Connection: close` before process exit.
-The default drain timer is 15s and the Quadlet `StopTimeout` is 30s so Caddy
-has at least two health intervals to route away from the draining instance.
+**2026-05-13 update:** The runtime now marks the app as draining on
+SIGTERM/SIGINT, causing `/healthz` to return 503 with `Connection: close`
+before process exit. The default drain timer is 25s and the Quadlet
+`StopTimeout` is 30s so Caddy has two health intervals to route away before any
+future listener stop.
 
 ---
 
@@ -65,11 +66,11 @@ This exists because `svelte-adapter-bun` v0.5.2 calls `Bun.serve()` without regi
 
 | Variable              | Default | Purpose                                                     |
 | --------------------- | ------- | ----------------------------------------------------------- |
-| `SHUTDOWN_TIMEOUT_MS` | `15000` | Milliseconds to wait after SIGTERM before `process.exit(0)` |
+| `SHUTDOWN_TIMEOUT_MS` | `25000` | Milliseconds to wait after SIGTERM before `process.exit(0)` |
 
-On SIGTERM, `serve.js` marks the app as draining. `/healthz` then returns 503
-with `Connection: close`, allowing Caddy's `health_uri /healthz` check
-(`health_interval 10s`) to route traffic away before the wrapper exits.
+On SIGTERM, `hooks.server.ts` marks the app as draining. `/healthz` then
+returns 503 with `Connection: close`, allowing Caddy's `health_uri /healthz`
+check (`health_interval 10s`) to route traffic away before the wrapper exits.
 
 ---
 
