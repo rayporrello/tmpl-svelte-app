@@ -93,7 +93,7 @@ const EXPECTED_STRINGS: Record<string, string[]> = {
 		'Network=web-platform.network',
 		'PublishPort=127.0.0.1:3000:3000',
 		'HostName=my-cool-site-web',
-		'StopTimeout=15',
+		'StopTimeout=30',
 	],
 };
 

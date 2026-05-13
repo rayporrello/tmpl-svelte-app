@@ -35,8 +35,9 @@ PublishPort=127.0.0.1:3000:3000
 # Stable hostname for logs and platform-side diagnostics.
 HostName=<project>-web
 
-# Give serve.js enough room to drain before Podman escalates to SIGKILL.
-StopTimeout=15
+# Give serve.js enough room to fail /healthz, let Caddy reroute, and drain
+# in-flight requests before Podman escalates to SIGKILL.
+StopTimeout=30
 
 # Non-root user matches the uid/gid created in the Containerfile.
 User=1001

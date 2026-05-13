@@ -120,7 +120,7 @@ function writeReadyProject(): string {
 			'Network=web-platform.network',
 			'PublishPort=127.0.0.1:3000:3000',
 			'HostName=ready-site-web',
-			'StopTimeout=15',
+			'StopTimeout=30',
 			'',
 		].join('\n')
 	);
@@ -186,7 +186,7 @@ describe('deploy preflight', () => {
 				write(
 					rootDir,
 					'deploy/quadlets/web.container',
-					'Image=ghcr.io/acme/wrong-site:abc123\nEnvironmentFile=%h/secrets/wrong-site.prod.env\nNetwork=web-platform.network\nPublishPort=127.0.0.1:3000:3000\nHostName=wrong-site-web\nStopTimeout=15\n'
+					'Image=ghcr.io/acme/wrong-site:abc123\nEnvironmentFile=%h/secrets/wrong-site.prod.env\nNetwork=web-platform.network\nPublishPort=127.0.0.1:3000:3000\nHostName=wrong-site-web\nStopTimeout=30\n'
 				),
 			id: 'PREFLIGHT-QUADLET-001',
 		},
