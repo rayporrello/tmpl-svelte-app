@@ -102,7 +102,9 @@ approved manual migration exception.
 `launch:deploy` checks the platform checklist before delegating to
 `deploy:apply`. `deploy:apply` runs the migration gate, swaps the image,
 restarts the configured `<client-slug>-web.service`, waits for `/readyz`, and
-runs `deploy:smoke`.
+runs `deploy:smoke`. After that succeeds, `launch:deploy` runs the platform
+`web:test-contact-delivery` end-to-end smoke and marks the
+`contact_delivery_smoke_passed` checklist item done.
 
 ## 5. Activate Operations
 
@@ -123,9 +125,16 @@ curl -fsS http://127.0.0.1:9100/readyz
 podman inspect web-platform-fleet-worker --format '{{.State.Health.Status}}'
 ```
 
-## Next Phase
+## Contact Delivery Smoke
 
-The planned follow-up is `web:test-contact-delivery` in `web-data-platform`.
-That command should prove the full public form -> database -> outbox -> fleet
-worker -> Postmark acceptance path with one smoke contact. The plan lives in
-`web-data-platform/docs/runbooks/contact-delivery-test.md`.
+`launch:deploy` runs `web:test-contact-delivery` automatically. To rerun that
+check manually from this repo:
+
+```bash
+bun run --cwd "$WEB_DATA_PLATFORM_PATH" web:test-contact-delivery -- --client=<client-slug>
+```
+
+That command proves the full public form -> database -> outbox -> fleet worker
+-> Postmark acceptance path with one smoke contact. Failure does not trigger an
+automatic rollback; investigate the printed platform failure before announcing
+the launch.

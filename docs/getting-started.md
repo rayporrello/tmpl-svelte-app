@@ -106,7 +106,9 @@ bun run launch:deploy -- --client=<slug> --image=ghcr.io/<owner>/<repo>:<sha> --
 
 `launch:deploy` first checks `web-data-platform`'s persistent launch checklist,
 then delegates to `deploy:apply`. `deploy:apply` hard-fails when the
-web-data-platform migration CLI is missing or reports drift/failure. Use
+web-data-platform migration CLI is missing or reports drift/failure. After the
+image swap and website smoke pass, `launch:deploy` runs the platform
+`web:test-contact-delivery` check and records the passing checklist item. Use
 `--safety=rollback-blocked` instead when the previous web image cannot safely
 run against the post-migration schema.
 

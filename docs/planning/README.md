@@ -42,39 +42,33 @@ later ADRs and agent rules.
 
 ## Planning Files By Current Use
 
-| File                               | Current status                                                                                                             |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `00-vision.md`                     | Keep if you want narrative context for the template's purpose.                                                             |
-| `01-principles.md`                 | Keep if you want high-level decision principles.                                                                           |
-| `02-scope-and-non-goals.md`        | Keep if you want the always-on vs optional-module boundary.                                                                |
-| `03-stack-decisions.md`            | Keep as a concise stack rationale, but ADRs and permanent docs are more authoritative.                                     |
-| `04-content-model.md`              | Keep only if useful; mostly superseded by `docs/cms/`, `docs/content/`, and `docs/database/`.                              |
-| `07-template-repo-spec.md`         | Archive/delete candidate; `src/`, `README.md`, `AGENTS.md`, and `docs/documentation-map.md` are the current structure map. |
-| `08-quality-gates.md`              | Archive/delete candidate; `package.json`, `docs/template-maintenance.md`, and CI are current.                              |
-| `09-maintenance-loop.md`           | Archive/delete candidate; mostly superseded by current maintenance, operations, and runbook docs.                          |
-| `10-build-decision-ledger.md`      | Archive/delete candidate after v1; useful only as implementation history. Accepted ADRs now hold durable decisions.        |
-| `11-template-build-backlog.md`     | Keep until v1 tagging/history is no longer useful; not a live task list.                                                   |
-| `12-post-v1-roadmap.md`            | Keep if you want an idea backlog for future project threads.                                                               |
-| `13-bootstrap-contract-project.md` | Archive/delete candidate once ADR-021 and bootstrap docs are enough.                                                       |
-| `13-bootstrap-contract-phases/`    | Delete/archive candidate; phase prompts are implementation history and should not guide new work.                          |
-| `Do-this-next.md`                  | Archive/delete candidate; snapshot only.                                                                                   |
-| `maintainer-context.md`            | Archive/delete candidate; one-shot LLM briefing that drifts by design.                                                     |
+| File                            | Current status                                                                                        |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `00-vision.md`                  | Keep if you want narrative context for the template's purpose.                                        |
+| `01-principles.md`              | Keep if you want high-level decision principles.                                                      |
+| `02-scope-and-non-goals.md`     | Keep if you want the always-on vs optional-module boundary.                                           |
+| `03-stack-decisions.md`         | Keep as a concise stack rationale, but ADRs and permanent docs are more authoritative.                |
+| `04-content-model.md`           | Keep only if useful; mostly superseded by `docs/cms/`, `docs/content/`, and `docs/database/`.         |
+| `11-template-build-backlog.md`  | Keep until v1 tagging/history is no longer useful; not a live task list.                              |
+| `12-post-v1-roadmap.md`         | Keep if you want an idea backlog for future project threads.                                          |
+| `13-bootstrap-contract-phases/` | Delete/archive candidate; phase prompts are implementation history and should not guide new work.     |
+| `launch-roadmap.md`             | Historical checkpoint only; current launch instructions live in permanent docs and platform runbooks. |
+| `passes/`                       | Historical pass specs only; do not treat them as current implementation guidance.                     |
+
+Previously listed planning files `07-template-repo-spec.md` through
+`10-build-decision-ledger.md`, `13-bootstrap-contract-project.md`,
+`Do-this-next.md`, and `maintainer-context.md` have already been removed. Do not
+resurrect them to satisfy old references.
 
 ## Deletion Guidance
 
 Safe first deletion/archive batch:
 
 - `docs/planning/13-bootstrap-contract-phases/`
-- `docs/planning/Do-this-next.md`
-- `docs/planning/maintainer-context.md`
 
 Likely safe second batch after v1 is tagged and no one needs the build history:
 
-- `docs/planning/07-template-repo-spec.md`
-- `docs/planning/08-quality-gates.md`
-- `docs/planning/09-maintenance-loop.md`
-- `docs/planning/10-build-decision-ledger.md`
-- `docs/planning/13-bootstrap-contract-project.md`
+- `docs/planning/passes/`
 
 Keep ADRs, and keep any planning file that still answers a useful "why" question
 better than the permanent docs. When deleting, search for inbound links first:

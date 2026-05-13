@@ -13,6 +13,7 @@ is operated from `web-data-platform`.
 | `deploy/env.example`            | Web runtime env reference                    |
 | `deploy/quadlets/web.container` | Web Quadlet joined to `web-platform.network` |
 | `deploy/Caddyfile.example`      | Per-site host Caddy snippet                  |
+| `scripts/launch-deploy.ts`      | First-launch deploy wrapper                  |
 | `scripts/deploy-preflight.ts`   | Structural web deploy readiness checks       |
 | `scripts/deploy-apply.ts`       | Migration-gated web image swap               |
 | `scripts/deploy-smoke.ts`       | URL-driven post-deploy smoke                 |
@@ -43,14 +44,25 @@ The web-data-platform repo owns:
 
 ```bash
 bun run deploy:preflight
-bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
-bun run deploy:smoke -- --url https://your-domain.example
+bun run launch:deploy -- --client=<slug> --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
 ```
 
-`deploy:apply` asks the web-data-platform CLI whether Drizzle migrations are current
-before swapping the image. The migration gate is fail-closed now that
+`launch:deploy` checks the `web-data-platform` launch checklist, delegates to
+`deploy:apply`, then runs the platform `web:test-contact-delivery` end-to-end
+smoke. On a green smoke, it marks the contact-delivery checklist item done.
+
+`deploy:apply` asks the web-data-platform CLI whether Drizzle migrations are
+current before swapping the image. The migration gate is fail-closed now that
 `web:fleet-migration-status` is live. Use `--skip-migration-gate` only for an
-approved manual migration exception.
+approved manual migration exception. Use `deploy:apply` directly only for a
+lower-level image swap where the launch checklist and contact-delivery wrapper
+are intentionally out of scope.
+
+To rerun the website smoke without a deploy:
+
+```bash
+bun run deploy:smoke -- --url https://your-domain.example
+```
 
 ## Related
 

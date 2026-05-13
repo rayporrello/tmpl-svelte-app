@@ -114,28 +114,26 @@ Production website deploys do not require automation provider secrets.
 
 ## Deployment
 
-`deploy:apply` is a migration-aware web image swap:
+For a first-time clone launch, follow the cross-repo runbook
+[`web-data-platform/docs/runbooks/launch-new-site.md`](https://github.com/rayporrello/web-data-platform/blob/main/docs/runbooks/launch-new-site.md).
+The website-side deploy entrypoint is `launch:deploy`:
 
 1. run deploy preflight
-2. ask the web-data-platform CLI whether migrations are current
-3. pull the new GHCR web image
-4. update `Image=` in `web.container`
-5. reload/restart `web.service`
-6. poll `/readyz`
-7. run `deploy:smoke`
-8. record release evidence locally
+2. check the `web-data-platform` launch checklist
+3. delegate to `deploy:apply` for the migration-aware image swap
+4. run the platform `web:test-contact-delivery` smoke
+5. mark the contact-delivery checklist item when the smoke passes
 
 ```bash
-bun run deploy:apply -- --image="$WEB_IMAGE" --sha="$GIT_SHA" --safety=rollback-safe
+bun run launch:deploy -- --client=<slug> --image="$WEB_IMAGE" --sha="$GIT_SHA" --safety=rollback-safe
 ```
 
 Use `--safety=rollback-blocked` when rollback would require a platform restore
 or roll-forward database fix.
 
-For first-time clone launch, follow the cross-repo runbook
-[`web-data-platform/docs/runbooks/launch-new-site.md`](https://github.com/rayporrello/web-data-platform/blob/main/docs/runbooks/launch-new-site.md).
-The website-side details (init/site/bootstrap and `launch:deploy` semantics)
-live in
+`deploy:apply` remains the lower-level web image swap. Use it directly only when
+the launch checklist and contact-delivery wrapper are not part of the runbook.
+The website-side details for init/site/bootstrap and launch deploy live in
 [`docs/operations/connect-to-platform.md`](docs/operations/connect-to-platform.md).
 
 ## Production Deployment
@@ -148,8 +146,8 @@ at the default sibling path used by deploy scripts:
 export WEB_DATA_PLATFORM_PATH="$HOME/web-data-platform"
 ```
 
-`deploy:apply` uses that path to run the platform migration gate before swapping
-the web image:
+`launch:deploy` delegates to `deploy:apply`, which uses that path to run the
+platform migration gate before swapping the web image:
 
 ```bash
 bun run --cwd "$WEB_DATA_PLATFORM_PATH" web:fleet-migration-status -- --client=<slug> --repo=<website-root>
@@ -157,9 +155,9 @@ bun run --cwd "$WEB_DATA_PLATFORM_PATH" web:fleet-migration-status -- --client=<
 
 The gate reads this repo's Drizzle journal, compares it with the client's shared
 Postgres database, refuses drift, verifies a recent backup before applying
-pending migrations, and exits non-zero when deploy must stop. The Phase 9 smoke
-test in `~/web-data-platform/tests/e2e-smoke.test.ts` is the contract test for
-this two-repo flow.
+pending migrations, and exits non-zero when deploy must stop. After a successful
+image swap, `launch:deploy` runs the platform `web:test-contact-delivery`
+end-to-end smoke and records the passing checklist item.
 
 This website template owns its Drizzle schema. The shared platform consumes the
 known runtime tables and grants needed for compatibility; see
@@ -180,6 +178,14 @@ and
 | Forms             | [docs/forms/README.md](docs/forms/README.md)                       |
 | Design system     | [docs/design-system/README.md](docs/design-system/README.md)       |
 | Documentation map | [docs/documentation-map.md](docs/documentation-map.md)             |
+
+## Agent Context Files
+
+- `AGENTS.md` is the repo-wide operating contract for AI coding agents.
+- `CLAUDE.md.template` is the per-project Claude context template to copy or
+  adapt in downstream sites.
+- `CLAUDE.example.md` is a concrete example for maintainers comparing expected
+  project-specific context.
 
 ## Maintenance Notes
 

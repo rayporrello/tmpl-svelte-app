@@ -7,6 +7,32 @@ This template is clone-and-customize, so versions identify important source
 snapshots rather than a package upgrade stream. Detailed historical notes are
 kept after the versioned entries for older clones deciding what to cherry-pick.
 
+## [Unreleased]
+
+### Added
+
+- `launch:deploy` now gates first deploys on the platform launch checklist,
+  delegates to `deploy:apply`, runs `web:test-contact-delivery`, and marks the
+  contact-delivery checklist item after a green smoke.
+- `check:loopback-port` verifies that `site.project.json` matches the
+  authoritative `web-data-platform` client registry.
+
+### Changed
+
+- README and deployment docs now present `launch:deploy` as the first-launch
+  entrypoint and `deploy:apply` as the lower-level image-swap command.
+- `deploy:smoke` outbox checks now match the platform fleet worker's outbox
+  completion semantics.
+- Launch blockers now expect `HEALTH_ADMIN_PASSWORD_HASH` to be rendered by the
+  platform provisioning and rotation commands.
+
+### Fixed
+
+- Stale planning docs no longer describe the already-built platform skeleton or
+  `web:test-contact-delivery` smoke as future work.
+- Planning README guidance no longer points at planning files that have already
+  been removed.
+
 ## [v1.1.0] - 2026-05-13
 
 Launch hardening for website clones backed by `web-data-platform`.
