@@ -132,7 +132,10 @@ bun run deploy:apply -- --image="$WEB_IMAGE" --sha="$GIT_SHA" --safety=rollback-
 Use `--safety=rollback-blocked` when rollback would require a platform restore
 or roll-forward database fix.
 
-For first-time clone launch, follow
+For first-time clone launch, follow the cross-repo runbook
+[`web-data-platform/docs/runbooks/launch-new-site.md`](https://github.com/rayporrello/web-data-platform/blob/main/docs/runbooks/launch-new-site.md).
+The website-side details (init/site/bootstrap and `launch:deploy` semantics)
+live in
 [`docs/operations/connect-to-platform.md`](docs/operations/connect-to-platform.md).
 
 ## Production Deployment
