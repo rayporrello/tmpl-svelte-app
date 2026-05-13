@@ -10,6 +10,12 @@ worker, backup, or restore artifacts. The Bun web runtime, Containerfile,
 Quadlet web unit, Caddy reverse proxy, `/healthz`, and `/readyz` contracts
 remain accepted.
 
+**2026-05-13 update:** The runtime now marks the app as draining on
+SIGTERM/SIGINT, causing `/healthz` to return 503 with `Connection: close`
+before process exit. The default drain timer is 25s and the Quadlet
+`StopTimeout` is 30s so Caddy has two health intervals to route away before any
+future listener stop.
+
 ---
 
 ## Decision
@@ -60,15 +66,17 @@ This exists because `svelte-adapter-bun` v0.5.2 calls `Bun.serve()` without regi
 
 | Variable              | Default | Purpose                                                     |
 | --------------------- | ------- | ----------------------------------------------------------- |
-| `SHUTDOWN_TIMEOUT_MS` | `8000`  | Milliseconds to wait after SIGTERM before `process.exit(0)` |
+| `SHUTDOWN_TIMEOUT_MS` | `25000` | Milliseconds to wait after SIGTERM before `process.exit(0)` |
 
-Caddy's `health_uri /healthz` health check (default `health_interval 10s`) routes traffic away from the unhealthy upstream within the same window the wrapper waits, so new requests stop arriving while in-flight responses drain.
+On SIGTERM, `hooks.server.ts` marks the app as draining. `/healthz` then
+returns 503 with `Connection: close`, allowing Caddy's `health_uri /healthz`
+check (`health_interval 10s`) to route traffic away before the wrapper exits.
 
 ---
 
 ## /healthz Contract
 
-Every release of this template must respond to `GET /healthz` with HTTP 200 and a JSON body `{"ok": true, ...}`. This is implemented at `src/routes/healthz/+server.ts`.
+Every non-draining release of this template must respond to `GET /healthz` with HTTP 200 and a JSON body `{"ok": true, ...}`. During SIGTERM drain it returns HTTP 503 with `{"ok": false, "draining": true, ...}` and `Connection: close`. This is implemented at `src/routes/healthz/+server.ts`.
 
 The Containerfile `HEALTHCHECK` directive, Quadlet `HealthCmd`, and the CI smoke step all verify this endpoint. It is contractual — breaking it breaks deployment pipelines.
 
@@ -104,7 +112,7 @@ A clone of this template must be able to:
 3. `bun run build` — produce a complete `build/` directory
 4. `podman build --format docker -f Containerfile -t <name> .` — build a runnable image with the Containerfile `HEALTHCHECK` preserved
 5. `podman run --rm -p 127.0.0.1:3000:3000 -e ORIGIN=http://127.0.0.1:3000 -e PUBLIC_SITE_URL=http://127.0.0.1:3000 -e DATABASE_URL=postgres://... <name>` — start successfully
-6. `GET /healthz` → 200 `{"ok":true}` — pass the liveness check
+6. `GET /healthz` → 200 `{"ok":true}` while serving traffic; 503 `{"ok":false,"draining":true}` during SIGTERM drain
 7. Roll back by changing the SHA in the Quadlet and restarting the unit
 
 This invariant is the load-bearing assertion every later batch defends. If any of these steps fails on a clean clone, that is a template defect, not a per-project configuration issue.

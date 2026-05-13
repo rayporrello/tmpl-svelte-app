@@ -6,6 +6,10 @@ import { toSafeError } from '$lib/server/safe-error';
 import { initEnv } from '$lib/server/env';
 import { applySecurityHeaders } from '$lib/server/security-headers';
 import { handleSmokeContactRequest } from '$lib/server/forms/contact-action';
+import { isShuttingDown, markShuttingDown } from '$lib/server/lifecycle';
+
+process.once('SIGTERM', markShuttingDown);
+process.once('SIGINT', markShuttingDown);
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Validate env vars on first runtime request; no-op on subsequent calls.
@@ -15,6 +19,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const smokeResponse = await handleSmokeContactRequest(event);
 	const response = smokeResponse ?? (await resolve(event));
 	applySecurityHeaders(response.headers, event.url, { method: event.request.method });
+	if (isShuttingDown()) response.headers.set('Connection', 'close');
 	return response;
 };
 

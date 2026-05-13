@@ -482,7 +482,7 @@ export async function checkQuadletProject(
 		'Network=web-platform.network',
 		`PublishPort=127.0.0.1:${expectedPort}:3000`,
 		`HostName=${slug}-web`,
-		'StopTimeout=15',
+		'StopTimeout=30',
 	];
 	const missing = missingLines(content, expectedLines);
 
