@@ -73,11 +73,12 @@ bun run validate
 
 For production, the operator provisions the client from `web-data-platform`:
 
-1. `provision-client --slug=<slug>` creates the DB, role, generated secrets, and
-   registry entry.
-2. `render-client-env --client=<slug>` writes `~/secrets/<slug>.prod.env`.
-3. `run-fleet-migrations --client=<slug>` applies this repo's Drizzle
-   migrations to that client's DB.
+1. `web:provision-client -- --slug=<slug>` creates the DB, role, generated
+   secrets, and registry entry.
+2. `web:render-client-env -- --slug=<slug>` writes
+   `~/secrets/<slug>.prod.env`.
+3. `web:fleet-migration-status -- --client=<slug> --repo=<root>` applies this
+   repo's Drizzle migrations to that client's DB.
 4. This repo's `deploy/quadlets/web.container` is installed with
    `Network=web-platform.network` and the reserved loopback port.
 5. Host Caddy proxies the domain to `127.0.0.1:<loopbackPort>`.
@@ -97,12 +98,12 @@ bun run deploy:preflight
 Deploy is a web image swap:
 
 ```bash
-bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha>
+bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
 ```
 
-During Phase 1 of the shared-infra redirect, `deploy:apply` warns and proceeds
-when the web-data-platform CLI is missing. Once the web-data-platform migration CLI lands, that
-migration gate becomes hard-fail.
+`deploy:apply` hard-fails when the web-data-platform migration CLI is missing or
+reports drift/failure. Use `--safety=rollback-blocked` instead when the previous
+web image cannot safely run against the post-migration schema.
 
 ## What Not To Add Back
 

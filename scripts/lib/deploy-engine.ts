@@ -46,6 +46,7 @@ export interface PlanDeployOptions {
 
 export interface ApplyDeployOptions {
 	dryRun?: boolean;
+	skipMigrationGate?: boolean;
 	rootDir?: string;
 	env?: NodeJS.ProcessEnv;
 	runner?: DeployRunner;
@@ -58,8 +59,9 @@ export interface ApplyDeployOptions {
 	smokeBaseUrl?: string;
 }
 
-const WEB_DATA_PLATFORM_CLI_MISSING_WARNING =
-	'[deploy:apply] web-data-platform CLI not found at WEB_DATA_PLATFORM_PATH — migration gate skipped. Confirm migrations applied manually before deploy.';
+const WEB_DATA_PLATFORM_MIGRATION_SCRIPT = 'web:fleet-migration-status';
+const WEB_DATA_PLATFORM_SKIP_WARNING =
+	'[deploy:apply] migration gate skipped by --skip-migration-gate. Confirm migrations and grants manually before deploy.';
 
 type DrizzleJournal = {
 	entries?: Array<{ tag?: unknown }>;
@@ -283,8 +285,31 @@ function webDataPlatformPath(rootDir: string, env: NodeJS.ProcessEnv): string {
 	return resolve(rootDir, '..', 'web-data-platform');
 }
 
-function webDataPlatformCliAvailable(path: string): boolean {
-	return existsSync(join(path, 'package.json'));
+function webDataPlatformCliStatus(path: string): { ok: true } | { ok: false; detail: string } {
+	const packageJsonPath = join(path, 'package.json');
+	if (!existsSync(packageJsonPath)) {
+		return {
+			ok: false,
+			detail: `WEB_DATA_PLATFORM_PATH does not point at web-data-platform: missing ${packageJsonPath}.`,
+		};
+	}
+	try {
+		const parsed = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
+			scripts?: Record<string, unknown>;
+		};
+		if (typeof parsed.scripts?.[WEB_DATA_PLATFORM_MIGRATION_SCRIPT] === 'string') {
+			return { ok: true };
+		}
+		return {
+			ok: false,
+			detail: `${packageJsonPath} is missing scripts["${WEB_DATA_PLATFORM_MIGRATION_SCRIPT}"].`,
+		};
+	} catch (error) {
+		return {
+			ok: false,
+			detail: `Could not parse ${packageJsonPath}: ${error instanceof Error ? error.message : String(error)}`,
+		};
+	}
 }
 
 async function verifyMigrationsWithWebDataPlatform(opts: {
@@ -292,14 +317,27 @@ async function verifyMigrationsWithWebDataPlatform(opts: {
 	env: NodeJS.ProcessEnv;
 	runner: DeployRunner;
 	dryRun: boolean;
+	skipMigrationGate: boolean;
 }): Promise<OpsResult> {
+	if (opts.skipMigrationGate) {
+		return warn('DEPLOY-MIGRATE-SKIP-001', 'Migration gate explicitly skipped', {
+			detail: WEB_DATA_PLATFORM_SKIP_WARNING,
+			remediation: [
+				'NEXT: Confirm web-data-platform migrations and app/fleet-worker grants have been applied manually before deploying this web image.',
+			],
+			runbook: 'docs/operations/deploy-apply.md',
+		});
+	}
+
 	const dataPlatformPath = webDataPlatformPath(opts.rootDir, opts.env);
 	const client = clientSlugFrom(opts.rootDir, opts.env);
-	if (!webDataPlatformCliAvailable(dataPlatformPath)) {
-		return warn('DEPLOY-MIGRATE-001', 'Migration gate skipped', {
-			detail: WEB_DATA_PLATFORM_CLI_MISSING_WARNING,
+	const cli = webDataPlatformCliStatus(dataPlatformPath);
+	if (!cli.ok) {
+		return fail('DEPLOY-MIGRATE-001', 'web-data-platform migration gate unavailable', {
+			detail: cli.detail,
 			remediation: [
-				'NEXT: Confirm web-data-platform migrations have been applied manually before deploying this web image.',
+				'NEXT: Set WEB_DATA_PLATFORM_PATH to the web-data-platform checkout or keep it at the default sibling path.',
+				'NEXT: Pass --skip-migration-gate only for an approved manual migration exception.',
 			],
 			runbook: 'docs/operations/deploy-apply.md',
 		});
@@ -310,7 +348,7 @@ async function verifyMigrationsWithWebDataPlatform(opts: {
 		'run',
 		'--cwd',
 		dataPlatformPath,
-		'web:fleet-migration-status',
+		WEB_DATA_PLATFORM_MIGRATION_SCRIPT,
 		'--',
 		`--client=${client}`,
 		`--repo=${opts.rootDir}`,
@@ -330,7 +368,7 @@ async function verifyMigrationsWithWebDataPlatform(opts: {
 		return fail('DEPLOY-MIGRATE-001', 'web-data-platform migration gate failed', {
 			detail: commandOutputDetail(status),
 			remediation: [
-				`bun run --cwd ${dataPlatformPath} web:run-fleet-migrations -- --client=${client}`,
+				`bun run --cwd ${dataPlatformPath} ${WEB_DATA_PLATFORM_MIGRATION_SCRIPT} -- --client=${client} --repo=${opts.rootDir}`,
 			],
 			runbook: 'docs/operations/deploy-apply.md',
 		});
@@ -432,6 +470,7 @@ export async function applyDeploy(
 	opts: ApplyDeployOptions = {}
 ): Promise<OpsResult[]> {
 	const dryRun = opts.dryRun === true;
+	const skipMigrationGate = opts.skipMigrationGate === true;
 	const rootDir = opts.rootDir ?? process.cwd();
 	const env = opts.env ?? process.env;
 	const runner = opts.runner ?? createDefaultDeployRunner();
@@ -441,7 +480,13 @@ export async function applyDeploy(
 	if (hasFail(preflight)) return preflight;
 	results.push(pass('DEPLOY-PREFLIGHT-001', 'Preflight passed'));
 
-	const migrationGate = await verifyMigrationsWithWebDataPlatform({ rootDir, env, runner, dryRun });
+	const migrationGate = await verifyMigrationsWithWebDataPlatform({
+		rootDir,
+		env,
+		runner,
+		dryRun,
+		skipMigrationGate,
+	});
 	results.push(migrationGate);
 	if (migrationGate.severity === 'fail') return results;
 

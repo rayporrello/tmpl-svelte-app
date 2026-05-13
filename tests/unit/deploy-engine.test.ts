@@ -33,6 +33,39 @@ function writeQuadlet(name: string, image: string): void {
 	);
 }
 
+function writeWebDataPlatformFixture(scripts: Record<string, string> = {}): string {
+	const dir = join(tempDir, 'web-data-platform');
+	mkdirSync(dir, { recursive: true });
+	writeFileSync(
+		join(dir, 'package.json'),
+		JSON.stringify(
+			{
+				private: true,
+				scripts: {
+					'web:fleet-migration-status': 'bun run scripts/fleet-migration-status.ts',
+					...scripts,
+				},
+			},
+			null,
+			'\t'
+		)
+	);
+	return dir;
+}
+
+function migrationGateCommand(): string[] {
+	return [
+		'bun',
+		'run',
+		'--cwd',
+		join(tempDir, 'web-data-platform'),
+		'web:fleet-migration-status',
+		'--',
+		'--client=deploy-engine',
+		`--repo=${rootDir}`,
+	];
+}
+
 function seedProject(image = 'ghcr.io/example/site:old'): void {
 	write(
 		'site.project.json',
@@ -131,6 +164,7 @@ beforeEach(() => {
 	quadletsDir = join(rootDir, 'deploy/quadlets');
 	process.env.OPS_STATE_DIR = join(tempDir, 'ops');
 	seedProject();
+	writeWebDataPlatformFixture();
 });
 
 afterEach(() => {
@@ -200,14 +234,9 @@ describe('deploy engine', () => {
 	});
 
 	it('uses Bun cwd syntax for the web-data-platform migration gate command', async () => {
-		const webDataPlatformDir = join(tempDir, 'web-data-platform');
-		mkdirSync(webDataPlatformDir, { recursive: true });
-		writeFileSync(join(webDataPlatformDir, 'package.json'), JSON.stringify({ private: true }));
-
 		const results = await applyDeploy(plan(), {
 			dryRun: true,
 			rootDir,
-			env: { ...process.env, WEB_DATA_PLATFORM_PATH: webDataPlatformDir },
 			runner: fakeRunner(),
 			preflight: passingPreflight(),
 		});
@@ -226,6 +255,71 @@ describe('deploy engine', () => {
 		);
 	});
 
+	it('fails closed when the web-data-platform path is missing', async () => {
+		const runner = fakeRunner();
+		const results = await applyDeploy(plan(), {
+			rootDir,
+			env: { ...process.env, WEB_DATA_PLATFORM_PATH: join(tempDir, 'missing-platform') },
+			runner,
+			preflight: passingPreflight(),
+		});
+
+		expect(runner.calls).toEqual([]);
+		expect(results).toContainEqual(
+			expect.objectContaining({
+				id: 'DEPLOY-MIGRATE-001',
+				severity: 'fail',
+				summary: 'web-data-platform migration gate unavailable',
+				detail: expect.stringContaining('missing'),
+			})
+		);
+	});
+
+	it('fails closed when the web-data-platform repo does not expose the migration script', async () => {
+		const invalidDir = join(tempDir, 'invalid-platform');
+		mkdirSync(invalidDir, { recursive: true });
+		writeFileSync(join(invalidDir, 'package.json'), JSON.stringify({ private: true, scripts: {} }));
+
+		const runner = fakeRunner();
+		const results = await applyDeploy(plan(), {
+			rootDir,
+			env: { ...process.env, WEB_DATA_PLATFORM_PATH: invalidDir },
+			runner,
+			preflight: passingPreflight(),
+		});
+
+		expect(runner.calls).toEqual([]);
+		expect(results).toContainEqual(
+			expect.objectContaining({
+				id: 'DEPLOY-MIGRATE-001',
+				severity: 'fail',
+				detail: expect.stringContaining('web:fleet-migration-status'),
+			})
+		);
+	});
+
+	it('allows an explicit migration-gate skip with a loud warning', async () => {
+		const results = await applyDeploy(plan(), {
+			dryRun: true,
+			skipMigrationGate: true,
+			rootDir,
+			env: { ...process.env, WEB_DATA_PLATFORM_PATH: join(tempDir, 'missing-platform') },
+			runner: fakeRunner(),
+			preflight: passingPreflight(),
+		});
+
+		expect(results).toContainEqual(
+			expect.objectContaining({
+				id: 'DEPLOY-MIGRATE-SKIP-001',
+				severity: 'warn',
+				detail: expect.stringContaining('--skip-migration-gate'),
+			})
+		);
+		expect(results).toContainEqual(
+			expect.objectContaining({ id: 'DEPLOY-DRY-RUN-001', severity: 'info' })
+		);
+	});
+
 	it('applies a live deploy, records the release, and appends a passing smoke event', async () => {
 		const runner = fakeRunner();
 
@@ -238,6 +332,7 @@ describe('deploy engine', () => {
 		});
 
 		expect(runner.calls).toEqual([
+			migrationGateCommand(),
 			['podman', 'pull', 'ghcr.io/example/site:new'],
 			['systemctl', '--user', 'daemon-reload'],
 			['systemctl', '--user', 'restart', 'web.service'],

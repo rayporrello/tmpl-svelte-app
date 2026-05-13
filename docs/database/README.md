@@ -51,13 +51,18 @@ bun run privacy:prune
 Fleet migrations are run from the web-data-platform repo:
 
 ```bash
-bun run --cwd ../web-data-platform web:run-fleet-migrations -- --client=<slug>
+bun run --cwd ../web-data-platform web:fleet-migration-status -- --client=<slug> --repo=<website-root>
 ```
 
 `deploy:apply` verifies migration status through the web-data-platform CLI before
 swapping the web image. The website repo records release evidence locally but
 does not maintain a separate migration ledger; Drizzle's own
 `drizzle.__drizzle_migrations` table remains source of truth.
+
+`bun run db:check` also rejects unauthorized `CREATE EXTENSION` statements in
+Drizzle SQL. Production migrations run as `platform_admin`, which is not a
+Postgres superuser; ask the platform operator to pre-install trusted extensions
+before deploying a migration that needs one.
 
 ## Readiness
 

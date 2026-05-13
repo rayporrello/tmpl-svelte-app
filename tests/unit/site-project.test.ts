@@ -102,6 +102,55 @@ describe('site.project.json manifest', () => {
 		);
 	});
 
+	it('rewrites Caddy domains and reverse proxy port from the manifest', () => {
+		const root = tempProject();
+		mkdirSync(join(root, 'deploy'), { recursive: true });
+		writeFileSync(
+			join(root, 'deploy/Caddyfile.example'),
+			[
+				'# Replace example.com with the real domain before use.',
+				'example.com {',
+				'    reverse_proxy 127.0.0.1:3000 {',
+				'        health_uri /healthz',
+				'    }',
+				'}',
+				'www.example.com {',
+				'    redir https://example.com{uri} permanent',
+				'}',
+				'',
+			].join('\n')
+		);
+		const manifest = {
+			...manifestFromAnswers({
+				packageName: 'acme-site',
+				siteName: 'Acme Site',
+				siteUrl: 'https://acme.example',
+				description: 'A strong lead generation website.',
+				ghOwner: 'acme',
+				ghRepo: 'acme-site',
+				contactEmail: 'hello@acme.example',
+				project: 'acme-site',
+				domain: 'acme.example',
+				shortName: 'Acme',
+			}),
+			deployment: {
+				unitName: 'acme-site-web',
+				containerImage: 'ghcr.io/acme/acme-site:<sha>',
+				loopbackPort: 3207,
+			},
+		};
+
+		applyProjectUpdates(root, plannedProjectUpdates(root, manifest));
+
+		const caddy = readFileSync(join(root, 'deploy/Caddyfile.example'), 'utf8');
+		expect(caddy).toContain('Configured for acme.example.');
+		expect(caddy).toContain('acme.example {');
+		expect(caddy).toContain('www.acme.example {');
+		expect(caddy).toContain('redir https://acme.example{uri} permanent');
+		expect(caddy).toContain('reverse_proxy 127.0.0.1:3207 {');
+		expect(caddy).not.toContain('example.com');
+	});
+
 	it('creates CLAUDE.md from CLAUDE.md.template on first write', () => {
 		const root = tempProject();
 		writeFileSync(

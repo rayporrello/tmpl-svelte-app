@@ -12,6 +12,12 @@ This template still uses SOPS + age, but production secret ownership changed.
 
 Production website clones no longer carry production secrets.
 
+The platform repo also owns WAL-G credential custody, the
+`~/secrets/web-platform-walg-libsodium.key` backup-encryption key, and SOPS
+recipient rotation for production secrets. Website clones do not participate in
+`web:rotate-sops-recipient`; a clone-local `secrets.yaml`, when present, is
+dev-only and encrypted to that clone's own age recipient.
+
 ## Website Runtime Env
 
 The platform-rendered website env contains values such as:
@@ -51,6 +57,9 @@ They are not production deploy/preflight requirements in this repo.
 - Add new website runtime env vars to `src/lib/server/env.ts`,
   `.env.example`, and `deploy/env.example`.
 - Add production secret categories to the web-data-platform repo docs and examples.
+- Use `web:rotate-client-password` for app database password rotation and
+  `web:rotate-worker-password` for fleet-worker database password rotation; both
+  are platform operations.
 
 See [ADR-013](../planning/adrs/ADR-013-sops-age-secrets-management.md) and
 [ADR-031](../planning/adrs/ADR-031-shared-infrastructure-cell.md).

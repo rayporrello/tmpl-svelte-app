@@ -67,7 +67,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
-		"db:check": "drizzle-kit check",
+		"db:check": "bun run scripts/check-db-migrations.ts && drizzle-kit check",
 		"privacy:prune": "bun run scripts/privacy-prune.ts",
 		"secrets:render": "bash scripts/render-secrets.sh",
 		"secrets:check": "bash scripts/check-secrets.sh",

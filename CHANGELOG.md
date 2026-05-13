@@ -7,6 +7,41 @@ This template is clone-and-customize, so versions identify important source
 snapshots rather than a package upgrade stream. Detailed historical notes are
 kept after the versioned entries for older clones deciding what to cherry-pick.
 
+## [v1.1.0] - 2026-05-13
+
+Launch hardening for website clones backed by `web-data-platform`.
+
+### Added
+
+- `docs/operations/connect-to-platform.md`, a clone-to-launch runbook covering
+  website initialization, platform client provisioning, env rendering, Caddy
+  installation, deploy, smoke, and fleet-worker activation.
+- A `CREATE EXTENSION` migration guard in `db:check` so website Drizzle SQL does
+  not rely on superuser-only production privileges.
+- Tests covering the deploy skip flag, fail-closed platform validation,
+  migration SQL guard, and Caddy rewrite behavior.
+
+### Changed
+
+- `deploy:apply` now fail-closes when `WEB_DATA_PLATFORM_PATH` is missing,
+  invalid, or does not expose `web:fleet-migration-status`.
+- Added an explicit `--skip-migration-gate` exception path for approved manual
+  migration cases.
+- `init:site` now rewrites both Caddy domains and the `reverse_proxy` loopback
+  port from `site.project.json`.
+- Deployment docs now use `web:fleet-migration-status` and include the required
+  `--safety=rollback-safe|rollback-blocked` flag.
+
+### Fixed
+
+- Removed the last stale fleet-migration handoff language.
+- Clarified that website clones do not participate in platform SOPS recipient
+  rotation and that clone-local `secrets.yaml` is dev-only.
+
+How to upgrade: pull the template changes, rerun `bun run init:site -- --write`
+if your clone changes `deployment.loopbackPort`, and deploy with a valid
+`WEB_DATA_PLATFORM_PATH` or an explicitly approved `--skip-migration-gate`.
+
 ## [v1.0.0] - 2026-05-11
 
 Phase 10: documentation finalization alongside `web-data-platform`.

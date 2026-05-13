@@ -1,6 +1,6 @@
 # ADR-028 — deploy:apply Semantics
 
-Status: Accepted, updated by ADR-031  
+Status: Accepted, updated by ADR-031 and the fail-closed gate hardening
 Date: 2026-05-08
 
 ## Decision
@@ -19,16 +19,19 @@ Behavior:
 8. run `deploy:smoke`
 9. record release evidence locally
 
-## Phase 1 Soft Gate
+## Migration Gate Availability
 
-During the website cleanup phase, the web-data-platform CLI may not exist yet. In that
-case `deploy:apply` warns and proceeds:
+The web-data-platform migration CLI now exists. `deploy:apply` therefore
+hard-fails when `WEB_DATA_PLATFORM_PATH` is missing, invalid, or does not expose
+`scripts["web:fleet-migration-status"]`.
 
-```text
-[deploy:apply] web-data-platform CLI not found at WEB_DATA_PLATFORM_PATH — migration gate skipped. Confirm migrations applied manually before deploy.
+The only bypass is explicit:
+
+```bash
+bun run deploy:apply -- --image=<image> --sha=<sha> --safety=rollback-safe --skip-migration-gate
 ```
 
-After the web-data-platform migration CLI lands, this becomes a hard gate.
+That flag is for an approved manual migration exception and emits a warning.
 
 ## Non-Goals
 

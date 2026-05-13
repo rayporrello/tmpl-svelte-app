@@ -392,6 +392,10 @@ function rewriteCaddyfile(content: string, manifest: SiteProjectManifest): strin
 		/(redir https:\/\/)[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(\{uri\} permanent)/u,
 		`$1${apex}$2`
 	);
+	out = out.replace(
+		/^(?<indent>\s*reverse_proxy\s+127\.0\.0\.1:)\d+(?<rest>\s*\{)/mu,
+		`$<indent>${manifest.deployment.loopbackPort}$<rest>`
+	);
 	out = out.replace(/\bexample\.com\b/gu, apex);
 	return out;
 }

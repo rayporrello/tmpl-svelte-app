@@ -43,19 +43,20 @@ The web-data-platform repo owns:
 
 ```bash
 bun run deploy:preflight
-bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha>
+bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
 bun run deploy:smoke -- --url https://your-domain.example
 ```
 
 `deploy:apply` asks the web-data-platform CLI whether Drizzle migrations are current
-before swapping the image. During Phase 1 only, a missing web-data-platform repo produces
-a warning and skips the migration gate so the website cleanup can land before
-the web-data-platform CLI exists.
+before swapping the image. The migration gate is fail-closed now that
+`web:fleet-migration-status` is live. Use `--skip-migration-gate` only for an
+approved manual migration exception.
 
 ## Related
 
 - [secrets.md](secrets.md)
 - [runbook.md](runbook.md)
+- [../operations/connect-to-platform.md](../operations/connect-to-platform.md)
 - [../operations/deploy-apply.md](../operations/deploy-apply.md)
 - [../operations/rollback.md](../operations/rollback.md)
 - [../operations/architecture.md](../operations/architecture.md)

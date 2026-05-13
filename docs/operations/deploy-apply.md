@@ -15,17 +15,23 @@
 9. run `deploy:smoke`
 10. record release evidence in the local ops ledger
 
-## Phase 1 Soft Gate
+## Migration Gate Policy
 
-Until the web-data-platform CLI exists, a missing `WEB_DATA_PLATFORM_PATH` soft-skips the
-migration gate and emits:
+`deploy:apply` requires a valid `web-data-platform` checkout. If
+`WEB_DATA_PLATFORM_PATH` is unset, the default is the sibling path
+`../web-data-platform`. The path must contain a `package.json` with
+`scripts["web:fleet-migration-status"]`.
 
-```text
-[deploy:apply] web-data-platform CLI not found at WEB_DATA_PLATFORM_PATH — migration gate skipped. Confirm migrations applied manually before deploy.
+The gate is fail-closed. If the platform repo is missing or invalid, fix the
+path before deploying:
+
+```bash
+export WEB_DATA_PLATFORM_PATH="$HOME/web-data-platform"
 ```
 
-This is temporary. The web-data-platform migration gate becomes hard once the
-web-data-platform repo implements `web:fleet-migration-status`.
+For rare approved manual exceptions, `--skip-migration-gate` bypasses the gate
+with a warning. Before using it, confirm migrations and app/fleet-worker grants
+were applied manually.
 
 ## What It Does Not Do
 

@@ -125,6 +125,16 @@ Production website deploys do not require automation provider secrets.
 7. run `deploy:smoke`
 8. record release evidence locally
 
+```bash
+bun run deploy:apply -- --image="$WEB_IMAGE" --sha="$GIT_SHA" --safety=rollback-safe
+```
+
+Use `--safety=rollback-blocked` when rollback would require a platform restore
+or roll-forward database fix.
+
+For first-time clone launch, follow
+[`docs/operations/connect-to-platform.md`](docs/operations/connect-to-platform.md).
+
 ## Production Deployment
 
 Production data infrastructure is shared and operated from

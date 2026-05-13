@@ -32,7 +32,7 @@ systemctl --user enable --now <slug>-web.service
 
 ```bash
 bun run deploy:preflight
-bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha>
+bun run deploy:apply -- --image=ghcr.io/<owner>/<repo>:<sha> --sha=<sha> --safety=rollback-safe
 bun run deploy:smoke -- --url https://example.com
 ```
 
@@ -44,12 +44,12 @@ bun run deploy:smoke -- --url https://example.com
 Migrations are applied by the web-data-platform repo:
 
 ```bash
-bun run --cwd ../web-data-platform web:run-fleet-migrations -- --client=<slug>
+bun run --cwd ../web-data-platform web:fleet-migration-status -- --client=<slug> --repo=<website-root>
 ```
 
-During Phase 1 only, the website deploy CLI warns and proceeds if the platform
-CLI is not present. After the web-data-platform migration CLI lands, deployments must
-hard-fail when migrations are pending.
+The website deploy CLI hard-fails when the platform CLI is missing, invalid, or
+reports migration drift/failure. `--skip-migration-gate` exists only for an
+approved manual migration exception.
 
 ## Rollback
 

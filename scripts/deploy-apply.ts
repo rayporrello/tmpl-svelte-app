@@ -16,13 +16,14 @@ type CliOptions = {
 	sha?: string;
 	safety?: MigrationSafety;
 	dryRun: boolean;
+	skipMigrationGate: boolean;
 	noColor: boolean;
 };
 
 const SAFETY_VALUES = new Set<MigrationSafety>(['rollback-safe', 'rollback-blocked']);
 
-function parseArgs(argv: readonly string[]): CliOptions {
-	const options: CliOptions = { dryRun: false, noColor: false };
+export function parseArgs(argv: readonly string[]): CliOptions {
+	const options: CliOptions = { dryRun: false, skipMigrationGate: false, noColor: false };
 
 	for (const arg of argv) {
 		if (arg.startsWith('--image=')) {
@@ -37,6 +38,8 @@ function parseArgs(argv: readonly string[]): CliOptions {
 			options.safety = value as MigrationSafety;
 		} else if (arg === '--dry-run') {
 			options.dryRun = true;
+		} else if (arg === '--skip-migration-gate') {
+			options.skipMigrationGate = true;
 		} else if (arg === '--no-color') {
 			options.noColor = true;
 		} else {
@@ -109,7 +112,12 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 	const results = [...planned.results];
 
 	if (planned.plan) {
-		results.push(...(await applyDeploy(planned.plan, { dryRun: options.dryRun })));
+		results.push(
+			...(await applyDeploy(planned.plan, {
+				dryRun: options.dryRun,
+				skipMigrationGate: options.skipMigrationGate,
+			}))
+		);
 	}
 
 	printOpsResults(results, { noColor: options.noColor });
