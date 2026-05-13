@@ -540,7 +540,7 @@ async function checkHealthAdminPasswordHash(
 
 	if (!caddyPasswordHashLooksValid(value)) {
 		return fail(
-			`HEALTH_ADMIN_PASSWORD_HASH in ${reference.label} does not look like a Caddy bcrypt hash. Generate it with caddy hash-password.`
+			`HEALTH_ADMIN_PASSWORD_HASH in ${reference.label} does not look like a Caddy bcrypt hash. The platform renders it automatically; rerun web:provision-client (or web:rotate-client-health-password) in web-data-platform to regenerate.`
 		);
 	}
 
@@ -680,7 +680,7 @@ export const LAUNCH_BLOCKERS: LaunchBlocker[] = [
 		severity: 'required',
 		check: checkHealthAdminPasswordHash,
 		fixHint:
-			'NEXT: Generate a hash with `caddy hash-password`, store it as HEALTH_ADMIN_PASSWORD_HASH, and reload Caddy.',
+			'NEXT: Run `bun run web:provision-client` (or `web:rotate-client-health-password`) in web-data-platform; it generates the bcrypt hash and renders it into HEALTH_ADMIN_PASSWORD_HASH for you.',
 		docsPath: 'docs/operations/health.md',
 	},
 ];
