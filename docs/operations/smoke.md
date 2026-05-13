@@ -30,6 +30,26 @@ Fail-closed backlog responses use this JSON shape:
 { "error": "smoke-backlog-exceeded", "count": 101 }
 ```
 
+## Outbox Status (Platform Fleet Worker)
+
+The smoke polls the `automation_events` row created by the smoke `POST /contact`
+and treats statuses uniformly across the template's local one-shot worker and
+the `web-data-platform` fleet worker:
+
+| Status                   | Outcome                                                                                                                                                              |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `completed`              | Pass. Either the local worker skipped on `is_smoke_test=true`, or the platform worker dispatched and recorded the row as completed.                                  |
+| `pending`                | Skipped (info) when `--allow-pending` is set. Use during the **first** deploy of a client before the platform fleet worker has been marked active. Fails by default. |
+| `processing`             | Smoke keeps polling within the 30s window — the worker has claimed the row and is mid-dispatch.                                                                      |
+| `dead_letter` / `failed` | Hard fail. Inspect platform fleet-worker logs and the row in `automation_dead_letters`.                                                                              |
+
+Override the default 30s outbox wait with `--allow-pending` when you know the
+platform worker isn't draining this client yet:
+
+```bash
+bun run deploy:smoke -- --url https://your-site.example --allow-pending
+```
+
 ## Pruning
 
 Smoke contact rows are tagged with `is_smoke_test = true` and pruned after 24

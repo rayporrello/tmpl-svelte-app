@@ -83,6 +83,36 @@ describe('deploy smoke', () => {
 		});
 	});
 
+	it('accepts --allow-pending via flag and env', () => {
+		const flagged = parseArgs(['--url', 'https://example.com', '--allow-pending'], {});
+		expect(flagged.allowPending).toBe(true);
+
+		const envBased = parseArgs(['--url', 'https://example.com'], {
+			DEPLOY_SMOKE_ALLOW_PENDING: 'true',
+		});
+		expect(envBased.allowPending).toBe(true);
+
+		const defaulted = parseArgs(['--url', 'https://example.com'], {});
+		expect(defaulted.allowPending).toBe(false);
+	});
+
+	it('no longer asserts the legacy automation_skipped predicate', async () => {
+		const fetcher = fakeFetch({
+			'/': response('<h1>Home</h1>', { headers: securityHeaders() }),
+			'/healthz': response(JSON.stringify({ ok: true })),
+			'/readyz': response(JSON.stringify({ ok: true })),
+			'/sitemap.xml': response('<?xml version="1.0"?><urlset></urlset>'),
+			'/robots.txt': response('User-agent: *\nSitemap: https://example.com/sitemap.xml'),
+			'/contact': response('<h1>Contact</h1><form></form>'),
+		});
+
+		const result = await runDeploySmoke({ baseUrl: 'https://example.com', fetcher, env: {} });
+
+		expect(result.results).not.toContainEqual(
+			expect.objectContaining({ id: 'SMOKE-E2E-OUTBOX-002' })
+		);
+	});
+
 	it('fails E2E config when smoke secret is set without Postmark test token', async () => {
 		const fetcher = fakeFetch({
 			'/': response('<h1>Home</h1>', { headers: securityHeaders() }),

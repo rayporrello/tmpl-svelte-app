@@ -28,13 +28,17 @@ export type DeploySmokeOptions = {
 	timeoutMs?: number;
 	env?: NodeJS.ProcessEnv;
 	sql?: postgres.Sql;
+	allowPending?: boolean;
 };
 
 type CliOptions = {
 	baseUrl?: string;
 	skipReadyz: boolean;
 	timeoutMs: number;
+	allowPending: boolean;
 };
+
+const TERMINAL_FAILURE_STATUSES = new Set(['dead_letter', 'failed']);
 
 function pass(id: string, summary: string, detail: string): OpsResult {
 	return opsPass(id, summary, { detail });
@@ -186,7 +190,6 @@ const E2E_IDS = [
 	'SMOKE-E2E-POST-001',
 	'SMOKE-E2E-DB-001',
 	'SMOKE-E2E-OUTBOX-001',
-	'SMOKE-E2E-OUTBOX-002',
 	'SMOKE-E2E-EMAIL-001',
 	'SMOKE-E2E-PRUNE-001',
 ] as const;
@@ -213,6 +216,7 @@ async function runE2eSmoke(options: {
 	timeoutMs: number;
 	env: NodeJS.ProcessEnv;
 	sql?: postgres.Sql;
+	allowPending: boolean;
 }): Promise<OpsResult[]> {
 	const secret = options.env.SMOKE_TEST_SECRET?.trim();
 	if (!secret) return skippedE2eResults();
@@ -312,36 +316,49 @@ async function runE2eSmoke(options: {
 			const row = rows[0] as
 				| { id: string; status: string; payload: Record<string, unknown> }
 				| undefined;
-			return row?.status === 'completed' ? row : null;
+			if (!row) return null;
+			if (TERMINAL_FAILURE_STATUSES.has(row.status)) return row;
+			if (row.status === 'completed') return row;
+			if (row.status === 'pending' && options.allowPending) return row;
+			return null;
 		});
 		if (!outbox) {
 			results.push(
 				fail(
 					'SMOKE-E2E-OUTBOX-001',
-					'Smoke outbox completed',
-					'Outbox row did not reach completed within 30 seconds.'
+					'Smoke outbox status',
+					options.allowPending
+						? 'Outbox row did not reach completed or pending within 30 seconds.'
+						: 'Outbox row did not reach completed within 30 seconds. ' +
+								'If the platform fleet worker has not enabled this client yet, rerun with --allow-pending.'
 				)
 			);
 			return results;
 		}
-		results.push(
-			pass('SMOKE-E2E-OUTBOX-001', 'Smoke outbox completed', `Outbox ${outbox.id} completed.`)
-		);
-
-		if (outbox.payload.automation_skipped !== true) {
+		if (TERMINAL_FAILURE_STATUSES.has(outbox.status)) {
 			results.push(
 				fail(
-					'SMOKE-E2E-OUTBOX-002',
-					'Smoke automation skipped',
-					'Outbox metadata did not include automation_skipped=true.'
+					'SMOKE-E2E-OUTBOX-001',
+					'Smoke outbox status',
+					`Outbox ${outbox.id} reached terminal failure status=${outbox.status}; check fleet worker logs and automation_dead_letters.`
+				)
+			);
+			return results;
+		}
+		if (outbox.status === 'pending') {
+			results.push(
+				skip(
+					'SMOKE-E2E-OUTBOX-001',
+					'Smoke outbox status',
+					`Outbox ${outbox.id} is pending (worker not yet draining this client); accepted under --allow-pending.`
 				)
 			);
 		} else {
 			results.push(
 				pass(
-					'SMOKE-E2E-OUTBOX-002',
-					'Smoke automation skipped',
-					'Outbox metadata recorded automation_skipped=true.'
+					'SMOKE-E2E-OUTBOX-001',
+					'Smoke outbox status',
+					`Outbox ${outbox.id} reached completed.`
 				)
 			);
 		}
@@ -462,7 +479,16 @@ export async function runDeploySmoke(options: DeploySmokeOptions): Promise<{
 		)
 	);
 	results.push(await checkSecurityHeaders(fetcher, baseUrl, timeoutMs));
-	results.push(...(await runE2eSmoke({ fetcher, baseUrl, timeoutMs, env, sql: options.sql })));
+	results.push(
+		...(await runE2eSmoke({
+			fetcher,
+			baseUrl,
+			timeoutMs,
+			env,
+			sql: options.sql,
+			allowPending: options.allowPending ?? false,
+		}))
+	);
 
 	return {
 		results,
@@ -480,6 +506,7 @@ export function parseArgs(
 		baseUrl: env.DEPLOY_SMOKE_URL,
 		skipReadyz: env.DEPLOY_SMOKE_SKIP_READYZ === 'true',
 		timeoutMs: Number(env.DEPLOY_SMOKE_TIMEOUT_MS ?? 10_000),
+		allowPending: env.DEPLOY_SMOKE_ALLOW_PENDING === 'true',
 	};
 
 	for (let index = 0; index < argv.length; index += 1) {
@@ -491,6 +518,8 @@ export function parseArgs(
 			options.baseUrl = arg.slice('--url='.length);
 		} else if (arg === '--skip-readyz') {
 			options.skipReadyz = true;
+		} else if (arg === '--allow-pending') {
+			options.allowPending = true;
 		} else if (arg === '--timeout-ms') {
 			options.timeoutMs = Number(argv[index + 1]);
 			index += 1;
@@ -518,6 +547,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
 			baseUrl: options.baseUrl!,
 			skipReadyz: options.skipReadyz,
 			timeoutMs: options.timeoutMs,
+			allowPending: options.allowPending,
 		});
 		printOpsResults(results);
 		if (exitCode === 0) console.log('\ndeploy:smoke passed.\n');
