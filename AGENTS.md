@@ -2,6 +2,295 @@
 
 Operating rules for AI agents (Claude, Codex, Cursor, etc.) working in this repository. Read this before making any changes.
 
+This file has two jobs:
+
+1. Preserve Ray's two-repo website launch/deploy process.
+2. Preserve this template's SvelteKit, design-system, content, forms, SEO, analytics, and local-development rules.
+
+The launch scripts and runbooks are part of the product. Do not optimize them away.
+
+---
+
+## Website Fleet Operating Contract
+
+This repository participates in Ray's SvelteKit website fleet. AI agents must preserve the established two-repo architecture, launch process, deploy process, migration gate, secrets flow, Caddy/loopback routing, and backup/restore boundaries.
+
+### Prime directive
+
+Help build, validate, launch, and maintain websites without bypassing repo-defined processes.
+
+When a request touches production, secrets, databases, migrations, Caddy, Podman, Quadlet, systemd, DNS, Postmark, backups, restore, launch/deploy state, or client registry state:
+
+1. Identify the repo and task class.
+2. Read the relevant docs/runbooks/scripts before acting.
+3. Use the established command surface.
+4. Stop at gates.
+5. Never improvise around safety checks.
+6. Never hide uncertainty.
+
+If the user asks for a shortcut that conflicts with the process, explain the conflict and offer the safe runbook path.
+
+### Repo identification
+
+Before making changes or running meaningful commands, identify the current repo:
+
+```bash
+pwd
+git rev-parse --show-toplevel
+git status --short
+cat package.json 2>/dev/null | head
+```
+
+Classify as one of:
+
+- `website-repo`: this repo, `tmpl-svelte-app`, or a client clone.
+- `platform-repo`: `web-data-platform`.
+- `unknown`: stop and inspect README/docs before acting.
+
+Never assume a website repo and the platform repo are the same project.
+
+### Architecture invariants
+
+Website repos own:
+
+- SvelteKit application code, content, forms, design system, SEO/site code.
+- Drizzle schema and Drizzle migration files.
+- The website web image.
+- The website web Quadlet.
+- Local bootstrap/dev database flow.
+
+`web-data-platform` owns:
+
+- `web-platform.network`.
+- Shared Postgres cluster.
+- One production database and one production role set per client.
+- Client provisioning and production env rendering.
+- Fleet migrations and the migration gate.
+- Fleet worker.
+- Production secrets.
+- Backups, restore/PITR drills, client exports, and scratch restores.
+- Caddy site block rendering/includes.
+- Launch checklist state and production data operations.
+
+Do not move platform responsibilities into website repos. Do not reintroduce per-site production Postgres, production worker daemon, production backup/PITR, restore, or site-local production network artifacts into website repos.
+
+### Runtime model
+
+Local development and production are intentionally different.
+
+Local website development:
+
+```bash
+./bootstrap
+bun run dev
+```
+
+`./bootstrap` provisions a per-clone local Postgres container, writes local `.env`, applies migrations, and verifies DB health. Local database commands are allowed only against local `.env`:
+
+```bash
+bun run db:generate
+bun run db:migrate
+bun run db:check
+bun run automation:worker
+bun run validate
+```
+
+Production website containers:
+
+- Run as Podman containers managed by user systemd/Quadlet.
+- Join `web-platform.network`.
+- Connect to Postgres at `web-platform-postgres:5432`.
+- Use one database and one role per client.
+- Publish loopback-only web ports.
+- Receive public traffic only through host Caddy.
+
+Host Caddy proxies:
+
+```text
+public domain -> Caddy :443 -> 127.0.0.1:<loopbackPort> -> website container :3000
+```
+
+Do not expose Postgres publicly. Do not expose website containers directly as the public front door when Caddy/loopback is the contract.
+
+### Task classification
+
+Before acting, classify the request as exactly one of:
+
+- `docs-only`
+- `local-website-development`
+- `local-schema-development`
+- `production-launch-groundwork`
+- `production-deploy`
+- `migration/fleet-migration`
+- `caddy-dns-postmark-manual-integration`
+- `secrets-credentials`
+- `backup-restore-export`
+- `incident-recovery`
+- `unclear`
+
+If unclear, inspect docs and ask for the minimum missing information before risky action.
+
+### Approval/risk tiers
+
+Tier 0 — read-only. Allowed without special approval:
+
+- Inspect files, docs, package scripts, and git status.
+- Inspect non-secret logs when requested.
+- Search with `rg`.
+- Explain architecture.
+
+Tier 1 — local/non-production. Allowed after explaining local scope:
+
+- Edit website source/content/styles/tests.
+- Run `bun install --frozen-lockfile`.
+- Run `./bootstrap`.
+- Run `bun run dev`.
+- Run `bun run validate`.
+- Run local `db:generate`, `db:migrate`, `db:check`.
+- Run local one-shot automation worker.
+
+Never point local dev at production Postgres.
+
+Tier 2 — production-affecting, standard runbook. Allowed only when the user explicitly requests production work and required details are known:
+
+- Platform `bun run web:check`.
+- Platform `bun run launch:site`.
+- Platform `bun run launch:checklist`.
+- Platform `bun run web:render-client-env`.
+- Platform `bun run web:render-cluster-env`.
+- Platform `bun run web:test-contact-delivery`.
+- Website `bun run launch:deploy`.
+- Caddy validate/reload.
+- Named systemd status/restart.
+- Fleet worker status checks.
+
+Before Tier 2 actions, confirm repo path, client slug, production domain, image name/SHA when deploying, `WEB_DATA_PLATFORM_PATH`, safety mode, and relevant runbook section.
+
+Tier 3 — high-risk/destructive/exception. Do not run unless the user explicitly asks in this session and the relevant runbook has been read:
+
+- Delete a database, role, volume, container, network, backup, dump, or env file.
+- Direct production SQL.
+- PITR restore or client restore.
+- Client export containing PII.
+- Secret/password rotation.
+- Manual edit to rendered production env.
+- Manual edit to generated Quadlet/runtime files.
+- Manual edit to active `clients.json`.
+- `--skip-migration-gate`.
+- `--safety=rollback-blocked`.
+- Direct `deploy:apply` instead of `launch:deploy`.
+- Direct `web:provision-client` instead of `launch:site`.
+- Changing Drizzle migration history, journal, or applied migration hashes.
+- Caddy reload without `caddy validate`.
+
+For Tier 3, provide the risk, exact command, expected result, safe stop point, rollback/recovery reference, and what will not be done.
+
+### Task class operating matrix
+
+| Class                                   | Repo to operate from                                                                         | Normal commands                                                                                                                      | Forbidden without explicit approval                                                                                  | Read first                                                                                                           | Success looks like                                                                                          | If a gate fails                                                               |
+| --------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `docs-only`                             | Current repo, plus sibling repo only if requested                                            | `rg`, `sed`, `git diff`, docs edits, light docs validation if available                                                              | Production commands, runtime config edits, secrets edits                                                             | README, documentation map, relevant runbooks/docs                                                                    | Docs/policy updated with no app/runtime/deploy behavior change                                              | Stop, preserve diff, report discrepancy                                       |
+| `local-website-development`             | Website repo                                                                                 | `./bootstrap`, `bun run dev`, `bun run validate`, focused checks from package scripts                                                | Production env/render/deploy commands, pointing local at production                                                  | README, this file, relevant design/content/forms docs                                                                | Local site works and validation relevant to change passes                                                   | Stop at failing local check and summarize                                     |
+| `local-schema-development`              | Website repo                                                                                 | `bun run db:generate`, `bun run db:migrate`, `bun run db:check`, `bun run forms:check`                                               | Running website `db:migrate` against production, editing Drizzle journal to hide drift                               | `docs/database/README.md`, forms docs if relevant                                                                    | Schema and migration files are consistent locally                                                           | Stop; do not bypass or rewrite migration history                              |
+| `production-launch-groundwork`          | `~/web-data-platform`                                                                        | `bun install --frozen-lockfile`, `bun run web:check`, `bun run launch:site -- ...`, `bun run launch:checklist -- --client=<slug>`    | Direct `web:provision-client`, hand edits to generated runtime files, marking manual items done without verification | Platform `docs/runbooks/launch-new-site.md`, platform provisioning runbook, `docs/operations/connect-to-platform.md` | Client registered, env/Caddy/Quadlet rendered/installed, checklist initialized, client inactive until ready | Stop at the failed step; use checklist as resume cursor                       |
+| `production-deploy`                     | Website repo                                                                                 | `bun run launch:check`, `bun run deploy:preflight`, `WEB_DATA_PLATFORM_PATH=... bun run launch:deploy -- ... --safety=rollback-safe` | Direct `deploy:apply`, `--skip-migration-gate`, `--safety=rollback-blocked`, claiming success without smoke          | `docs/deployment/runbook.md`, `docs/deployment/README.md`, platform launch/contact runbooks                          | Checklist, migration gate, readiness, smoke, and contact-delivery checks pass or limitations are explicit   | Stop; preserve non-secret logs; do not bypass                                 |
+| `migration/fleet-migration`             | Website repo for files; platform repo for production apply/status                            | Local: `bun run db:check`; production gate: platform `bun run web:fleet-migration-status -- --client=<slug> --repo=<website-root>`   | Website `db:migrate` against production, changing applied hashes, editing journal to hide drift                      | `docs/database/README.md`, platform fleet migration runbook                                                          | Drift-free status or applied migrations in journal order after backup/advisory-lock checks                  | Stop and report drift/failure; use recovery runbook only after reconciliation |
+| `caddy-dns-postmark-manual-integration` | Mostly `~/web-data-platform`; external provider UIs are manual                               | Platform `launch:checklist`, `web:render-caddy-sites`, `web:render-client-env`, `web:render-cluster-env`, `caddy validate`           | Caddy reload without validate, divergent hand-written Caddy, checklist completion without external verification      | Platform launch/provisioning/contact-delivery runbooks, `docs/operations/connect-to-platform.md`                     | DNS/Postmark/provider items verified, rendered files updated, Caddy validated                               | Stop; state which external condition is missing                               |
+| `secrets-credentials`                   | `~/web-data-platform` for production secrets; website repo only for dev/example env metadata | Platform `sops secrets.yaml`, render env commands, secret-shape checks; website `bun run secrets:check`                              | Printing secrets, committing env/dumps/keys, rotating passwords without explicit request                             | `docs/deployment/secrets.md`, platform SOPS/provisioning runbooks                                                    | Encrypted source updated, renderers/checks pass, no secret material printed                                 | Stop; do not paste secret output                                              |
+| `backup-restore-export`                 | `~/web-data-platform`                                                                        | `bun run web:cluster-backup-verify -- --latest`, documented export/restore/PITR commands when explicitly requested                   | Deletes, restore/PITR, export of PII, scratch teardown beyond runbook                                                | Platform backup verify, PITR drill, client export, client restore runbooks                                           | Backup/export/restore command reaches documented expected outcome                                           | Stop; use recovery shim; treat artifacts as sensitive                         |
+| `incident-recovery`                     | Affected repo, usually platform for shared infrastructure                                    | Named `systemctl --user status`, `journalctl --user -u ... -n 120 --no-pager`, runbook recovery scripts                              | Random command retries, destructive cleanup, bypassing gates                                                         | Runbook index, affected runbook, recent command output                                                               | Failure bounded, non-secret evidence captured, next safe runbook identified                                 | Stop at first failing gate and report safe next step                          |
+| `unclear`                               | Read-only in current repo                                                                    | `pwd`, `git status`, `rg`, docs/package inspection                                                                                   | Any write or production command                                                                                      | README, package scripts, docs map/runbook index                                                                      | Task reclassified or user asked for missing details                                                         | Stop before risky action                                                      |
+
+### Normal workflows
+
+Website local development:
+
+```bash
+./bootstrap
+bun run dev
+bun run validate
+bun run launch:check
+bun run deploy:preflight
+```
+
+First launch:
+
+1. From website repo: initialize/check `site.project.json` as documented.
+2. From `~/web-data-platform`: run `bun run web:check`.
+3. From `~/web-data-platform`: run `bun run launch:site -- --slug=<slug> --repo=<website-root> --domain=<domain> ...`.
+4. Complete manual DNS/Postmark/provider checklist items.
+5. Install/render/validate Caddy according to the runbook.
+6. From website repo: export `WEB_DATA_PLATFORM_PATH`.
+7. Run `bun run launch:deploy -- --client=<slug> --image=<ghcr-image> --sha=<sha> --safety=rollback-safe`.
+8. Activate operations only when outbox tables and provider config are ready.
+9. Verify fleet worker status and contact delivery.
+
+Subsequent deploy:
+
+1. Build/push image.
+2. Confirm image SHA.
+3. Run website preflight.
+4. Run website `launch:deploy`.
+5. Let the migration gate run.
+6. Wait for `/readyz`.
+7. Run/confirm smoke and contact-delivery check.
+8. Summarize exact commands and results.
+
+Do not claim success if any gate failed.
+
+### Hard never rules
+
+- Never invent a launch/deploy sequence.
+- Never bypass platform scripts to simplify production.
+- Never run website `db:migrate` against production.
+- Never point production `DATABASE_URL` at local Postgres.
+- Never point local dev at production Postgres.
+- Never expose Postgres publicly.
+- Never publish a website container directly to `0.0.0.0` for public traffic when Caddy/loopback is the contract.
+- Never add per-site production Postgres/worker/backup/network artifacts back to website repos.
+- Never put production provider secrets in website repos.
+- Never commit `.env`, rendered `.prod.env`, secrets, dumps, or keys.
+- Never edit Drizzle migration journal to hide drift.
+- Never mark checklist items done unless the real external condition is verified.
+- Never treat green local dev as proof of production readiness.
+- Never tell the user a production deploy succeeded unless readiness, smoke, and contact-delivery checks are green or the limitation is explicitly stated.
+
+### Generated files and lower-level commands
+
+Prefer render/provision commands over hand edits. If generated output is wrong, fix the source registry/secrets/renderer, then regenerate.
+
+These commands and flags may exist but are not the normal happy path:
+
+- `deploy:apply`
+- `web:provision-client`
+- `--skip-migration-gate`
+- Direct systemd/Podman edits.
+- Direct production SQL.
+
+Use them only for documented repairs or approved exceptions.
+
+### When uncertain or blocked
+
+Use `rg`, `find`, `package.json`, README, docs, and runbooks to locate the current contract. If docs and code disagree, stop and report the discrepancy. If a command is missing, stop and report; do not invent a substitute.
+
+If the task touches production and required details are missing, ask for the missing slug/domain/repo/image/safety details before acting. If a gate fails, stop at the gate, preserve non-secret logs, summarize the failure, and point to the relevant recovery runbook.
+
+### Diff review and definition of done
+
+Before final response or PR summary:
+
+```bash
+git status --short
+git diff --stat
+git diff
+```
+
+Look for forbidden changes: secrets/env/dumps/keys committed, production credentials printed, per-site production Postgres/worker/backup/network artifacts added, Caddy changed by hand when renderer should own it, Drizzle journal edited suspiciously, migration history rewritten, production commands run without explicit request, or lockfile from the wrong package manager.
+
+Every final response must include repo identified, task class, files changed, commands run, validation result, production impact, gates passed or not run, known risks, and the next safe action.
+
+If validation was not run, say why. If production was touched, state exactly what changed. If a gate failed, state that the task stopped at the gate.
+
 ---
 
 ## Where production lives
@@ -12,15 +301,23 @@ This repo owns the SvelteKit website template and local development workflow. Pr
 
 ## Source of truth order
 
-When planning docs conflict with real files, this is the authority order — top wins:
+For launch, deploy, production data, secrets, Caddy, migrations, backups, restore, and fleet-worker work, use this authority order — top wins:
 
-1. **Files under `src/`** — the implementation is truth
-2. **`AGENTS.md`** (this file) and **`CLAUDE.md`** (project copy)
-3. **`docs/design-system/`** — real design system documentation
-4. **Accepted ADRs in `docs/planning/adrs/`**
-5. **Other planning docs** — historical context only; do not use to override implemented files
+1. **User's explicit task**, unless unsafe or contradictory to a hard guardrail.
+2. **`AGENTS.md`** (this file).
+3. **Platform and website runbooks**, especially `web-data-platform/docs/runbooks/launch-new-site.md` and this repo's `docs/operations/connect-to-platform.md`.
+4. **`package.json` scripts and script behavior**.
+5. **Accepted ADRs and architecture docs**.
 
-**Do not use stale planning notes to override implemented CSS architecture or resurrect abandoned dependencies.**
+For application/design implementation conflicts, use this authority order:
+
+1. **Files under `src/`** — the implementation is truth.
+2. **`AGENTS.md`** (this file) and **`CLAUDE.md`** (project copy).
+3. **`docs/design-system/`** — real design system documentation.
+4. **Accepted ADRs in `docs/planning/adrs/`**.
+5. **Other planning docs** — historical context only; do not use to override implemented files.
+
+**Do not use stale planning notes to override implemented CSS architecture, bypass launch/deploy runbooks, or resurrect abandoned dependencies.**
 
 ---
 
